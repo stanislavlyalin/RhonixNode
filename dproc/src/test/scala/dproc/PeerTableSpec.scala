@@ -1,15 +1,19 @@
 package dproc
 
 import cats.effect.IO
-import cats.effect.testing.scalatest.AsyncIOSpec
+import org.scalatest.Assertion
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.concurrent.Future
+
 trait FContext {
   type F[A] = IO[A]
+  import cats.effect.unsafe.implicits.global
+  implicit def toFuture(assertion: IO[Assertion]): Future[Assertion] = assertion.unsafeToFuture()
 }
 
-class PeerTableSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with FContext {
+class PeerTableSpec extends AsyncFreeSpec with Matchers with FContext {
   final case class Endpoint(host: String, tcpPort: Int = 0, udpPort: Int = 0)
   final case class PeerNode(id: Int, endpoint: Endpoint)
 
