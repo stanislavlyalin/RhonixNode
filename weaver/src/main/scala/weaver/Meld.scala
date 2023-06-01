@@ -188,7 +188,7 @@ object Meld {
     options: Set[Set[D]],
     targetF: D => Long
   ): Set[D] = {
-    implicit val ordD = Order.fromOrdering[D]
+    implicit val ordD: Order[D] = Order.fromOrdering[D]
     options.toList
       .minimumByOption { rj =>
         (rj.map(targetF).sum, rj.size, rj.toList.sorted)

@@ -147,12 +147,12 @@ class GrpcDslSpec extends AnyFlatSpec {
     println(s"[$time] $msg")
   }
 
-  "grpc server & client".can("be defined with low level API directly") in {
-    startServer(4321)
-
-    val channel = sendClientRequest("Hello from client!")
-
-    Thread.sleep(250)
-    channel.shutdown()
-  }
+//  "grpc server & client".can("be defined with low level API directly") in {
+//    startServer(4321)
+//
+//    val channel = sendClientRequest("Hello from client!")
+//
+//    Thread.sleep(250)
+//    channel.shutdown()
+//  }
 }

@@ -7,7 +7,7 @@ import cats.syntax.all._
 import weaver.rules.Dag.computeFJS
 
 trait LazoSTSyntax {
-  implicit final def lazoLazoSyntax[M, S](st: Lazo[M, S]) = new LazoSTOps[M, S](st)
+  implicit final def lazoLazoSyntax[M, S](st: Lazo[M, S]): LazoSTOps[M, S] = new LazoSTOps[M, S](st)
 }
 
 final class LazoSTOps[M, S](private val s: Lazo[M, S]) {

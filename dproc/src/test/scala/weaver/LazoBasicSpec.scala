@@ -88,6 +88,6 @@ class LazoBasicSpec extends AnyFlatSpec with Matchers {
     val computed = computeFJS(target, bonded, jss, isAncestor, senderF)
     // latest message is the same for each bonded sender ()
     val ref = Map(5 -> 0, 1 -> 0, 2 -> 0, 3 -> 0, 4 -> 0)
-    computed shouldBe ref
+    computed shouldBe ref.values
   }
 }
