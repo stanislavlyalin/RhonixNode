@@ -1,6 +1,52 @@
 import Dependencies._
 
-lazy val projectSettings = Seq(organization := "io.rhonix", scalaVersion := "2.13.10", version := "0.1.0-SNAPSHOT")
+lazy val projectSettings = Seq(
+  organization := "io.rhonix",
+  scalaVersion := "2.13.10",
+  version := "0.1.0-SNAPSHOT",
+  Compile / compile / wartremoverErrors ++= Warts.allBut(
+    // those we want
+    Wart.DefaultArguments,
+    Wart.ImplicitParameter,
+    Wart.ImplicitConversion,
+    Wart.LeakingSealed,
+    Wart.Recursion,
+    // those don't want
+    Wart.Overloading,
+    Wart.Nothing,
+    Wart.Equals,
+    Wart.PublicInference,
+    Wart.ArrayEquals,
+    Wart.While,
+    Wart.Any,
+    Wart.Product,
+    Wart.Serializable,
+    Wart.OptionPartial,
+    Wart.Option2Iterable,
+    Wart.ToString,
+    Wart.MutableDataStructures,
+    Wart.FinalVal,
+    Wart.Null,
+    Wart.AsInstanceOf,
+    Wart.ExplicitImplicitTypes,
+    Wart.StringPlusAny,
+    Wart.AnyVal,
+    // Added after migration to Scala 2.13
+    Wart.TripleQuestionMark,
+    Wart.IterableOps,
+    Wart.JavaSerializable,
+    Wart.ListUnapply,
+    Wart.GlobalExecutionContext,
+    Wart.NoNeedImport,
+    Wart.PlatformDefault,
+    Wart.JavaNetURLConstructors,
+    Wart.SizeIs,
+    Wart.SizeToLength,
+    Wart.ListAppend,
+    Wart.AutoUnboxing,
+    Wart.RedundantConversions
+  )
+)
 
 lazy val commonSettings = projectSettings
 
