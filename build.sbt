@@ -81,6 +81,14 @@ lazy val dproc = (project in file("dproc"))
   )
   .dependsOn(weaver)
 
+lazy val sdk = (project in file("sdk"))
+  .settings(commonSettings: _*)
+  .settings(
+    scalaVersion := scalaVersionDefault,
+    version := "0.1"
+  )
+  .dependsOn(weaver, dproc)
+
 // Node implementation
 lazy val node = (project in file("node"))
   .settings(commonSettings: _*)
@@ -89,4 +97,4 @@ lazy val node = (project in file("node"))
     version := "0.1",
     libraryDependencies ++= Seq(catsCore, catsEffect, protobuf, grpc, grpcNetty) ++ tests
   )
-  .dependsOn(dproc)
+  .dependsOn(dproc, sdk)
