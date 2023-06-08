@@ -1,8 +1,11 @@
 import Dependencies._
 
+val scalaVersionDefault = "3.2.1"
+val scala2Version = "2.13.10"
+
 lazy val projectSettings = Seq(
   organization := "io.rhonix",
-  scalaVersion := "2.13.10",
+  scalaVersion := scala2Version,
   version := "0.1.0-SNAPSHOT",
   Compile / compile / wartremoverErrors ++= Warts.allBut(
     // those we want
@@ -72,7 +75,7 @@ lazy val dproc = (project in file("dproc"))
     // [error] This TASTy file was produced by a more recent, forwards incompatible release.
     // [error] To read this TASTy file, please upgrade your tooling.
     // [error] The TASTy file was produced by Scala 3.3.0.)
-    scalaVersion := "3.2.1",
+    scalaVersion := scalaVersionDefault,
     version := "0.1",
     libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests
   )
