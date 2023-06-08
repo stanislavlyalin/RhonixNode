@@ -116,8 +116,8 @@ object Processor {
     }
 
   trait Ignored
-  final case object IgnoredDuplicate extends Ignored
-  final case object IgnoredDetached extends Ignored
+  case object IgnoredDuplicate extends Ignored
+  case object IgnoredDetached extends Ignored
 
   val ignoredDuplicate: Ignored = IgnoredDuplicate
   val ignoredDetached: Ignored = IgnoredDetached

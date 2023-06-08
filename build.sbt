@@ -1,100 +1,57 @@
-import Dependencies._
+import Dependencies.*
 
-val scalaVersionDefault = "3.2.1"
+val scala3Version = "3.2.2"
 val scala2Version = "2.13.10"
 
-lazy val projectSettings = Seq(
+lazy val commonSettings = Seq(
   organization := "io.rhonix",
-  scalaVersion := scala2Version,
-  version := "0.1.0-SNAPSHOT",
-  Compile / compile / wartremoverErrors ++= Warts.allBut(
-    // those we want
-    Wart.DefaultArguments,
-    Wart.ImplicitParameter,
-    Wart.ImplicitConversion,
-    Wart.LeakingSealed,
-    Wart.Recursion,
-    // those don't want
-    Wart.Overloading,
-    Wart.Nothing,
-    Wart.Equals,
-    Wart.PublicInference,
-    Wart.ArrayEquals,
-    Wart.While,
-    Wart.Any,
-    Wart.Product,
-    Wart.Serializable,
-    Wart.OptionPartial,
-    Wart.Option2Iterable,
-    Wart.ToString,
-    Wart.MutableDataStructures,
-    Wart.FinalVal,
-    Wart.Null,
-    Wart.AsInstanceOf,
-    Wart.ExplicitImplicitTypes,
-    Wart.StringPlusAny,
-    Wart.AnyVal,
-    // Added after migration to Scala 2.13
-    Wart.TripleQuestionMark,
-    Wart.IterableOps,
-    Wart.JavaSerializable,
-    Wart.ListUnapply,
-    Wart.GlobalExecutionContext,
-    Wart.NoNeedImport,
-    Wart.PlatformDefault,
-    Wart.JavaNetURLConstructors,
-    Wart.SizeIs,
-    Wart.SizeToLength,
-    Wart.ListAppend,
-    Wart.AutoUnboxing,
-    Wart.RedundantConversions
-  )
+  version      := "0.1.0-SNAPSHOT",
+//  scalafmtOnCompile := !sys.env.contains("CI"), // Format on compile, disable in CI environments
 )
 
-lazy val commonSettings = projectSettings
+lazy val settingsScala3 = commonSettings ++ Seq(
+  scalaVersion := scala3Version,
+  scalacOptions ++= CompilerOptions.DEFAULTS,
+  Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS,
+)
+
+lazy val settingsScala2 = commonSettings ++ Seq(
+  scalaVersion := scala2Version,
+  // Enables Scala2 project to depend on Scala3 projects
+  scalacOptions += "-Ytasty-reader",
+  scalacOptions ++= CompilerOptions.DEFAULTS_SCALA_2,
+  Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2,
+)
+
+lazy val sdk = (project in file("sdk"))
+  .settings(settingsScala3*)
+  .settings(
+    libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests,
+  )
 
 // Consensus
 lazy val weaver = (project in file("weaver"))
-  .settings(commonSettings: _*)
+//  .settings(settingsScala3 *)
+  .settings(settingsScala2*) // TEMP: Scala 2 project
   .settings(
-    scalacOptions += "-Ytasty-reader", // resolves "error while loading package, Missing dependency 'Add -Ytasty-reader to scalac options to parse the TASTy in..."
-    version := "0.1",
-    libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests
+    libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests,
   )
+  .dependsOn(sdk)
 
 // Node logic
 lazy val dproc = (project in file("dproc"))
-  .settings(commonSettings: _*)
+  .settings(settingsScala3*)
+//  .settings(settingsScala2 *) // Compile error for Sync in classpath
   .settings(
-    // The latest release leads to error, so 3.2.1 is used
-    // [error] error while loading Discovery, class file '.../dproc/target/scala-3.3.0/classes/dproc/Discovery.class' is broken
-    // [error] (class scala.tools.tasty.UnpickleException/TASTy signature has wrong version.
-    // [error]  expected: {majorVersion: 28, minorVersion: 2}
-    // [error]  found   : {majorVersion: 28, minorVersion: 3}
-    // [error]
-    // [error] This TASTy file was produced by a more recent, forwards incompatible release.
-    // [error] To read this TASTy file, please upgrade your tooling.
-    // [error] The TASTy file was produced by Scala 3.3.0.)
-    scalaVersion := scalaVersionDefault,
-    version := "0.1",
-    libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests
+    libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests,
   )
-  .dependsOn(weaver)
-
-lazy val sdk = (project in file("sdk"))
-  .settings(commonSettings: _*)
-  .settings(
-    scalaVersion := scalaVersionDefault,
-    version := "0.1"
-  )
-  .dependsOn(weaver, dproc)
+  .dependsOn(sdk, weaver)
 
 // Node implementation
 lazy val node = (project in file("node"))
-  .settings(commonSettings: _*)
+  .settings(settingsScala3*)
+//  .settings(settingsScala2 *) // Compilation of tests fail
   .settings(
-    scalacOptions += "-Ytasty-reader", // resolves "error while loading package, Missing dependency 'Add -Ytasty-reader to scalac options to parse the TASTy in..."
-    version := "0.1",
-    libraryDependencies ++= Seq(catsCore, catsEffect, protobuf, grpc, grpcNetty) ++ tests
+    libraryDependencies ++= Seq(catsCore, catsEffect, protobuf, grpc, grpcNetty) ++ tests,
   )
-  .dependsOn(dproc, sdk)
+  .dependsOn(sdk, weaver, dproc)
