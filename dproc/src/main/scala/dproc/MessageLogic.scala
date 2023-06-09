@@ -30,8 +30,7 @@ object MessageLogic {
         minGenJs
           .map(s.lazo.dagData(_).fringeIdx)
           .toList
-          .sorted
-          .lastOption
+          .maxOption
           .map(s.lazo.fringes)
           .getOrElse(Set.empty[M])
       )

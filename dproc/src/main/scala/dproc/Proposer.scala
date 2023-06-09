@@ -62,6 +62,7 @@ object Proposer {
           }
           val newSt = ST(sender, proposingOn.some, newStWTx.some, newSs, newAs, awaitingPrev)
           (newSt, none[StateWithTxs[M, S, T]])
+        case st => (st, none[StateWithTxs[M, S, T]])
       }
 
     def done: (ST[M, S, T], (Set[M], Set[M])) = {

@@ -89,7 +89,7 @@ object Meld {
   def partitionScope[D](views: Seq[Set[D]]): Seq[Set[D]] = {
     val r = LazyList.unfold(views) {
       case (head @ seen) +: tail => (head, tail.map(_ -- seen)).some
-      case Seq()                 => none[(Set[D], List[Set[D]])]
+      case _                     => none[(Set[D], List[Set[D]])]
     }
     r.toList
   }
@@ -188,7 +188,7 @@ object Meld {
     options: Set[Set[D]],
     targetF: D => Long
   ): Set[D] = {
-    implicit val ordD = Order.fromOrdering[D]
+    implicit val ordD: Order[D] = Order.fromOrdering[D]
     options.toList
       .minimumByOption { rj =>
         (rj.map(targetF).sum, rj.size, rj.toList.sorted)
@@ -286,7 +286,7 @@ object Meld {
     val conflictSetCompatible = conflictSet -- enforceRejected
     // conflict map accounting for dependencies
     val fullConflictsMap =
-      conflictsMap.mapValues(vs => vs ++ withDependencies(vs, dependencyMap))
+      conflictsMap.view.mapValues(vs => vs ++ withDependencies(vs, dependencyMap))
     // find rejection combinations possible
     val rejectionOptions = computeRejectionOptions(fullConflictsMap.toMap)
     // add to rejection options rejections caused by mergeable channels overflow
