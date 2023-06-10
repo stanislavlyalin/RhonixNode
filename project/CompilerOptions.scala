@@ -38,11 +38,10 @@ object CompilerOptions {
 
       // Scala linter options
       "-Xlint:_",
-      "-Xlint:adapted-args",
-      "-Xlint:inaccessible",
-      "-Wunused:-imports",  // Disables warning for unused imports
+      "-Xlint:-adapted-args",
+      "-Wunused:-imports", // Disables warning for unused imports
       "-Wunused:-privates", // Disables warning for unused private vars
-      "-Wunused:-locals",   // Disables warning for unused local vars
+      "-Wunused:-locals", // Disables warning for unused local vars
       // Scala bug false positive warnings - https://github.com/scala/bug/issues/12072
       "-Xlint:-byname-implicit",
 

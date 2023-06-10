@@ -21,7 +21,7 @@ final case class Weaver[M, S, T](
     else if (minGenJs.forall(lazo.contains)) {
       val fromOffender = {
         val selfJs = minGenJs.filter(lazo.dagData(_).sender == sender)
-        val fromEquivocator = selfJs.size > 1
+        val fromEquivocator = selfJs.sizeIs > 1
         lazy val selfJsIsOffence = selfJs.headOption.exists(lazo.offences.contains)
         fromEquivocator || selfJsIsOffence
       }

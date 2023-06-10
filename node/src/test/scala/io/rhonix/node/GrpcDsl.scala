@@ -1,14 +1,15 @@
 package io.rhonix.node
 
 import com.google.protobuf.{CodedInputStream, CodedOutputStream}
-import io.grpc._
+import io.grpc.*
 import io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import java.io.{InputStream, PipedInputStream, PipedOutputStream}
 import java.time.LocalDateTime
 
-class GrpcDslSpec extends AnyFlatSpec {
+class GrpcDslSpec extends AnyFlatSpec with Matchers {
 
   // Object sent over gRPC
   case class MyObj(text: String, num: Int)
@@ -18,8 +19,8 @@ class GrpcDslSpec extends AnyFlatSpec {
   //       e.g. validating the message header like version or signature
   val myObjMarshal = new MethodDescriptor.Marshaller[MyObj] {
     override def stream(obj: MyObj): InputStream = {
-      val pipeInput = new PipedInputStream
-      val pipeOut = new PipedOutputStream(pipeInput)
+      val pipeInput   = new PipedInputStream
+      val pipeOut     = new PipedOutputStream(pipeInput)
       // Writes serialized fields to output stream (input stream for gRPC)
       val protoStream = CodedOutputStream.newInstance(pipeOut)
       protoStream.writeString(1, obj.text)
@@ -34,9 +35,9 @@ class GrpcDslSpec extends AnyFlatSpec {
       // Deserialize input byte stream to object fields
       val protoStream = CodedInputStream.newInstance(byteStream)
       protoStream.readTag()
-      val text = protoStream.readString()
+      val text        = protoStream.readString()
       protoStream.readTag()
-      val num = protoStream.readInt32()
+      val num         = protoStream.readInt32()
       MyObj(text, num)
     }
   }
@@ -65,9 +66,9 @@ class GrpcDslSpec extends AnyFlatSpec {
 
     // Listener/callback to handle server responses
     val callListener = new ClientCall.Listener[MyObj] {
-      override def onHeaders(headers: Metadata): Unit =
+      override def onHeaders(headers: Metadata): Unit                =
         info(s"CLIENT_ON_HEADERS: $headers")
-      override def onMessage(message: MyObj): Unit =
+      override def onMessage(message: MyObj): Unit                   =
         info(s"CLIENT_ON_MESSAGE: $message")
       override def onClose(status: Status, trailers: Metadata): Unit =
         info(s"CLIENT_ON_CLOSE: ${status}, $trailers")
@@ -90,12 +91,12 @@ class GrpcDslSpec extends AnyFlatSpec {
   }
 
   /// An example how to start the server and listed for client requests and respond
-  def startServer(port: Int): Unit = {
+  def startServer(port: Int): Server = {
     val serverCallHandler: ServerCallHandler[MyObj, MyObj] =
       new ServerCallHandler[MyObj, MyObj] {
         override def startCall(
           call: ServerCall[MyObj, MyObj],
-          headers: Metadata
+          headers: Metadata,
         ): ServerCall.Listener[MyObj] = {
           info(s"SERVER_START_CALL: ${call.getMethodDescriptor}")
           info(s"SERVER_START_CALL: $headers")
@@ -121,8 +122,8 @@ class GrpcDslSpec extends AnyFlatSpec {
             }
 
             override def onHalfClose(): Unit = info(s"SERVER_ON_HALF_CLOSE")
-            override def onCancel(): Unit = info(s"SERVER_ON_CANCEL")
-            override def onComplete(): Unit = info(s"SERVER_ON_COMPLETE")
+            override def onCancel(): Unit    = info(s"SERVER_ON_CANCEL")
+            override def onComplete(): Unit  = info(s"SERVER_ON_COMPLETE")
           }
         }
       }
@@ -147,12 +148,13 @@ class GrpcDslSpec extends AnyFlatSpec {
     println(s"[$time] $msg")
   }
 
-//  "grpc server & client".can("be defined with low level API directly") in {
-//    startServer(4321)
-//
-//    val channel = sendClientRequest("Hello from client!")
-//
-//    Thread.sleep(250)
-//    channel.shutdown()
-//  }
+  "grpc server & client" should "be defined with low level API directly" in {
+    val server = startServer(4321)
+
+    val channel = sendClientRequest("Hello from client!")
+
+    Thread.sleep(250)
+    channel.shutdown()
+    server.shutdown()
+  }
 }

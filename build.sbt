@@ -1,6 +1,6 @@
 import Dependencies.*
 
-val scala3Version = "3.2.2"
+val scala3Version = "3.3.0"
 val scala2Version = "2.13.10"
 
 lazy val commonSettings = Seq(
@@ -23,16 +23,21 @@ lazy val settingsScala2 = commonSettings ++ Seq(
   Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2,
 )
 
+lazy val rhonix = (project in file("."))
+  .settings(commonSettings*)
+  .aggregate(sdk, weaver, dproc, node)
+
 lazy val sdk = (project in file("sdk"))
-  .settings(settingsScala3*)
+//  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
+  .settings(settingsScala2*)
   .settings(
     libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests,
   )
 
 // Consensus
 lazy val weaver = (project in file("weaver"))
-//  .settings(settingsScala3 *)
-  .settings(settingsScala2*) // TEMP: Scala 2 project
+//  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
+  .settings(settingsScala2*)
   .settings(
     libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests,
   )
@@ -40,8 +45,8 @@ lazy val weaver = (project in file("weaver"))
 
 // Node logic
 lazy val dproc = (project in file("dproc"))
-  .settings(settingsScala3*)
-//  .settings(settingsScala2 *) // Compile error for Sync in classpath
+//  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
+  .settings(settingsScala2*)
   .settings(
     libraryDependencies ++= Seq(catsCore, catsEffect, fs2Core) ++ tests,
   )
@@ -49,8 +54,8 @@ lazy val dproc = (project in file("dproc"))
 
 // Node implementation
 lazy val node = (project in file("node"))
-  .settings(settingsScala3*)
-//  .settings(settingsScala2 *) // Compilation of tests fail
+//  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
+  .settings(settingsScala2*)
   .settings(
     libraryDependencies ++= Seq(catsCore, catsEffect, protobuf, grpc, grpcNetty) ++ tests,
   )
