@@ -52,7 +52,7 @@ object Basic {
     sender: M => S
   ): Option[InvalidUnambiguity[S, M]] = {
     val pardons = justifications.groupBy(sender).collect {
-      case (s, jss) if jss.size > 1 && (jss -- offences).nonEmpty => s -> jss
+      case (s, jss) if jss.sizeIs > 1 && (jss -- offences).nonEmpty => s -> jss
     }
     pardons.nonEmpty.guard[Option].as(InvalidUnambiguity(pardons))
   }
