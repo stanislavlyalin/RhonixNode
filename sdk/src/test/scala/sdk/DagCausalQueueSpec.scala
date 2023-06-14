@@ -13,7 +13,7 @@ class DagCausalQueueSpec extends AnyFreeSpec with Matchers {
     4 -> Set(1, 2),
   )
   // enqueue all items in arbitrary order
-  val q     = input.iterator.foldLeft(DagCausalQueue.empty[Int]) { case (acc, (i, d)) => acc.enqueue(i, d) }
+  val q     = input.iterator.foldLeft(DagCausalQueue.default[Int]) { case (acc, (i, d)) => acc.enqueue(i, d) }
 
   "items with no dependencies should appear in the output" in {
     // take from queue

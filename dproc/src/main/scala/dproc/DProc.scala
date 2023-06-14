@@ -77,7 +77,7 @@ object DProc {
       // message processor
       concurrency  = 1000 // TODO CONFIG
       processor   <- Processor(stRef, exeEngine, concurrency)
-      bufferStRef <- Ref[F].of(DagCausalQueue.empty[M])
+      bufferStRef <- Ref[F].of(DagCausalQueue.default[M])
     } yield {
       val bufferAdd      = (m: M, d: Set[M]) =>
         bufferStRef.modify(_.enqueue(m, d).dequeue).flatMap(_.toList.traverse(x => processor.accept(getBlock(x))))

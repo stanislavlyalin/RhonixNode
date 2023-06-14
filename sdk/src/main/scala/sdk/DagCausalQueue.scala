@@ -55,5 +55,5 @@ final class DagCausalQueue[T](childrenMap: Map[T, Set[T]], parentsMap: Map[T, Se
 }
 
 object DagCausalQueue {
-  def empty[T]: DagCausalQueue[T] = new DagCausalQueue[T](Map(), Map(), Set())
+  def default[T]: DagCausalQueue[T] = new DagCausalQueue[T](Map(), Map(), Set())
 }
