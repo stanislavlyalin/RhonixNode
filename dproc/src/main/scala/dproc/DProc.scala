@@ -2,14 +2,15 @@ package dproc
 
 import cats.effect.Ref
 import cats.effect.kernel.Async
-import cats.syntax.all._
+import cats.syntax.all.*
 import dproc.Proposer.StateWithTxs
 import dproc.data.Block
 import fs2.concurrent.Channel
 import fs2.{Pipe, Stream}
+import sdk.DagCausalQueue
 import weaver.Weaver.ExeEngine
-import weaver._
-import weaver.data._
+import weaver.*
+import weaver.data.*
 
 /**
   * Instance of an observer process.
@@ -76,20 +77,28 @@ object DProc {
       // message processor
       concurrency  = 1000 // TODO CONFIG
       processor   <- Processor(stRef, exeEngine, concurrency)
-      buffer      <- Buffer[F, M]
+      bufferStRef <- Ref[F].of(DagCausalQueue.default[M])
     } yield {
-      // steam if incoming messages
-      val mS      = bQ.stream
+      val bufferAdd      = (m: M, d: Set[M]) =>
+        bufferStRef.modify(_.enqueue(m, d).dequeue).flatMap(_.toList.traverse(x => processor.accept(getBlock(x))))
+      val bufferComplete = (x: M) =>
+        bufferStRef
+          .modify { s =>
+            val (newS, success) = s.satisfy(x)
+            if (success) s.dequeue else newS -> Set()
+          }
+          .flatMap(_.toList.traverse(x => processor.accept(getBlock(x))))
+
+      // steam of incoming messages
+      val receive = bQ.stream.evalMap(b => bufferAdd(b.id, b.m.minGenJs ++ b.m.offences))
       // stream of incoming tx
       val tS      = tQ.stream.evalTap(t => plRef.update(t +: _))
-      // message receiver
-      val receive = mS.evalMap(processor.accept)
       val propose = proposerOpt.map(_.out.evalTap(bQ.send)).getOrElse(Stream.empty)
       val process = {
         // stream of states after new message processed.
         val afterAdded   = processor.results.evalMap { case (id, r) =>
           // send garbage and new finality detected (if any), notify buffer
-          gcQ.send(r.garbage) >> r.finality.traverse(fQ.send) >> buffer.completed(id) >>
+          gcQ.send(r.garbage) >> r.finality.traverse(fQ.send) >> bufferComplete(id) >>
             // load transactions from pool and tuple the resulting state with it
             plRef.get.map(r.newState -> _)
         }
@@ -104,9 +113,7 @@ object DProc {
         statesStream.evalTap(sWt => proposerOpt.traverse(_.tryPropose(sWt)))
       }
 
-      val complete = buffer.out.evalTap(x => bQ.send(getBlock(x)))
-
-      val stream = process.void.concurrently(receive).concurrently(propose).concurrently(complete)
+      val stream = process.void.concurrently(receive).concurrently(propose)
 
       new DProc[F, M, S, T](
         stRef,
