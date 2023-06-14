@@ -13,6 +13,15 @@ class ProposerSpec extends AnyFlatSpec {
     p.status shouldBe Idle
   }
 
+  it should "implement structural equivalence" in {
+    val p1 = Proposer.default
+    val p2 = Proposer.default
+    // two instances should be the equal
+    p1 == p2 shouldBe true
+    // transition the second instance into started state, now not equal
+    p1 == p2.start._1 shouldBe false
+  }
+
   it should "successfully trigger propose when idle" in {
     // start propose
     val (p1, r) = p.start
@@ -37,6 +46,8 @@ class ProposerSpec extends AnyFlatSpec {
     val p3 = randomNotDone.take(20).foldLeft(p2) { case (acc, f) => f(acc) }
     // proposer should still tell that block is being added
     p3.status shouldBe Adding
+    // state should remain unchanged
+    p2 shouldBe p3
   }
 
   "done after start without first calling complete" should "not change the status" in {

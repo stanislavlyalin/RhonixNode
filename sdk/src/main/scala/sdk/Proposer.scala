@@ -2,7 +2,7 @@ package sdk
 
 import sdk.Proposer.*
 
-class Proposer(val status: ProposerStatus) {
+final case class Proposer(status: ProposerStatus) {
   def start: (Proposer, Boolean) = status match {
     // proposal should be possible only if the previous one is done
     case Idle     => new Proposer(Creating) -> true
