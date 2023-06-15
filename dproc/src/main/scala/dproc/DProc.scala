@@ -3,7 +3,6 @@ package dproc
 import cats.effect.Ref
 import cats.effect.kernel.Async
 import cats.syntax.all.*
-import dproc.Proposer.StateWithTxs
 import dproc.data.Block
 import fs2.concurrent.Channel
 import fs2.{Pipe, Stream}
@@ -22,20 +21,22 @@ import weaver.data.*
   * @tparam F effect type
   */
 final case class DProc[F[_], M, S, T](
-  stateRef: Ref[F, Weaver[M, S, T]],                // state of the process - all data supporting the protocol
-  ppStateRef: Option[Ref[F, Proposer.ST[M, S, T]]], // state of the proposer
-  pcStateRef: Ref[F, Processor.ST[M]],              // state of the message processor
-  dProcStream: Stream[F, Unit],                     // main stream that launches the process
-  output: Stream[F, Block.WithId[M, S, T]],         // stream of output messages
-  gcStream: Stream[F, Set[M]],                      // stream of messages garbage collected
-  finStream: Stream[F, ConflictResolution[T]],      // stream of finalized transactions
-  acceptMsg: Block.WithId[M, S, T] => F[Unit],      // callback to make process accept received block
-  acceptTx: T => F[Unit],                           // callback to make the process accept transaction
+  stateRef: Ref[F, Weaver[M, S, T]],           // state of the process - all data supporting the protocol
+  ppStateRef: Option[Ref[F, sdk.Proposer]],    // state of the proposer
+  pcStateRef: Ref[F, Processor.ST[M]],         // state of the message processor
+  dProcStream: Stream[F, Unit],                // main stream that launches the process
+  output: Stream[F, Block.WithId[M, S, T]],    // stream of output messages
+  gcStream: Stream[F, Set[M]],                 // stream of messages garbage collected
+  finStream: Stream[F, ConflictResolution[T]], // stream of finalized transactions
+  acceptMsg: Block.WithId[M, S, T] => F[Unit], // callback to make process accept received block
+  acceptTx: T => F[Unit],                      // callback to make the process accept transaction
 )
 
 object DProc {
 
   final case class WithId[F[_], Id, M, S, T](id: Id, p: DProc[F, M, S, T])
+
+  final private case class StateWithTxs[M, S, T](state: Weaver[M, S, T], txs: Iterable[T])
 
   def connect[F[_]: Async, M, S, T](
     dProc: DProc[F, M, S, T],
@@ -72,8 +73,7 @@ object DProc {
       // states
       stRef       <- Ref[F].of(initState)
       plRef       <- Ref[F].of(initPool)
-      // proposer (if self id is set)
-      proposerOpt <- idOpt.traverse(Proposer(_, exeEngine, idGen))
+      proposerRef <- Ref[F].of(sdk.Proposer.default)
       // message processor
       concurrency  = 1000 // TODO CONFIG
       processor   <- Processor(stRef, exeEngine, concurrency)
@@ -89,11 +89,23 @@ object DProc {
           }
           .flatMap(_.toList.traverse(x => processor.accept(getBlock(x))))
 
+      def proposeF(s: StateWithTxs[M, S, T]): F[Unit] = idOpt
+        .map { sender =>
+          for {
+            // make message
+            m <- MessageLogic.createMessage[F, M, S, T](s.txs.toList, sender, s.state, exeEngine)
+            // assign ID
+            b <- idGen(m).map(id => Block.WithId(id, m))
+            // send to processing queue
+            _ <- bQ.send(b)
+          } yield ()
+        }
+        .getOrElse(Async[F].unit)
+
       // steam of incoming messages
       val receive = bQ.stream.evalMap(b => bufferAdd(b.id, b.m.minGenJs ++ b.m.offences))
       // stream of incoming tx
       val tS      = tQ.stream.evalTap(t => plRef.update(t +: _))
-      val propose = proposerOpt.map(_.out.evalTap(bQ.send)).getOrElse(Stream.empty)
       val process = {
         // stream of states after new message processed.
         val afterAdded   = processor.results.evalMap { case (id, r) =>
@@ -110,14 +122,14 @@ object DProc {
         val statesStream = afterAdded.merge(afterNewTx).map { case (st, txs) => StateWithTxs(st, txs) }
 
         // make an attempt to propose after each message added
-        statesStream.evalTap(sWt => proposerOpt.traverse(_.tryPropose(sWt)))
+        statesStream.evalTap(sWt => proposerRef.modify(_.start).map(proposeF(sWt).whenA(_)))
       }
 
-      val stream = process.void.concurrently(receive).concurrently(propose)
+      val stream = process.void.concurrently(receive)
 
       new DProc[F, M, S, T](
         stRef,
-        proposerOpt.map(_.stRef),
+        idOpt.map(_ => proposerRef),
         processor.stRef,
         stream,
         oQ.stream,

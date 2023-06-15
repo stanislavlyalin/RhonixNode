@@ -7,7 +7,11 @@ package sdk
  * - Item can be dequeued only when it has no dependencies or for all dependencies `satisfy` is called.
  * - Item can be dequeued only after all dependencies are dequeued.
  */
-final class DagCausalQueue[T](childrenMap: Map[T, Set[T]], parentsMap: Map[T, Set[T]], out: Set[T]) {
+final case class DagCausalQueue[T](
+  private val childrenMap: Map[T, Set[T]],
+  private val parentsMap: Map[T, Set[T]],
+  private val out: Set[T],
+) {
 
   /**
    * Enqueue an item and record its dependencies.
