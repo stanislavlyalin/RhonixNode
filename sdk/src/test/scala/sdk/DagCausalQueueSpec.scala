@@ -4,6 +4,16 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
 class DagCausalQueueSpec extends AnyFreeSpec with Matchers {
+
+  "should implement structural equivalence" in {
+    val q1 = DagCausalQueue.default[Int]
+    val q2 = DagCausalQueue.default[Int]
+    // two instances should be the equal
+    q1 == q2 shouldBe true
+    // transition the second instance into started state, now not equal
+    q1 == q2.enqueue(1, Set()) shouldBe false
+  }
+
   // Map of items to dependencies
   val input = Map(
     0 -> Set.empty[Int],
