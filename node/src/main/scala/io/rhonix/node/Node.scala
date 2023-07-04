@@ -129,4 +129,16 @@ object Node {
       )
     }
   }
+
+  /** Example of programmatically applying liquibase migrations */
+  private def applyDBMigrations(user: String, password: String): Unit = {
+    val config: LiquibaseConfig = LiquibaseConfig(
+      url = "jdbc:postgresql://localhost:5432/rhonixnode",
+      user = user,
+      password = password,
+      driver = "org.postgresql.Driver",
+      changelog = "db/changelog.yaml",
+    )
+    Liquibase(config).migrate()
+  }
 }
