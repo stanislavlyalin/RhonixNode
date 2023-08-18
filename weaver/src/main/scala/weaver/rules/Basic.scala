@@ -4,9 +4,9 @@ import cats.syntax.all._
 import weaver.Offence
 class InvalidBasic extends Offence
 object InvalidBasic { def unapply(x: InvalidBasic) = true }
-final case class InvalidContinuity[M](forgotten: Set[M]) extends InvalidBasic
-final case class InvalidFrugality[M](offendersAccepted: Set[M]) extends InvalidBasic
-final case class InvalidIntegrity[M](mismatch: Set[M]) extends InvalidBasic
+final case class InvalidContinuity[M](forgotten: Set[M])           extends InvalidBasic
+final case class InvalidFrugality[M](offendersAccepted: Set[M])    extends InvalidBasic
+final case class InvalidIntegrity[M](mismatch: Set[M])             extends InvalidBasic
 final case class InvalidUnambiguity[S, M](pardons: Map[S, Set[M]]) extends InvalidBasic
 
 object Basic {
@@ -27,10 +27,10 @@ object Basic {
   def frugality[M, S](
     justifications: Set[M],
     selfParentOffences: Set[M],
-    sender: M => S
+    sender: M => S,
   ): Option[InvalidFrugality[M]] = {
-    val offenders = selfParentOffences.map(sender)
-    val offenderJs = justifications.filter(j => offenders.contains(sender(j)))
+    val offenders        = selfParentOffences.map(sender)
+    val offenderJs       = justifications.filter(j => offenders.contains(sender(j)))
     val newFromOffenders = offenderJs -- selfParentOffences
     newFromOffenders.nonEmpty.guard[Option].as(InvalidFrugality(newFromOffenders))
   }
@@ -39,7 +39,7 @@ object Basic {
     * justification as an offence. */
   def integrity[M](
     offences: Set[M],
-    jssOffences: Map[M, Set[M]]
+    jssOffences: Map[M, Set[M]],
   ): Option[InvalidIntegrity[M]] = {
     val pardons = jssOffences.collect { case (m, offs) if (offs -- offences).isEmpty => m }
     pardons.isEmpty.guard[Option].as(InvalidIntegrity(pardons.toSet))
@@ -49,7 +49,7 @@ object Basic {
   def unambiguity[M, S](
     offences: Set[M],
     justifications: Set[M],
-    sender: M => S
+    sender: M => S,
   ): Option[InvalidUnambiguity[S, M]] = {
     val pardons = justifications.groupBy(sender).collect {
       case (s, jss) if jss.sizeIs > 1 && (jss -- offences).nonEmpty => s -> jss
@@ -65,7 +65,7 @@ object Basic {
     selfParentOffences: Set[M],
     jssOffences: Map[M, Set[M]],
     senderF: M => S,
-    seen: M => Boolean
+    seen: M => Boolean,
   ): Either[Unit, InvalidBasic] =
     for {
       _ <- unambiguity(offences, justifications, senderF).toRight(())
