@@ -1,11 +1,14 @@
 package io.rhonix.node
 
 import cats.effect.Ref
+import cats.effect.unsafe.implicits.global
 import cats.effect.kernel.{Async, Sync, Temporal}
+import cats.effect.{IO, Sync}
 import cats.syntax.all.*
 import dproc.DProc
 import dproc.DProc.ExeEngine
 import dproc.data.Block
+import io.github.liquibase4s.cats.CatsMigrationHandler.*
 import io.github.liquibase4s.{Liquibase, LiquibaseConfig}
 import rhonix.execution.OnlyBalancesEngine.DummyExe
 import rhonix.execution.{MergePreState, OnlyBalancesEngine}
@@ -132,7 +135,7 @@ object Node {
   }
 
   /** Example of programmatically applying liquibase migrations */
-  private def applyDBMigrations(user: String, password: String): Unit = {
+  private def applyDBMigrations[F[_]: Sync](user: String, password: String): F[Unit] = {
     val config: LiquibaseConfig = LiquibaseConfig(
       url = "jdbc:postgresql://localhost:5432/rhonixnode",
       user = user,
@@ -140,6 +143,6 @@ object Node {
       driver = "org.postgresql.Driver",
       changelog = "db/changelog.yaml",
     )
-    Liquibase(config).migrate()
+    Liquibase[F](config).migrate()
   }
 }
