@@ -1,9 +1,10 @@
-package squeryl
+package api
 
 import cats.effect.Sync
 import sdk.api.{Block, Deploy, ExternalApi}
 import sdk.db.DbSession.withSessionF
 import sdk.db.{DbSession, DeployTable}
+import squeryl.DbQuery
 
 /**
  * Implementation of the external API using `squeryl` library.
