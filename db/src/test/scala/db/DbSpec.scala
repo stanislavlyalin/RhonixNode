@@ -181,11 +181,11 @@ class DbSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
     for {
       database <- Sync[F].delay(makeDb)
       _         = database.beforeEach(mock(classOf[ExtensionContext]))
-      session   = db.session[F](database.getTestDatabase.getConnection)
+      session   = squeryl.session[F](database.getTestDatabase.getConnection)
     } yield session
 
   private def makeDb: PreparedDbExtension =
-    EmbeddedPostgresExtension.preparedDatabase(LiquibasePreparer.forClasspathLocation("db/changelog.yaml"))
+    EmbeddedPostgresExtension.preparedDatabase(LiquibasePreparer.forClasspathLocation("liquibase/changelog.yaml"))
 
   private def makeDbApi[F[_]: Sync, T](session: DbSession[F])(creatorFun: DbSession[F] => T): F[T] =
     Sync[F].delay(creatorFun(session))
