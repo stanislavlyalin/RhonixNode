@@ -1,10 +1,11 @@
-package db
+package squeryl
 
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.CustomTypeMode.*
 import sdk.RhonixNodeDb.blockTable
+import sdk.api.{Block, Bond, Deploy, Validator}
 import sdk.db.*
 import sdk.db.DbSession.withSessionF
 
@@ -13,10 +14,10 @@ class BlockDbApiImpl[F[
 ]: Sync: DbSession: ValidatorDbApiImpl: BlockJustificationsDbApiImpl: BlockBondsDbApiImpl: BlockDeploysDbApiImpl: BondDbApiImpl: DeployDbApiImpl]
     extends BlockDbApi[F] {
   override def insert(block: Block, senderId: Long): F[Long] =
-    withSessionF(blockTable.insert(Block.toDb(0L, block, senderId))).map(_.id)
+    withSessionF(blockTable.insert(BlockTable.toDb(0L, block, senderId))).map(_.id)
 
   override def update(id: Long, block: Block, senderId: Long): F[Unit] =
-    withSessionF(blockTable.update(Block.toDb(id, block, senderId)))
+    withSessionF(blockTable.update(BlockTable.toDb(id, block, senderId)))
 
   override def getById(id: Long): F[Option[Block]] = (for {
     block  <- OptionT(withSessionF(blockTable.where(_.id === id).headOption))
@@ -26,7 +27,7 @@ class BlockDbApiImpl[F[
     bonds          <- OptionT.liftF(bonds(block.id))
     deploys        <- OptionT.liftF(deploys(block.id))
 
-  } yield Block.fromDb(block, sender, justifications, bonds, deploys)).value
+  } yield BlockTable.fromDb(block, sender, justifications, bonds, deploys)).value
 
   override def getByHash(hash: Array[Byte]): F[Option[Block]] =
     (for {

@@ -1,6 +1,7 @@
 package sdk.db
 
 import sdk.DbTable
+import sdk.api.Validator
 
 @SuppressWarnings(Array("org.wartremover.warts.FinalCaseClass"))
 case class ValidatorTable(
@@ -9,18 +10,7 @@ case class ValidatorTable(
   http: String,
 ) extends DbTable
 
-final case class Validator(
-  publicKey: Array[Byte], // Unique index
-  http: String,
-) {
-  override def equals(obj: Any): Boolean = obj match {
-    case that: Validator =>
-      this.publicKey.sameElements(that.publicKey) && this.http == that.http
-    case _               => false
-  }
-}
-
-object Validator {
+object ValidatorTable {
   def toDb(id: Long, validator: Validator): ValidatorTable = ValidatorTable(id, validator.publicKey, validator.http)
   def fromDb(validator: ValidatorTable): Validator         = Validator(validator.publicKey, validator.http)
 }

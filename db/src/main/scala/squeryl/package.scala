@@ -4,7 +4,7 @@ import sdk.db.DbSession
 
 import java.sql.Connection
 
-package object db {
+package object squeryl {
   def session[F[_]](connection: Connection): DbSession[F] = new DbSession[F] {
     override def using[A](a: => A): A = CustomTypeMode.using(session)(a)
 

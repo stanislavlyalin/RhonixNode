@@ -12,7 +12,9 @@ import org.scalacheck.ScalacheckShapeless.*
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sdk.api.*
 import sdk.db.*
+import squeryl.*
 
 class DbSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 

@@ -1,6 +1,7 @@
 package sdk.db
 
 import sdk.DbTable
+import sdk.api.Bond
 
 @SuppressWarnings(Array("org.wartremover.warts.FinalCaseClass"))
 case class BondTable(
@@ -9,14 +10,9 @@ case class BondTable(
   stake: Long,
 ) extends DbTable
 
-final case class Bond(
-  validator: Validator,
-  stake: Long,
-)
-
-object Bond {
+object BondTable {
   def toDb(id: Long, bond: Bond, validatorId: Long): BondTable = BondTable(id, validatorId, bond.stake)
-  def fromDb(bond: BondTable, validator: ValidatorTable): Bond = Bond(Validator.fromDb(validator), bond.stake)
+  def fromDb(bond: BondTable, validator: ValidatorTable): Bond = Bond(ValidatorTable.fromDb(validator), bond.stake)
 }
 
 trait BondDbApi[F[_]] {

@@ -1,6 +1,7 @@
 package sdk.db
 
 import sdk.DbTable
+import sdk.api.Deploy
 
 @SuppressWarnings(Array("org.wartremover.warts.FinalCaseClass"))
 case class DeployTable(
@@ -15,31 +16,7 @@ case class DeployTable(
   validAfterBlockNumber: Long,
 ) extends DbTable
 
-final case class Deploy(
-  hash: Array[Byte],
-  publicKey: Array[Byte],
-  shardId: String,
-  program: String,
-  phloPrice: Long,
-  phloLimit: Long,
-  timestamp: Long,
-  validAfterBlockNumber: Long,
-) {
-  override def equals(obj: Any): Boolean = obj match {
-    case that: Deploy =>
-      this.hash.sameElements(that.hash) &&
-      this.publicKey.sameElements(that.publicKey) &&
-      this.shardId == that.shardId &&
-      this.program == that.program &&
-      this.phloPrice == that.phloPrice &&
-      this.phloLimit == that.phloLimit &&
-      this.timestamp == that.timestamp &&
-      this.validAfterBlockNumber == that.validAfterBlockNumber
-    case _            => false
-  }
-}
-
-object Deploy {
+object DeployTable {
   def toDb(id: Long, deploy: Deploy): DeployTable = DeployTable(
     id,
     deploy.hash,
@@ -51,7 +28,8 @@ object Deploy {
     deploy.timestamp,
     deploy.validAfterBlockNumber,
   )
-  def fromDb(deploy: DeployTable): Deploy         = Deploy(
+
+  def fromDb(deploy: DeployTable): Deploy = Deploy(
     deploy.hash,
     deploy.publicKey,
     deploy.shardId,

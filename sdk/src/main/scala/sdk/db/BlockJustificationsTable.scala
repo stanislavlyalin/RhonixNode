@@ -1,11 +1,11 @@
 package sdk.db
 
+import sdk.api.BlockJustifications
+
 @SuppressWarnings(Array("org.wartremover.warts.FinalCaseClass"))
 case class BlockJustificationsTable(validatorId: Long, latestBlockId: Long)
 
-final case class BlockJustifications(validatorId: Long, latestBlockId: Long)
-
-object BlockJustifications {
+object BlockJustificationsTable {
   def toDb(blockJustifications: BlockJustifications): BlockJustificationsTable   =
     BlockJustificationsTable(blockJustifications.validatorId, blockJustifications.latestBlockId)
   def fromDb(blockJustifications: BlockJustificationsTable): BlockJustifications =

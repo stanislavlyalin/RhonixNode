@@ -1,20 +1,21 @@
-package db
+package squeryl
 
 import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.CustomTypeMode.*
 import sdk.RhonixNodeDb.blockJustificationsTable
+import sdk.api.BlockJustifications
 import sdk.db.DbSession.withSessionF
-import sdk.db.{BlockJustifications, BlockJustificationsDbApi, DbSession}
+import sdk.db.{BlockJustificationsDbApi, BlockJustificationsTable, DbSession}
 
 class BlockJustificationsDbApiImpl[F[_]: Sync: DbSession] extends BlockJustificationsDbApi[F] {
   override def insert(blockJustifications: BlockJustifications): F[BlockJustifications] =
-    withSessionF(blockJustificationsTable.insert(BlockJustifications.toDb(blockJustifications)))
-      .map(BlockJustifications.fromDb)
+    withSessionF(blockJustificationsTable.insert(BlockJustificationsTable.toDb(blockJustifications)))
+      .map(BlockJustificationsTable.fromDb)
 
   override def getByBlock(latestBlockId: Long): F[Seq[BlockJustifications]] =
     withSessionF(
-      blockJustificationsTable.where(_.latestBlockId === latestBlockId).map(BlockJustifications.fromDb).toSeq,
+      blockJustificationsTable.where(_.latestBlockId === latestBlockId).map(BlockJustificationsTable.fromDb).toSeq,
     )
 }
 

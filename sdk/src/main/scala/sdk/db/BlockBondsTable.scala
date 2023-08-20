@@ -1,11 +1,11 @@
 package sdk.db
 
+import sdk.api.BlockBonds
+
 @SuppressWarnings(Array("org.wartremover.warts.FinalCaseClass"))
 case class BlockBondsTable(blockId: Long, bondId: Long)
 
-final case class BlockBonds(blockId: Long, bondId: Long)
-
-object BlockBonds {
+object BlockBondsTable {
   def toDb(blockBonds: BlockBonds): BlockBondsTable   = BlockBondsTable(blockBonds.blockId, blockBonds.bondId)
   def fromDb(blockBonds: BlockBondsTable): BlockBonds = BlockBonds(blockBonds.blockId, blockBonds.bondId)
 }
