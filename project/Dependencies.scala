@@ -15,11 +15,13 @@ object Dependencies {
   val protobuf = "com.google.protobuf" % "protobuf-java" % "3.22.2"
 
   // Testing frameworks
-  val scalatest    = "org.scalatest" %% "scalatest" % "3.2.15" % Test // cross CrossVersion.for3Use2_13
-  val scalatest_ce =
+  val scalacheckShapeless = "com.github.alexarchambault" %% "scalacheck-shapeless_1.16" % "1.3.1"   % Test
+  val scalatest           = "org.scalatest"              %% "scalatest"                 % "3.2.15" // cross CrossVersion.for3Use2_13
+  val scalatest_ce        =
     "org.typelevel" %% "cats-effect-testing-scalatest" % "1.4.0" % Test // cross CrossVersion.for3Use2_13
   val mockito      = "org.mockito"   %% "mockito-scala-cats" % "1.17.12" % Test
   val scalacheck_e = "org.typelevel" %% "scalacheck-effect"  % "1.0.4"   % Test
+  val scalatestScalacheck  = "org.scalatestplus" %% "scalacheck-1-17" % "3.2.16.0" % Test
 
   // Diagnostics
   val kamon                 = "io.kamon" %% "kamon-core"        % "2.6.3"
@@ -33,8 +35,10 @@ object Dependencies {
   val circeCodec  = "org.http4s" %% "http4s-circe"        % "0.23.23"
 
   // Database
-  val postgresql                 = "org.postgresql" % "postgresql" % "42.6.0"
-  val squeryl                    = "org.squeryl"   %% "squeryl"    % "0.9.18"
+  val embeddedPostgres           = "io.zonky.test"     % "embedded-postgres" % "2.0.4"  % Test
+  val junitJupiter               = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0" % Test
+  val postgresql                 = "org.postgresql"    % "postgresql"        % "42.6.0"
+  val squeryl                    = "org.squeryl"      %% "squeryl"           % "0.10.0"
   val liquibase4s: Seq[ModuleID] = Seq(
     "io.github.liquibase4s" %% "liquibase4s-core"        % "1.0.0",
     "io.github.liquibase4s" %% "liquibase4s-cats-effect" % "1.0.0",
@@ -46,7 +50,7 @@ object Dependencies {
 
   val http4s = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
 
-  val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e)
+  val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 
-  val dbLibs = Seq(postgresql, squeryl) ++ liquibase4s
+  val dbLibs = Seq(embeddedPostgres, postgresql, squeryl, junitJupiter) ++ liquibase4s
 }

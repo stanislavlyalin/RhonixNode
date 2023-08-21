@@ -24,7 +24,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
 
 lazy val rhonix = (project in file("."))
   .settings(commonSettings*)
-  .aggregate(sdk, weaver, dproc, node)
+  .aggregate(sdk, weaver, dproc, db, node)
 
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
@@ -68,7 +68,7 @@ lazy val node = (project in file("node"))
       Resolver.sonatypeOssRepos("releases") ++
         Resolver.sonatypeOssRepos("snapshots"),
   )
-  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag)
+  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db)
 
 // Diagnostics
 lazy val diag = (project in file("diag"))
