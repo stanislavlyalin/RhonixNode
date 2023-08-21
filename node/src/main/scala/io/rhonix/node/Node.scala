@@ -1,9 +1,7 @@
 package io.rhonix.node
 
 import cats.effect.Ref
-import cats.effect.unsafe.implicits.global
 import cats.effect.kernel.{Async, Sync, Temporal}
-import cats.effect.{IO, Sync}
 import cats.syntax.all.*
 import dproc.DProc
 import dproc.DProc.ExeEngine
