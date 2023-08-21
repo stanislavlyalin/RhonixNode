@@ -52,12 +52,12 @@ object OnlyBalancesEngine {
       ) = Sync[F].defer {
         val newFinal         = mergeFinalSet.toList.map(txIndices).combineAll    // merge final state
         // TODO proper update
-        val _                = newFinal.diffs.foreach { case (k, diff) =>
+        val _                = newFinal.diffs.foreachEntry { case (k, diff) =>
           LFS.update(k, LFS.getOrElse(k, 0L) + diff)
         }
         val _                = mergeConflictSet.map(txIndices).toList.combineAll // merge pre state
         val burnSingleThread = Stream.repeatEval(Sync[F].delay((1 to 1000).toList.combineAll))
-        burnSingleThread.interruptAfter(FiniteDuration(exeDelay._1, exeDelay._2)).compile.last.as(true)
+        val _                = burnSingleThread.interruptAfter(FiniteDuration(exeDelay._1, exeDelay._2)).compile.last.as(true)
         execute.foreach(x => txIndices.update(x, fullTX(x)))
         true.pure[F]
       }

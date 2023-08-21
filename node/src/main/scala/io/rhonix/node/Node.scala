@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import dproc.DProc
 import dproc.DProc.ExeEngine
 import dproc.data.Block
+import io.github.liquibase4s.{Liquibase, LiquibaseConfig}
 import rhonix.execution.OnlyBalancesEngine.DummyExe
 import rhonix.execution.{MergePreState, OnlyBalancesEngine}
 import sdk.DagCausalQueue
@@ -18,7 +19,7 @@ import weaver.data.FinalData
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 
-case class NodeFindApi[F[_], M, S, T](
+final case class NodeFindApi[F[_], M, S, T](
   // state API
   balances: FindApi[F, S, Long],
   // block API
