@@ -32,6 +32,14 @@ object Dependencies {
   val http4sDSL   = "org.http4s" %% "http4s-dsl"          % "0.23.23"
   val circeCodec  = "org.http4s" %% "http4s-circe"        % "0.23.23"
 
+  // Database
+  val postgresql                 = "org.postgresql" % "postgresql" % "42.6.0"
+  val squeryl                    = "org.squeryl"   %% "squeryl"    % "0.9.18"
+  val liquibase4s: Seq[ModuleID] = Seq(
+    "io.github.liquibase4s" %% "liquibase4s-core"        % "1.0.0",
+    "io.github.liquibase4s" %% "liquibase4s-cats-effect" % "1.0.0",
+  )
+
   val common = Seq(catsCore, catsEffect, fs2Core)
 
   val diagnostics = Seq(kamon, kamonStatus, kamonInfluxDbReporter, kamonZipkinReporter)
@@ -39,4 +47,6 @@ object Dependencies {
   val http4s = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e)
+
+  val dbLibs = Seq(postgresql, squeryl) ++ liquibase4s
 }

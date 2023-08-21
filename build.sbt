@@ -30,8 +30,14 @@ lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
   .settings(settingsScala2*)
   .settings(
-    libraryDependencies ++= common ++ tests,
+    libraryDependencies ++= common ++ dbLibs ++ tests,
   )
+
+// Database interfaces implementation
+lazy val db = (project in file("db"))
+  .settings(settingsScala2*)
+  .settings(libraryDependencies ++= Seq(catsCore, catsEffect) ++ dbLibs ++ tests)
+  .dependsOn(sdk)
 
 // Consensus
 lazy val weaver = (project in file("weaver"))
@@ -117,4 +123,4 @@ lazy val sim = (project in file("sim"))
       case x                             => MergeStrategy.first
     },
   )
-  .dependsOn(node, api)
+  .dependsOn(node, api, db)

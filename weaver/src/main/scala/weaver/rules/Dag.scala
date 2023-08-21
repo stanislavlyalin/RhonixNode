@@ -1,7 +1,6 @@
 package weaver.rules
 
 import cats.implicits.catsSyntaxOptionId
-import sdk.syntax.all.logTime
 
 object Dag {
   private def edge[M, S](
