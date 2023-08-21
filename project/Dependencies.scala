@@ -3,6 +3,7 @@ import sbt.*
 object Dependencies {
   // Core dependencies
   val catsCore   = "org.typelevel" %% "cats-core"   % "2.9.0" // cross CrossVersion.for3Use2_13
+  val mouse      = "org.typelevel" %% "mouse"       % "1.2.1" // cross CrossVersion.for3Use2_13
   val catsEffect = "org.typelevel" %% "cats-effect" % "3.5.0" // cross CrossVersion.for3Use2_13
   val fs2Core    = "co.fs2"        %% "fs2-core"    % "3.7.0" // cross CrossVersion.for3Use2_13
 
@@ -14,8 +15,28 @@ object Dependencies {
   val protobuf = "com.google.protobuf" % "protobuf-java" % "3.22.2"
 
   // Testing frameworks
-  val scalatest    = "org.scalatest" %% "scalatest"                     % "3.2.15" % Test // cross CrossVersion.for3Use2_13
-  val scalatest_ce = "org.typelevel" %% "cats-effect-testing-scalatest" % "1.4.0"  % Test // cross CrossVersion.for3Use2_13
+  val scalatest    = "org.scalatest" %% "scalatest" % "3.2.15" % Test // cross CrossVersion.for3Use2_13
+  val scalatest_ce =
+    "org.typelevel" %% "cats-effect-testing-scalatest" % "1.4.0" % Test // cross CrossVersion.for3Use2_13
+  val mockito      = "org.mockito"   %% "mockito-scala-cats" % "1.17.12" % Test
+  val scalacheck_e = "org.typelevel" %% "scalacheck-effect"  % "1.0.4"   % Test
 
-  val tests = Seq(scalatest, scalatest_ce)
+  // Diagnostics
+  val kamon                 = "io.kamon" %% "kamon-core"        % "2.6.3"
+  val kamonStatus           = "io.kamon" %% "kamon-status-page" % "2.6.3"
+  val kamonInfluxDbReporter = "io.kamon" %% "kamon-influxdb"    % "2.6.0"
+  val kamonZipkinReporter   = "io.kamon" %% "kamon-jaeger"      % "2.6.0"
+
+  val http4sNetty = "org.http4s" %% "http4s-netty-server" % "0.5.9"
+  val http4sBlaze = "org.http4s" %% "http4s-blaze-server" % "0.23.14"
+  val http4sDSL   = "org.http4s" %% "http4s-dsl"          % "0.23.23"
+  val circeCodec  = "org.http4s" %% "http4s-circe"        % "0.23.23"
+
+  val common = Seq(catsCore, catsEffect, fs2Core)
+
+  val diagnostics = Seq(kamon, kamonStatus, kamonInfluxDbReporter, kamonZipkinReporter)
+
+  val http4s = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
+
+  val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e)
 }
