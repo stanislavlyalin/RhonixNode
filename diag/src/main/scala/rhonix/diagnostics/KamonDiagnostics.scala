@@ -1,10 +1,13 @@
 package rhonix.diagnostics
 
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.Outcome
+import cats.effect.{Async, Resource, Sync}
+import cats.syntax.all.*
 import com.typesafe.config.Config
 import kamon.Kamon
 import kamon.metric.Timer
 import kamon.tag.TagSet
+import kamon.trace.Span
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -24,16 +27,32 @@ object KamonDiagnostics {
   /**
    * @param name name of a timer
    * @param tags String or Long or Boolean, as per Kamon documentation. Others will be ignored.
-   * @tparam F
-   * @return
    */
-  private def timer[F[_]: Sync](name: String, tags: Map[String, Any]): Resource[F, Unit] = {
+  private def timer[F[_]: Sync](name: String, tags: Map[String, Any]): Resource[F, Timer.Started] = {
     val start                  = Sync[F].delay(Kamon.timer(name).withTags(TagSet.from(tags)).start())
     def stop(t: Timer.Started) = Sync[F].delay(t.stop())
-    Resource.make(start)(stop).map(_ => ())
+    Resource.make(start)(stop)
   }
+
+  /** Analog to Kamon.runWithSpan with custom KamonContextStore. */
+  private def runWithSpan[F[_]: Async, T](f: => F[T])(name: String, component: String)(implicit
+    ctxStore: KamonContextStore[F],
+  ): F[T] = for {
+    curCtx <- ctxStore.get
+    newSpan = Kamon.internalSpanBuilder(name, component).context(curCtx).start()
+    _      <- ctxStore.set(curCtx.withEntry(Span.Key, newSpan))
+    // run effect ensuring span is closed and context is restored
+    r      <- Sync[F].guaranteeCase(f) {
+                case Outcome.Errored(err) => Sync[F].delay(newSpan.fail(err).finish()) *> ctxStore.set(curCtx)
+                case _                    => Sync[F].delay(newSpan.finish()) *> ctxStore.set(curCtx)
+              }
+  } yield r
 
   def logTime[F[_]: Sync, T](f: => F[T])(name: String, tags: Map[String, Any] = Map()): F[T] = Sync[F].defer {
     if (Kamon.enabled()) timer(name, tags).surround(f) else f
   }
+
+  def span[F[_]: Async, T](f: => F[T])(opName: String, component: String)(implicit
+    ev: KamonContextStore[F],
+  ): F[T] = Sync[F].defer(if (Kamon.enabled()) runWithSpan(f)(opName, component) else f)
 }
