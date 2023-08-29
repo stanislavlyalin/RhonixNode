@@ -1,4 +1,5 @@
 import Dependencies.*
+import BNFC.*
 
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
@@ -122,3 +123,10 @@ lazy val sim = (project in file("sim"))
     },
   )
   .dependsOn(node, db, diag)
+
+// Rholang implementation
+lazy val rholang = (project in file("rholang"))
+  .settings(settingsScala2*)
+  .settings(bnfcSettings*)
+  .settings(libraryDependencies ++= common ++ tests)
+  .dependsOn(sdk % "compile->compile;test->test")
