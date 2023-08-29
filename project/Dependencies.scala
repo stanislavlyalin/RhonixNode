@@ -109,13 +109,10 @@ object Dependencies {
     "io.github.nafg.slick-migration-api" %% "slick-migration-api" % "0.9.0",// Migration tool for Slick
   )
 
-  val lmdbjava   = "org.lmdbjava"  % "lmdbjava"   % "0.8.3"
-  val enumeratum = "com.beachape" %% "enumeratum" % "1.7.2"
-
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
-  val common = Seq(catsCore, catsEffect, fs2Core, jaxb)
+  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter, influxDbClient)
 
