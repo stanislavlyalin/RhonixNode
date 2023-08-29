@@ -38,6 +38,7 @@ object Dependencies {
   val catsMtlLaws       = "org.typelevel"        %% "cats-mtl-laws"   % "1.3.0"
   val kalium            = "com.github.rchain"     % "kalium"          % "0.8.1"
   val lightningj        = "org.lightningj"        % "lightningj"      % "0.5.2-Beta"
+  val scalacheck        = "org.scalacheck"       %% "scalacheck"      % "1.14.1"
   val legacyLibs        = Seq(
     magnolia,
     guava,
@@ -58,6 +59,7 @@ object Dependencies {
     kalium,
     lightningj,
     shapeless,
+    scalacheck,
   )
 
   // Testing frameworks
