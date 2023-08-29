@@ -39,7 +39,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
 
 lazy val all = (project in file("."))
   .settings(commonSettings*)
-  .aggregate(sdk, weaver, dproc, db, node, sim, diag)
+  .aggregate(sdk, weaver, dproc, db, node, rholang, legacy, sim, diag)
 
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
