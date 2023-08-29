@@ -45,7 +45,7 @@ class KamonTest extends AnyFlatSpec with Matchers {
     // Each trace should contain this number of nested spans.
     val nestingLvl = 9
 
-    implicit val traceContext: KamonContextStore[IO] = KamonContextStore.forCatsIOLocal
+    implicit val traceContext: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
 
     KamonDiagnostics
       .kamonResource[IO](cfg.some)

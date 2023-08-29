@@ -41,10 +41,10 @@ object KamonDiagnostics {
     curCtx <- ctxStore.get
     newSpan = Kamon.internalSpanBuilder(name, component).context(curCtx).start()
     _      <- ctxStore.set(curCtx.withEntry(Span.Key, newSpan))
-    // run effect ensuring span is closed and context is restored
+    // run effect ensuring span is closed
     r      <- Sync[F].guaranteeCase(f) {
-                case Outcome.Errored(err) => Sync[F].delay(newSpan.fail(err).finish()) *> ctxStore.set(curCtx)
-                case _                    => Sync[F].delay(newSpan.finish()) *> ctxStore.set(curCtx)
+                case Outcome.Errored(err) => Sync[F].delay(newSpan.fail(err).finish())
+                case _                    => Sync[F].delay(newSpan.finish())
               }
   } yield r
 
