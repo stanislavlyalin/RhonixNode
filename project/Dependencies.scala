@@ -40,6 +40,7 @@ object Dependencies {
   val lightningj        = "org.lightningj"              % "lightningj"      % "0.5.2-Beta"
   val scalacheck        = "org.scalacheck"             %% "scalacheck"      % "1.14.1"
   val scalaLogging      = "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4"
+  val scallop           = "org.rogach"                 %% "scallop"         % "3.3.2"
   val legacyLibs        = Seq(
     magnolia,
     guava,
@@ -62,6 +63,7 @@ object Dependencies {
     shapeless,
     scalacheck,
     scalaLogging,
+    scallop,
   )
 
   // Testing frameworks
