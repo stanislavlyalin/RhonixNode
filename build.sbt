@@ -49,7 +49,7 @@ lazy val sdk = (project in file("sdk"))
 // Database interfaces implementation
 lazy val db = (project in file("db"))
   .settings(settingsScala2*)
-  .settings(libraryDependencies ++= Seq(catsCore, catsEffect) ++ dbLibs ++ tests)
+  .settings(libraryDependencies ++= Seq(catsCore, catsEffect) ++ dbLibs ++ tests ++ log)
   .dependsOn(sdk)
 
 // Consensus
