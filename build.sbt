@@ -3,9 +3,9 @@ import Dependencies.*
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
 lazy val commonSettings = Seq(
-  organization := "io.rhonix",
-  version      := "0.1.0-SNAPSHOT",
-//  scalafmtOnCompile := !sys.env.contains("CI"), // Format on compile, disable in CI environments
+  organization      := "io.rhonix",
+  version           := "0.1.0-SNAPSHOT",
+  scalafmtOnCompile := !sys.env.contains("CI"), // Format on compile, disable in CI environments
 
   // Java 17+ has more restrictive policy for access to JDK internals.
   // Without the following java options liquibase library does not work properly
