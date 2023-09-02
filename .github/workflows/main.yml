@@ -30,6 +30,7 @@ jobs:
   build_base:
     name: Build Base
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
       image: rhodevteam/node-buildenv:ubuntu-20.04
     outputs:
