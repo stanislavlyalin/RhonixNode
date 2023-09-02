@@ -6,6 +6,19 @@ lazy val commonSettings = Seq(
   organization := "io.rhonix",
   version      := "0.1.0-SNAPSHOT",
 //  scalafmtOnCompile := !sys.env.contains("CI"), // Format on compile, disable in CI environments
+
+  // Java 17+ has more restrictive policy for access to JDK internals.
+  // Without the following java options liquibase library does not work properly
+  // and tests fail with "java.base does not "opens java.lang" to unnamed module @4b8f7a19"
+  // Please see https://dev.java/learn/modules/add-exports-opens/
+  // NOTE: this does not help with running tests in IntelliJ, so
+  // to run such tests in IntelliJ this argument has to be added explicitly.
+  javaOptions ++= Seq(
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+  ),
+  Test / fork               := true,
+  Test / parallelExecution  := false,
+  Test / testForkedParallel := false,
 )
 
 lazy val settingsScala3 = commonSettings ++ Seq(
