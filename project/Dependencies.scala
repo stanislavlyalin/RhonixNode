@@ -28,6 +28,10 @@ object Dependencies {
   val kamonInfluxDbReporter = "io.kamon" %% "kamon-influxdb" % "2.6.0"
   val kamonJaegerReporter   = "io.kamon" %% "kamon-jaeger"   % "2.6.0"
 
+  // Logging
+  val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
+  val slf4j          = "org.slf4j"      % "slf4j-api"       % "2.0.5"
+
   val http4sNetty = "org.http4s" %% "http4s-netty-server" % "0.5.9"
   val http4sBlaze = "org.http4s" %% "http4s-blaze-server" % "0.23.14"
   val http4sDSL   = "org.http4s" %% "http4s-dsl"          % "0.23.23"
@@ -46,6 +50,8 @@ object Dependencies {
   val common = Seq(catsCore, catsEffect, fs2Core)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter)
+
+  val log = Seq(logbackClassic, slf4j)
 
   val http4s = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
 
