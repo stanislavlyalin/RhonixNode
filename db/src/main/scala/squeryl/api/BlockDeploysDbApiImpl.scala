@@ -12,7 +12,7 @@ import squeryl.tables.BlockDeploysTable
 import squeryl.tables.CustomTypeMode.*
 
 class BlockDeploysDbApiImpl[F[_]: Sync: SqlConn] extends BlockDeploysDbApi[F] {
-  override def insert(blockDeploys: BlockDeploys): F[BlockDeploys] =
+  override def insert(blockDeploys: BlockDeploys): F[Unit] =
     withSession(blockDeploysTable.insert(BlockDeploysTable.toDb(blockDeploys))).map(BlockDeploysTable.fromDb)
 
   override def getByBlock(blockId: Long): F[Seq[BlockDeploys]] = withSession(
