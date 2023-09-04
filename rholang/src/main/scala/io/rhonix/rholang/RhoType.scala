@@ -1,7 +1,11 @@
 package io.rhonix.rholang
 
 import cats.Eval
-import io.rhonix.rholang.parmanager.Manager._
+import cats.syntax.all.*
+import io.rhonix.rholang.parmanager.Manager.*
+
+import java.util
+import scala.math.Ordered.orderingToOrdered
 
 /** Base trait for Rholang elements in the Reducer */
 sealed trait RhoTypeN {
@@ -16,7 +20,7 @@ sealed trait RhoTypeN {
   val serialized: Eval[Array[Byte]] = serializedFn(this, memoizeChildren = false).memoize
 
   /** True if the object or at least one of the nested objects non-concrete.
-    * Such a object cannot be viewed as if it were a term.*/
+   * Such a object cannot be viewed as if it were a term.*/
   // TODO: Rename connectiveUsed for more clarity
   val connectiveUsed: Eval[Boolean] = connectiveUsedFn(this).memoize
 
@@ -26,32 +30,40 @@ sealed trait RhoTypeN {
   /** True if the object or at least one of the nested objects can be substituted in Reducer */
   lazy val substituteRequired: Boolean = substituteRequiredFn(this)
 
-  override def equals(x: Any): Boolean = parmanager.Manager.equals(this, x)
-}
+  override def equals(other: Any): Boolean = other match {
+    case x: RhoTypeN => this.rhoHash.value sameElements x.rhoHash.value
+    case _           => false
+  }
 
-/* TODO: In the future, it is necessary to append the classification.
-         Add main types and ground types.
-         Ground types must be part of expressions, and expressions are part of the main types.
- */
-/** Auxiliary elements included in other pairs */
-trait AuxParN extends RhoTypeN
+  override def hashCode(): Int = this.rhoHash.value.hashCode()
+}
 
 /** Rholang element that can be processed in parallel, together with other elements */
 sealed trait ParN extends RhoTypeN
 
 object ParN {
+  implicit val o: Ordering[Array[Byte]] = (a: Array[Byte], b: Array[Byte]) => util.Arrays.compare(a, b)
 
   /**
-    * Create a flatten parallel Par (ParProc) from par sequence.
-    * See [[flattedPProc]] for more information.
-    */
+   * Create a flatten parallel Par (ParProc) from par sequence.
+   * See [[flattedPProc]] for more information.
+   */
   def makeParProc(ps: Seq[ParN]): ParN = flattedPProc(ps)
 
   /** Combine two pars for their parallel execution */
   def combine(p1: ParN, p2: ParN): ParN = combinePars(p1, p2)
 
-  def compare(p1: ParN, p2: ParN): Int = comparePars(p1, p2)
+  def compare(p1: ParN, p2: ParN): Int = p1.rhoHash.value compare p2.rhoHash.value
   val ordering: Ordering[ParN]         = (p1: ParN, p2: ParN) => compare(p1, p2)
+
+  implicit class SequenceHelpers[T](val seq: Seq[T]) extends AnyVal {
+
+    /** Sorts the sequence by the selected byte array and its defined `Ordering` instance. */
+    @inline def sortByBytes(f: T => Eval[Array[Byte]]): Eval[Seq[T]] =
+      seq
+        .traverse(t => f(t).map((t, _)))
+        .map(_.sortBy { case (_, hash) => hash }.map { case (t, _) => t })
+  }
 }
 
 /** Basic rholang operations that can be executed in parallel*/
@@ -92,9 +104,9 @@ trait UnforgeableN extends ParN {
 }
 
 /**
-  * Connectives (bindings) are used in patterns to combine several conditions together or
-  * to set a pattern with some specific Rholang type or variables.
-  * */
+ * Connectives (bindings) are used in patterns to combine several conditions together or
+ * to set a pattern with some specific Rholang type or variables.
+ * */
 trait ConnectiveN extends ParN
 
 /** Connectives for simple types */

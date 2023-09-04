@@ -740,7 +740,7 @@ class ProcMatcherSpec extends AnyFlatSpec with Matchers {
             SendN(BoundVarN(2), GIntN(11)),
           ),
         ),
-        uri = Vector("rho:registry", "rho:stdout"),
+        uri = Vector("rho:registry", "rho:stdout").map(GStringN(_)),
         Seq(),
       ),
     )
@@ -984,8 +984,7 @@ class ProcMatcherSpec extends AnyFlatSpec with Matchers {
       val boundInputs    =
         inputs.copy(boundMapChain = inputs.boundMapChain.put(("x", ProcSort, SourcePosition(0, 0))))
       val result         = ProcNormalizeMatcher.normalizeMatch[Eval](pMethod, boundInputs).value
-      val expectedResult =
-        EMethodN(methodName, BoundVarN(0), GIntN(0))
+      val expectedResult = EMethodN(BoundVarN(0), methodName, GIntN(0))
       result.par === expectedResult && result.freeMap === inputs.freeMap
     }
     methods.forall(m => test(m))

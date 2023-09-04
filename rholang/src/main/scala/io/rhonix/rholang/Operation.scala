@@ -66,18 +66,19 @@ object EPercentPercentN {
   def apply(p1: ParN, p2: ParN): EPercentPercentN = new EPercentPercentN(p1, p2)
 }
 
-final class EMethodN(val methodName: String, val target: ParN, val arguments: Seq[ParN]) extends OperationOtherN
+final class EMethodN(val target: ParN, val methodName: String, val args: Seq[ParN]) extends OperationOtherN
+
 object EMethodN {
-  def apply(methodName: String, target: ParN, arguments: Seq[ParN] = Seq()): EMethodN =
-    new EMethodN(methodName, target, arguments)
-  def apply(methodName: String, target: ParN, argument: ParN): EMethodN               =
-    new EMethodN(methodName, target, Seq(argument))
+  def apply(target: ParN, methodName: String, args: Seq[ParN] = Seq()): EMethodN =
+    new EMethodN(target, methodName, args)
+  def apply(target: ParN, methodName: String, arg: ParN): EMethodN               =
+    new EMethodN(target, methodName, Seq(arg))
 }
 
 /**
-  * The p matches q expression is similar to:
-  * match p { q -> true; _ -> false }
-  */
+ * The p matches q expression is similar to:
+ * match p { q -> true; _ -> false }
+ */
 final class EMatchesN(val target: ParN, val pattern: ParN) extends OperationOtherN
 object EMatchesN {
   def apply(target: ParN, pattern: ParN): EMatchesN = new EMatchesN(target, pattern)

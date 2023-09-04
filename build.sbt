@@ -143,8 +143,8 @@ lazy val legacy = (project in file("legacy"))
       options.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused:imports")) ++ Seq(
         "-Xlint:-strict-unsealed-patmat",
         "-Xnon-strict-patmat-analysis",
-        "-Wconf:cat=deprecation:ws", // suppress deprecation warnings
-        "-Xlint:-missing-interpolator" // Disable false positive strings containing ${...}
+        "-Wconf:cat=deprecation:ws",   // suppress deprecation warnings
+        "-Xlint:-missing-interpolator",// Disable false positive strings containing ${...}
       )
     },
     Compile / compile / wartremoverErrors ~= {
@@ -154,8 +154,9 @@ lazy val legacy = (project in file("legacy"))
       new Target(
         gen(flatPackage = true)._1,
         (Compile / sourceManaged).value,
-        gen(flatPackage = true)._2
-      )),
+        gen(flatPackage = true)._2,
+      ),
+    ),
     libraryDependencies ++= common ++ tests ++ legacyLibs,
     resolvers += ("jitpack" at "https://jitpack.io"),
   )

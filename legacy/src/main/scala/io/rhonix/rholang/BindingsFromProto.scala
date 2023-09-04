@@ -1,15 +1,16 @@
 package io.rhonix.rholang
 
-import coop.rchain.models.Connective.ConnectiveInstance._
-import coop.rchain.models.Expr.ExprInstance._
-import coop.rchain.models.GUnforgeable.UnfInstance._
-import coop.rchain.models.Var.VarInstance._
-import coop.rchain.models._
+import cats.syntax.all.*
+import coop.rchain.models.Connective.ConnectiveInstance.*
+import coop.rchain.models.Expr.ExprInstance.*
+import coop.rchain.models.GUnforgeable.UnfInstance.*
+import coop.rchain.models.Var.VarInstance.*
+import coop.rchain.models.*
 import scalapb.GeneratedMessage
 
 import scala.annotation.unused
 
-private[rholang] object BindingsFromProto {
+object BindingsFromProto {
 
   def fromProto(p: Par): ParN = {
     val ps =
@@ -175,7 +176,7 @@ private[rholang] object BindingsFromProto {
     val p                               = fromProto(x.p)
     val uri                             = x.uri
     val injections: Seq[(String, ParN)] = fromProtoInjections(x.injections.toSeq)
-    NewN(bindCount, p, uri, injections)
+    NewN(bindCount, p, uri.map(GStringN(_)), injections.map(_.bimap(GStringN(_), identity)))
   }
 
   /** Ground types */
@@ -382,10 +383,10 @@ private[rholang] object BindingsFromProto {
   }
 
   private def fromEMethod(x: EMethod): EMethodN = {
-    val methodName = x.methodName
     val target     = fromProto(x.target)
+    val methodName = x.methodName
     val arguments  = fromProto(x.arguments)
-    EMethodN(methodName, target, arguments)
+    EMethodN(target, methodName, arguments)
   }
 
   private def fromEMatches(x: EMatches): EMatchesN = {
