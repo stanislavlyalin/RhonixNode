@@ -37,9 +37,9 @@ class DbSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   "Bond insert function call" should "add the correct entry to the Bond table" ignore {
     forAll { (validator: Validator, bondStake: Long) =>
-      def test(validatorAip: ValidatorDbApiImpl[IO], bondApi: BondDbApiImpl[IO]) = for {
-        validatorId <- validatorAip.insert(validator)
-        _           <- OptionT[IO, Validator](validatorAip.getById(validatorId)).getOrRaise(new RecordNotFound)
+      def test(validatorApi: ValidatorDbApiImpl[IO], bondApi: BondDbApiImpl[IO]) = for {
+        validatorId <- validatorApi.insert(validator)
+        _           <- OptionT[IO, Validator](validatorApi.getById(validatorId)).getOrRaise(new RecordNotFound)
         bondId      <- bondApi.insert(Bond(validator, bondStake), validatorId)
         bond        <- OptionT(bondApi.getById(bondId)).getOrRaise(new RecordNotFound)
       } yield {
