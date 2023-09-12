@@ -10,5 +10,4 @@
 
 - [x] includes tests for all added features,
 - [x] has a reviewer assigned,
-- [x] 
-  has [all commits signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
+- [x] has [all commits signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
