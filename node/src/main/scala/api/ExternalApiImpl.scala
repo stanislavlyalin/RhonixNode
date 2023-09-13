@@ -1,17 +1,18 @@
 package api
 
 import cats.effect.Sync
-import sdk.api.{Block, Deploy, ExternalApi}
-import sdk.db.DbSession.withSessionF
-import sdk.db.{DbSession, DeployTable}
-import squeryl.DbQuery
+import sdk.api.ExternalApi
+import sdk.api.data.*
+import sdk.db.SqlConn
+import squeryl.{withSession, DbQuery}
+import squeryl.tables.DeployTable
 
 /**
  * Implementation of the external API using `squeryl` library.
  */
-class ExternalApiImpl[F[_]: Sync: DbSession] extends ExternalApi[F] {
+class ExternalApiImpl[F[_]: Sync: SqlConn] extends ExternalApi[F] {
   override def getBlockById(blockId: Long): F[Option[Block]] = ???
 
   override def getDeploysByBlockId(blockId: Long): F[Seq[Deploy]] =
-    withSessionF(DbQuery.getDeploysByBlockId(blockId).iterator.map(DeployTable.fromDb).toSeq)
+    withSession(DbQuery.getDeploysByBlockId(blockId).iterator.map(DeployTable.fromDb).toSeq)
 }
