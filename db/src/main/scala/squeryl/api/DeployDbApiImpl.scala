@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import sdk.api.DeployDbApi
 import sdk.api.data.Deploy
 import sdk.db.*
-import squeryl.{withSession, SqlConn}
+import squeryl.withSession
 import squeryl.RhonixNodeDb.deployTable
 import squeryl.CustomTypeMode.*
 import squeryl.tables.DeployTable

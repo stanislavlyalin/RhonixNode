@@ -4,9 +4,10 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.api.BlockJustificationsDbApi
 import sdk.api.data.*
+import sdk.db.SqlConn
 
 import java.sql.Connection
-import squeryl.{withSession, SqlConn}
+import squeryl.withSession
 import squeryl.RhonixNodeDb.blockJustificationsTable
 import squeryl.tables.BlockJustificationsTable
 import squeryl.CustomTypeMode.*

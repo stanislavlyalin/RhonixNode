@@ -3,7 +3,8 @@ package api
 import cats.effect.Sync
 import sdk.api.ExternalApi
 import sdk.api.data.*
-import squeryl.{withSession, DbQuery, SqlConn}
+import sdk.db.SqlConn
+import squeryl.{withSession, DbQuery}
 import squeryl.tables.DeployTable
 
 /**

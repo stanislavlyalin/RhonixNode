@@ -1,10 +1,11 @@
-package squeryl
+package sdk.db
 
 import cats.Applicative
 import cats.syntax.all.*
 
 import java.sql.Connection
 
+/// Wrapper for java.sql.Connection to make it injectable as a context bound
 trait SqlConn[F[_]] {
   def get: F[java.sql.Connection]
 }

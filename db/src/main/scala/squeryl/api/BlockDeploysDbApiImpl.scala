@@ -4,9 +4,10 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.api.BlockDeploysDbApi
 import sdk.api.data.*
+import sdk.db.SqlConn
 
 import java.sql.Connection
-import squeryl.{withSession, SqlConn}
+import squeryl.withSession
 import squeryl.RhonixNodeDb.blockDeploysTable
 import squeryl.tables.BlockDeploysTable
 import squeryl.CustomTypeMode.*

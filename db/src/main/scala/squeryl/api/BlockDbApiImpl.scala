@@ -5,10 +5,11 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.api.BlockDbApi
 import sdk.api.data.*
+import sdk.db.SqlConn
 import squeryl.RhonixNodeDb.blockTable
 import squeryl.tables.BlockTable
 import squeryl.CustomTypeMode.*
-import squeryl.{withSession, SqlConn}
+import squeryl.withSession
 
 final case class BlockDbApiImpl[F[_]: Sync: SqlConn](
   validatorDbApi: ValidatorDbApiImpl[F],

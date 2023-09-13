@@ -1,6 +1,7 @@
 import cats.Applicative
 import org.squeryl.adapters.PostgreSqlAdapter
 import cats.syntax.all.*
+import sdk.db.SqlConn
 import squeryl.CustomTypeMode
 
 package object squeryl {

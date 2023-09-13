@@ -6,8 +6,9 @@ import sdk.api.data.Validator
 import squeryl.RhonixNodeDb.validatorTable
 import squeryl.CustomTypeMode.*
 import squeryl.tables.ValidatorTable
-import squeryl.{withSession, SqlConn}
+import squeryl.withSession
 import cats.syntax.all.*
+import sdk.db.SqlConn
 
 class ValidatorDbApiImpl[F[_]: Sync: SqlConn] extends ValidatorDbApi[F] {
   override def insert(validator: Validator): F[Long] =

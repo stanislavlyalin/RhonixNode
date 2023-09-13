@@ -5,8 +5,8 @@ import io.zonky.test.db.postgres.embedded.LiquibasePreparer
 import io.zonky.test.db.postgres.junit5.EmbeddedPostgresExtension
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.mockito.Mockito.mock
-import squeryl.SqlConn
 import cats.syntax.all.*
+import sdk.db.SqlConn
 
 /** Embedded PgSql initialised via liquibase. */
 object LiquiPgSql {

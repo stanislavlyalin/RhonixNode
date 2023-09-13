@@ -5,9 +5,10 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.api.BondDbApi
 import sdk.api.data.Bond
+import sdk.db.SqlConn
 
 import java.sql.Connection
-import squeryl.{withSession, SqlConn}
+import squeryl.withSession
 import squeryl.RhonixNodeDb.{bondTable, validatorTable}
 import squeryl.tables.BondTable
 import squeryl.CustomTypeMode.*
