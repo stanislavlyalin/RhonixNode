@@ -6,7 +6,7 @@ import sdk.api.BlockBondsDbApi
 import sdk.api.data.BlockBonds
 import squeryl.RhonixNodeDb.blockBondsTable
 import squeryl.tables.BlockBondsTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 import squeryl.{withSession, SqlConn}
 
 class BlockBondsDbApiImpl[F[_]: Applicative: SqlConn] extends BlockBondsDbApi[F] {

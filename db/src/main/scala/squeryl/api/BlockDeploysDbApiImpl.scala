@@ -9,7 +9,7 @@ import java.sql.Connection
 import squeryl.{withSession, SqlConn}
 import squeryl.RhonixNodeDb.blockDeploysTable
 import squeryl.tables.BlockDeploysTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 
 class BlockDeploysDbApiImpl[F[_]: Sync: SqlConn] extends BlockDeploysDbApi[F] {
   override def insert(blockDeploys: BlockDeploys): F[Unit] =

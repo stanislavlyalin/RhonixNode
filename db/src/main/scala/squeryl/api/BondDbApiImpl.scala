@@ -10,7 +10,7 @@ import java.sql.Connection
 import squeryl.{withSession, SqlConn}
 import squeryl.RhonixNodeDb.{bondTable, validatorTable}
 import squeryl.tables.BondTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 
 class BondDbApiImpl[F[_]: Sync: SqlConn] extends BondDbApi[F] {
   override def insert(bond: Bond, validatorId: Long): F[Long] =

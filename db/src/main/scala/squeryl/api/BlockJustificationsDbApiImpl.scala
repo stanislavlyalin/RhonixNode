@@ -9,7 +9,7 @@ import java.sql.Connection
 import squeryl.{withSession, SqlConn}
 import squeryl.RhonixNodeDb.blockJustificationsTable
 import squeryl.tables.BlockJustificationsTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 
 class BlockJustificationsDbApiImpl[F[_]: Sync: SqlConn] extends BlockJustificationsDbApi[F] {
   override def insert(blockJustifications: BlockJustifications): F[BlockJustifications] =

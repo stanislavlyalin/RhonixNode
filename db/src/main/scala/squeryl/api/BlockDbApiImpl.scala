@@ -7,7 +7,7 @@ import sdk.api.BlockDbApi
 import sdk.api.data.*
 import squeryl.RhonixNodeDb.blockTable
 import squeryl.tables.BlockTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 import squeryl.{withSession, SqlConn}
 
 final case class BlockDbApiImpl[F[_]: Sync: SqlConn](

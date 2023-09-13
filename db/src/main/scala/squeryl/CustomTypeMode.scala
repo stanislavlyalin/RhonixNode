@@ -1,4 +1,4 @@
-package squeryl.tables
+package squeryl
 
 import org.squeryl.dsl.{CanCompare, TByteArray}
 

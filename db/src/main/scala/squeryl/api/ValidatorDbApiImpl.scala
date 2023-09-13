@@ -4,7 +4,7 @@ import cats.effect.Sync
 import sdk.api.ValidatorDbApi
 import sdk.api.data.Validator
 import squeryl.RhonixNodeDb.validatorTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 import squeryl.tables.ValidatorTable
 import squeryl.{withSession, SqlConn}
 import cats.syntax.all.*

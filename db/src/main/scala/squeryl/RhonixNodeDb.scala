@@ -1,7 +1,7 @@
 package squeryl
 
 import org.squeryl.{Schema, Table}
-import squeryl.tables.CustomTypeMode.*
+import CustomTypeMode.*
 import squeryl.tables.*
 
 object RhonixNodeDb extends Schema {

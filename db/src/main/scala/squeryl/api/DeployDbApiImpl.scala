@@ -7,7 +7,7 @@ import sdk.api.data.Deploy
 import sdk.db.*
 import squeryl.{withSession, SqlConn}
 import squeryl.RhonixNodeDb.deployTable
-import squeryl.tables.CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 import squeryl.tables.DeployTable
 
 class DeployDbApiImpl[F[_]: Sync: SqlConn] extends DeployDbApi[F] {
