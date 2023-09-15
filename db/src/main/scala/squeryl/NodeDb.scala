@@ -1,7 +1,7 @@
 package squeryl
 
 import org.squeryl.{Schema, Table}
-import CustomTypeMode.*
+import squeryl.CustomTypeMode.*
 import squeryl.tables.*
 
 object NodeDb extends Schema {

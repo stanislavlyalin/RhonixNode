@@ -9,6 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sdk.api.data.*
 import sdk.db.*
+import slick.api.*
 import squeryl.api.*
 
 // TODO re-enable these tests when it is possible to execute them on CI.
@@ -18,7 +19,7 @@ class DbSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   "Validator insert function call" should "add the correct entry to the Validator table" ignore {
     forAll { (validator: Validator) =>
-      def test(api: ValidatorDbApiImpl[IO]) = for {
+      def test(api: ValidatorDbApiImplSlick[IO]) = for {
         id                <- api.insert(validator)
         validatorById     <- OptionT(api.getById(id)).getOrRaise(new RecordNotFound)
         validatorByPubKey <- OptionT(api.getByPublicKey(validator.publicKey)).getOrRaise(new RecordNotFound)
@@ -31,7 +32,7 @@ class DbSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
         validatorById shouldBe validatorByPubKey
       }
 
-      LiquiPgSql[IO].map(implicit c => new ValidatorDbApiImpl[IO]).use(test).unsafeRunSync()
+      SlickPgSql[IO].map(db => new ValidatorDbApiImplSlick[IO](db)).use(test).unsafeRunSync()
     }
   }
 

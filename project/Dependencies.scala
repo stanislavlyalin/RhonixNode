@@ -56,6 +56,12 @@ object Dependencies {
     "io.github.liquibase4s" %% "liquibase4s-core"        % "1.0.0",
     "io.github.liquibase4s" %% "liquibase4s-cats-effect" % "1.0.0",
   )
+  val slick: Seq[ModuleID]       = Seq(
+    "com.typesafe.slick"                 %% "slick"               % "3.4.1",
+    "org.slf4j"                           % "slf4j-nop"           % "2.0.5",
+    "com.typesafe.slick"                 %% "slick-hikaricp"      % "3.4.1",
+    "io.github.nafg.slick-migration-api" %% "slick-migration-api" % "0.9.0",// Migration tool for Slick
+  )
 
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
@@ -80,7 +86,7 @@ object Dependencies {
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 
-  val dbLibs = Seq(embeddedPostgres, postgresql, squeryl, junitJupiter) ++ liquibase4s
+  val dbLibs = Seq(embeddedPostgres, postgresql, squeryl, junitJupiter) ++ liquibase4s ++ slick
 
   val cryptoLibs = Seq(bcprov)
 }
