@@ -109,11 +109,12 @@ lazy val sim = (project in file("sim"))
     libraryDependencies ++= common,
     version                          := "0.1.0-SNSHOT",
     organization                     := "io.rhonix",
-    assembly / mainClass             := Some("sim.Sim"),
+    assembly / mainClass             := Some("sim.NetworkSim"),
     assembly / assemblyJarName       := "rhonix.sim.jar",
     assembly / assemblyMergeStrategy := {
+      case PathList("reference.conf")    => MergeStrategy.concat
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x                             => MergeStrategy.first
     },
   )
-  .dependsOn(node, db)
+  .dependsOn(node, db, diag)
