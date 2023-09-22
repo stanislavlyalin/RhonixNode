@@ -47,7 +47,7 @@ object NetworkSim extends IOApp {
   val numBlocks = 50000
 
   /** Init simulation. Return list of streams representing processes of the computer. */
-  def sim[F[_]: Async: Parallel: Random: Console](c: Config): Stream[F, Unit] = {
+  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](c: Config): Stream[F, Unit] = {
 
     /** Make the computer, init all peers with lfs. */
     def mkNet(lfs: MessageData[M, S]): F[List[(S, Node[F, M, S, T])]] =
@@ -122,7 +122,9 @@ object NetworkSim extends IOApp {
               .through(TPS)
               .evalTap(x => tpsRef.set(x / c.size)) // finality is computed by each sender eventually
             val getData =
-              (idx.pure, tpsRef.get, weaverStRef.get, proposerStRef.get, processorStRef.get, bufferStRef.get).tupled
+            (idx.pure, tpsRef.get, weaverStRef.get, proposerStRef.get, processorStRef.get, bufferStRef.get).mapN(
+              NetworkSnapshot.NodeSnapshot(_, _, _, _, _, _),
+            )
 
             val apiServerStream: Stream[F, ExitCode] = if (idx == 0) {
               implicit val a: EntityEncoder[F, Long] = org.http4s.circe.jsonEncoderOf[F, Long]
@@ -220,6 +222,8 @@ object NetworkSim extends IOApp {
           Duration(stateReadTime.toLong, MICROSECONDS),
           lazinessTolerance.toInt,
         )
+
+        implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
         Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
           NetworkSim.sim[IO](config).compile.drain.as(ExitCode.Success)
         }
