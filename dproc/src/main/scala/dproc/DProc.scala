@@ -8,6 +8,7 @@ import dproc.WeaverNode.*
 import dproc.data.Block
 import fs2.Stream
 import sdk.DagCausalQueue
+import sdk.hashing.Blake2b256Hash
 import sdk.merging.Relation
 import sdk.node.{Processor, Proposer}
 import weaver.WeaverState
@@ -37,7 +38,13 @@ final case class DProc[F[_], M, T](
 
 object DProc {
   trait ExeEngine[F[_], M, S, T] {
-    def execute(toFinalize: Set[T], toMerge: Set[T], txs: Set[T]): F[Boolean]
+    def execute(
+      base: Set[M],
+      finalFringe: Set[M],
+      toFinalize: Set[T],
+      toMerge: Set[T],
+      txs: Set[T],
+    ): F[((Blake2b256Hash, Seq[T]), (Blake2b256Hash, Seq[T]))]
 
     // data read from the final state associated with the final fringe
     def consensusData(fringe: Set[M]): F[FinalData[S]]

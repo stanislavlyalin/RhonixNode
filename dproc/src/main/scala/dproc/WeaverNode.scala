@@ -107,22 +107,29 @@ final case class WeaverNode[F[_]: Sync, M, S, T](state: WeaverState[M, S, T]) {
       lazoE   <- exeEngine.consensusData(lazoF.fFringe)
       txToPut  = WeaverNode(state).computeGard(txs, lazoF.fFringe, lazoE.expirationThreshold)
       toMerge <- WeaverNode(state).computeCsResolve(mgjs, lazoF.fFringe)
-      _       <- exeEngine.execute(
+      r       <- exeEngine.execute(
+                   state.lazo.latestFringe(mgjs).fFringe,
+                   lazoF.fFringe,
                    fin.map(_.accepted).getOrElse(Set()),
                    toMerge.accepted,
                    txToPut.toSet,
-                 ) // TODO return hash here to put in a block
+                 )
+
+      ((finalStateHash, finRj), (postStateHash, provRj)) = r
     } yield Block(
       sender = sender,
       minGenJs = mgjs,
       txs = txToPut,
       offences = offences,
       finalFringe = lazoF.fFringe,
-      finalized = fin,
-      merge = toMerge.accepted,
+      // TODO add rejections due to negative balance overflow
+      finalized = fin,          // .map(x => x.copy(rejected = x.rejected ++ finRj, accepted = x.accepted -- finRj)),
+      merge = toMerge.accepted, // -- provRj,
       bonds = lazoE.bonds,
       lazTol = lazoE.lazinessTolerance,
       expThresh = lazoE.expirationThreshold,
+      finalStateHash = finalStateHash,
+      postStateHash = postStateHash,
     )
   }
 
@@ -138,8 +145,19 @@ final case class WeaverNode[F[_]: Sync, M, S, T](state: WeaverState[M, S, T]) {
       _  <- validateExeData(lE, Block.toLazoE(m))
       _  <- validateGard(m, lE.expirationThreshold)
       _  <- validateCsResolve(m)
-      // TODO execution logic is cumbersome, here we do not merge finality since it has been done on block creation
-      _  <- EitherT(exeEngine.execute(Set.empty[T], m.merge, m.txs.toSet).map(_.guard[Option].toRight(Offence.iexec)))
+
+      base      <- EitherT.liftF(dag.latestFringe(m.minGenJs))
+      toResolve <-
+        dag.between(m.finalFringe, base).map(_.filterNot(state.lazo.offences)).map(_.flatMap(state.meld.txsMap))
+      base      <- EitherT.liftF(dag.latestFringe(m.minGenJs))
+      r         <- EitherT.liftF(exeEngine.execute(base, m.finalFringe, toResolve.toSet, m.merge, m.txs.toSet))
+
+      ((finalState, _), (postState, _)) = r
+
+      _ <- EitherT.fromOption(
+             (finalState == m.finalStateHash && postState == m.postStateHash).guard[Option],
+             Offence.iexec,
+           )
     } yield ()
 
   def createBlockWithId(

@@ -90,14 +90,18 @@ object Node {
       processorStRef <- Ref.of(Processor.default[M]())    // processor
       bufferStRef    <- Ref.of(DagCausalQueue.default[M]) // buffer
 
-      (executeDummy: MergePreState[F, T], balanceAPI) = DummyExe[F, T, S](exeDelay, txMap)
+      exeEngine = new ExeEngine[F, M, S, T] {
+                    def execute(
+                      base: Set[M],
+                      fringe: Set[M],
+                      toFinalize: Set[T],
+                      toMerge: Set[T],
+                      txs: Set[T],
+                    ): F[((Blake2b256Hash, Seq[T]), (Blake2b256Hash, Seq[T]))] =
+                      computePreStateWithEffects(base, fringe, toFinalize, toMerge, txs)
 
-      execution = new ExeEngine[F, M, S, T] {
-                    override def consensusData(fringe: Set[M]): F[FinalData[S]] =
-                      Temporal[F].sleep(stateReadTime).as(lfsExe)
-
-                    override def execute(toFinalize: Set[T], toMerge: Set[T], txs: Set[T]): F[Boolean] =
-                      executeDummy.mergePreState(toFinalize, toMerge, txs)
+                    // data read from the final state associated with the final fringe
+                    def consensusData(fringe: Set[M]): F[FinalData[S]] = lfs.lazo.trustAssumption.pure[F] // TODO
                   }
 
       dproc <- DProc.apply[F, M, S, T](
