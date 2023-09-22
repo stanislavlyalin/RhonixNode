@@ -45,6 +45,46 @@ object NetworkSim extends IOApp {
 
   // number of blocks to be produced by each sender
   val numBlocks = 50000
+  def genesisBlock[F[_]: Async: Parallel](sender: S, genesisExec: FinalData[S]): F[Block.WithId[M, S, T]] = {
+    val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[F])
+    val mkValuesStore = Sync[F].delay {
+      new ByteArrayKeyValueTypedStore[F, Blake2b256Hash, Balance](
+        new InMemoryKeyValueStore[F],
+        Blake2b256Hash.codec,
+        balanceCodec,
+      )
+    }
+
+    (mkHistory, mkValuesStore).flatMapN { case history -> valueStore =>
+      val genesisState  = new BalancesState(users.map(_ -> Long.MaxValue / 2).toMap)
+      val genesisDeploy = BalancesDeploy("genesis", genesisState)
+      BalancesStateBuilderWithReader(history, valueStore)
+        .buildState(
+          baseState = EmptyRootHash,
+          toFinalize = Default,
+          toMerge = genesisState,
+        )
+        .map { case _ -> postState =>
+          Block.WithId(
+            s"genesis",
+            Block[M, S, T](
+              sender,
+              Set(),
+              Set(),
+              txs = List(genesisDeploy),
+              Set(),
+              None,
+              Set(),
+              genesisExec.bonds,
+              genesisExec.lazinessTolerance,
+              genesisExec.expirationThreshold,
+              finalStateHash = EmptyRootHash,
+              postStateHash = postState,
+            ),
+          )
+        }
+    }
+  }
 
   /** Init simulation. Return list of streams representing processes of the computer. */
   def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](c: Config): Stream[F, Unit] = {
