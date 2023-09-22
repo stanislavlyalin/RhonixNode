@@ -150,29 +150,16 @@ object NetworkSim extends IOApp {
       .map { case (streams, diags) =>
         val simStream = Stream.emits(streams).parJoin(streams.size)
 
-        simStream concurrently logDiag(diags.sequence)
+        val logDiag = {
+          val getNetworkState = diags.sequence
+          import NetworkSnapshot.*
+          getNetworkState.showAnimated(samplingTime = 1.second)
       }
 
-    Stream.force(x)
+        simStream concurrently logDiag
   }
 
-  def logDiag[F[_]: Async: Console](
-    getDiag: F[List[(Int, Int, WeaverState[M, S, T], Proposer.ST, Processor.ST[M], DagCausalQueue[M])]],
-  ) = Stream
-    .awakeEvery(150.millis)
-    .evalMap(_ => getDiag)
-    .map { x =>
-      val str = x.sortBy(_._1).map { case (_, tps, weaver, proposer, processor, buffer) =>
-        val processorData = s"${processor.processingSet.size} / ${processor.waitingList.size}(${processor.concurrency})"
-        f"$tps%5s ${weaver.lazo.dagData.size}%10s ${proposer.status}%16s ${processorData}%20s ${buffer.dequeue._2.size}%12s"
-      }
-      s"""  BPS | Consensus size | Proposer status | Processor size | Buffer size
-         |${str.mkString("\n")}
-         |""".stripMargin
-    }
-    .evalTap { x =>
-      print("\u001b[2J")
-      Console[F].print(x)
+    Stream.force(x)
     }
 
   override def run(args: List[String]): IO[ExitCode] = {
