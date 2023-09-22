@@ -37,7 +37,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
 
 lazy val rhonix = (project in file("."))
   .settings(commonSettings*)
-  .aggregate(sdk, weaver, dproc, db, node, sim, diag, execution)
+  .aggregate(sdk, weaver, dproc, db, node, sim, diag)
 
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
@@ -66,7 +66,7 @@ lazy val dproc = (project in file("dproc"))
   .settings(
     libraryDependencies ++= common ++ tests,
   )
-  .dependsOn(sdk, weaver, execution)
+  .dependsOn(sdk, weaver)
 
 // Node implementation
 lazy val node = (project in file("node"))
@@ -89,15 +89,6 @@ lazy val diag = (project in file("diag"))
     libraryDependencies ++= common ++ tests ++ diagnostics,
     // for embedded InfluxDB
     resolvers ++= Resolver.sonatypeOssRepos("releases"),
-  )
-  .dependsOn(sdk % "compile->compile;test->test")
-
-// Execution
-lazy val execution = (project in file("execution"))
-  //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
-  .settings(settingsScala2*)
-  .settings(
-    libraryDependencies ++= common ++ tests ++ diagnostics,
   )
   .dependsOn(sdk % "compile->compile;test->test")
 
