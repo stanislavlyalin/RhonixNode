@@ -41,6 +41,11 @@ object NetworkSim extends IOApp {
     rcvDelay: Duration,
     stateReadTime: Duration,
     lazinessTolerance: Int,
+
+  final case class NetNode[F[_]](
+    id: S,
+    node: Node[F, M, S, T],
+    balanceApi: (Blake2b256Hash, Wallet) => F[Long],
   )
 
   // number of blocks to be produced by each sender
@@ -113,6 +118,18 @@ object NetworkSim extends IOApp {
             )
               .map(vId -> _)
         } yield r
+    /// Shared block store across simulation
+    val blockStore: Ref[F, Map[M, Block[M, S, T]]] = Ref.unsafe(Map.empty[M, Block[M, S, T]])
+
+    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
+
+    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id))
+
+    def broadcast(
+      peers: List[Node[F, M, S, T]],
+      time: Duration,
+    ): Pipe[F, M, Unit] = _.evalMap(m => Temporal[F].sleep(time) *> peers.traverse(_.dProc.acceptMsg(m)).void)
+
       }
 
     val senders      = Iterator.range(0, c.size).map(n => s"s#$n").toList
@@ -138,13 +155,27 @@ object NetworkSim extends IOApp {
           genesisExec.expirationThreshold,
         ),
       )
+        Node[F, M, S, T](
+          vId,
+          WeaverState.empty[M, S, T](lfs.state),
+          assignBlockId,
+          nextTxs,
+          buildState,
+          saveBlock,
+          readBlock,
+        ).map(NetNode(vId, _, balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet).map(_.getOrElse(Long.MinValue))))
+      }
     }
 
     val x = mkNet(lfs)
       .map(_.zipWithIndex)
       .map { net =>
         net.map {
-          case (self, Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc, api, saveBlock)) -> idx =>
+          case NetNode(
+                self,
+                Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc),
+                balancesApi,
+              ) -> idx =>
             val bootstrap =
               Stream.eval(
                 saveBlock(genesisM) *> dProc.acceptMsg(genesisM.id) >> Console[F].println(s"Bootstrap done for ${self}"),
@@ -152,9 +183,7 @@ object NetworkSim extends IOApp {
             val notSelf   = net.collect { case (x @ (s, _)) -> _ if s != self => s -> x._2 }
 
             val run = dProc.dProcStream concurrently {
-              dProc.output
-                .evalTap(x => api.blocks.get(x).map(b => blocks.put(x, Block.WithId(x, b))))
-                .through(broadcast(notSelf, c.propDelay))
+              dProc.output.through(broadcast(notSelf, c.propDelay))
             }
 
             val tpsRef    = Ref.unsafe[F, Float](0f)
