@@ -117,10 +117,12 @@ object NetworkSim extends IOApp {
                 .through(broadcast(notSelf, c.propDelay))
             }
 
-            val tpsRef    = Ref.unsafe[F, Int](0)
+            val tpsRef    = Ref.unsafe[F, Float](0f)
             val tpsUpdate = dProc.finStream
-              .through(TPS)
-              .evalTap(x => tpsRef.set(x / c.size)) // finality is computed by each sender eventually
+              .map(_.accepted)
+              .throughput(1.second)
+              // finality is computed by each sender eventually so / c.size
+              .evalTap(x => tpsRef.set(x.toFloat / c.size))
             val getData =
             (idx.pure, tpsRef.get, weaverStRef.get, proposerStRef.get, processorStRef.get, bufferStRef.get).mapN(
               NetworkSnapshot.NodeSnapshot(_, _, _, _, _, _),
