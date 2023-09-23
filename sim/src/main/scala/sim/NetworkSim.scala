@@ -14,6 +14,7 @@ import org.http4s.EntityEncoder
 import rhonix.diagnostics.KamonContextStore
 import sdk.api.*
 import sdk.api.data.{Block as ApiBlock, BlockDeploys}
+import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
@@ -26,6 +27,7 @@ import weaver.WeaverState
 import weaver.data.*
 
 import scala.concurrent.duration.{Duration, DurationInt, MICROSECONDS}
+import scala.util.Try
 
 object NetworkSim extends IOApp {
 
@@ -55,7 +57,7 @@ object NetworkSim extends IOApp {
   final case class NetNode[F[_]](
     id: S,
     node: Node[F, M, S, T],
-    balanceApi: (Blake2b256Hash, Wallet) => F[Long],
+    balanceApi: (Blake2b256Hash, Wallet) => F[Option[Long]],
     historyStore: InMemoryKeyValueStore[F],
   )
 
@@ -183,7 +185,7 @@ object NetworkSim extends IOApp {
           NetNode(
             vId,
             _,
-            balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet).map(_.getOrElse(Long.MinValue)),
+            balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet),
             historyStore,
           ),
         )
@@ -238,7 +240,12 @@ object NetworkSim extends IOApp {
                 override def insert(blockDeploys: BlockDeploys): F[Unit]     = ().pure[F]
                 override def getByBlock(blockId: Long): F[Seq[BlockDeploys]] = Seq.empty[BlockDeploys].pure[F]
               }
-              val routes            = All[F, Long](dummyBlockDBApi, dummyDeploysDbApi, balancesApi)
+
+              implicit val decA: String => Try[Int]            = (x: String) => Try(x.toInt)
+              implicit val decB: String => Try[Blake2b256Hash] =
+                (x: String) => Base16.decode(x).flatMap(Blake2b256Hash.deserialize)
+
+              val routes = All[F, Long](dummyBlockDBApi, dummyDeploysDbApi, balancesApi)
               http.server(routes, 8080, "localhost")
             } else Stream.empty
 

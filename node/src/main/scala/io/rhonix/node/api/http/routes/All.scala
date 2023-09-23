@@ -14,8 +14,10 @@ object All {
   def apply[F[_]: Sync, T](
     blockApi: BlockDbApi[F],
     deployApi: BlockDeploysDbApi[F],
-    balanceApi: (Blake2b256Hash, Int) => F[T],
+    balanceApi: (Blake2b256Hash, Int) => F[Option[T]],
   )(implicit
+    decA: String => Try[Int],
+    decB: String => Try[Blake2b256Hash],
     ei: EntityEncoder[F, T],
   ): HttpRoutes[F] = {
     val dsl = org.http4s.dsl.Http4sDsl[F]
@@ -31,6 +33,6 @@ object All {
         blockApi.getByHash(hash).flatMap(_.map(Ok(_)).getOrElse(NotFound()))
       case GET -> ApiPath / BlockDeploysDbApi.MethodName / id =>
         deployApi.getByBlock(id.toLong).flatMap(Ok(_))
-    } <+> Balances[F, T](balanceApi)
+    } <+> Balances[F, Blake2b256Hash, Int, T](balanceApi)
   }
 }
