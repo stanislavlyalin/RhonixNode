@@ -56,6 +56,7 @@ object NetworkSim extends IOApp {
     id: S,
     node: Node[F, M, S, T],
     balanceApi: (Blake2b256Hash, Wallet) => F[Long],
+    historyStore: InMemoryKeyValueStore[F],
   )
 
   def genesisBlock[F[_]: Async: Parallel](sender: S, genesisExec: FinalData[S]): F[Block.WithId[M, S, T]] = {
@@ -136,7 +137,8 @@ object NetworkSim extends IOApp {
         random(users).map(st => Set(balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
       }
 
-      val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[F])
+      val historyStore  = new InMemoryKeyValueStore[F]
+      val mkHistory     = sdk.history.History.create(EmptyRootHash, historyStore)
       val mkValuesStore = Sync[F].delay {
         new ByteArrayKeyValueTypedStore[F, Blake2b256Hash, Balance](
           new InMemoryKeyValueStore[F],
@@ -177,7 +179,14 @@ object NetworkSim extends IOApp {
           buildState,
           saveBlock,
           readBlock,
-        ).map(NetNode(vId, _, balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet).map(_.getOrElse(Long.MinValue))))
+        ).map(
+          NetNode(
+            vId,
+            _,
+            balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet).map(_.getOrElse(Long.MinValue)),
+            historyStore,
+          ),
+        )
       }
     }
 
@@ -192,12 +201,13 @@ object NetworkSim extends IOApp {
                 self,
                 Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc),
                 balancesApi,
+                historyStore,
               ) -> idx =>
             val bootstrap =
               Stream.eval(genesisBlock[F](senders.head, genesisExec).flatMap { genesisM =>
                 saveBlock(genesisM) *> dProc.acceptMsg(genesisM.id) >> Console[F].println(s"Bootstrap done for ${self}")
               })
-            val notSelf   = net.collect { case NetNode(id, node, _) -> _ if id != self => node }
+            val notSelf   = net.collect { case NetNode(id, node, _, _) -> _ if id != self => node }
 
             val run = dProc.dProcStream concurrently {
               dProc.output.through(broadcast(notSelf, c.propDelay))
@@ -212,7 +222,7 @@ object NetworkSim extends IOApp {
               .evalTap(x => tpsRef.set(x.toFloat / c.size))
             val getData   =
               (idx.pure, tpsRef.get, weaverStRef.get, proposerStRef.get, processorStRef.get, bufferStRef.get).mapN(
-                NetworkSnapshot.NodeSnapshot(_, _, _, _, _, _),
+                NetworkSnapshot.NodeSnapshot(_, _, _, _, _, _, historyStore.State.size),
               )
 
             val apiServerStream: Stream[F, ExitCode] = if (idx == 0) {
