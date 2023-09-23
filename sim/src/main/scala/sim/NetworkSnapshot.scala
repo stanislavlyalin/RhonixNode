@@ -5,6 +5,8 @@ import sdk.DagCausalQueue
 import sdk.node.{Processor, Proposer}
 import weaver.WeaverState
 import cats.syntax.all.*
+import sdk.hashing.Blake2b256Hash
+import sdk.syntax.all.sdkSyntaxByteArray
 
 /// Snapshot of the simulation state.
 object NetworkSnapshot {
@@ -19,6 +21,7 @@ object NetworkSnapshot {
     processor: Processor.ST[M],
     buffer: DagCausalQueue[M],
     historyKeysSize: Int,
+    lfsHash: Blake2b256Hash,
   )
 
   implicit def showNodeSnapshot[M, S, T]: Show[NodeSnapshot[M, S, T]] = new Show[NodeSnapshot[M, S, T]] {
@@ -31,13 +34,14 @@ object NetworkSnapshot {
         f"${proposer.status}%16s " +
         f"$processorData%20s " +
         f"${buffer.dequeue._2.size}%12s" +
-        f"${historyKeysSize}%14s"
+        f"$historyKeysSize%14s" +
+        f"${lfsHash.bytes.toHex}%74s"
     }
   }
 
   implicit def showNetworkSnapshot[M, S, T]: Show[List[NodeSnapshot[M, S, T]]] = new Show[List[NodeSnapshot[M, S, T]]] {
     override def show(x: List[NodeSnapshot[M, S, T]]): String =
-      s"""  BPS | Consensus size | Proposer status | Processor size | Buffer size | History size
+      s"""  BPS | Consensus size | Proposer status | Processor size | Buffer size | History size | LFS hash
          |${x.sortBy(_.id).map(_.show).mkString("\n")}
          |""".stripMargin
   }

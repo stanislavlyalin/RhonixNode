@@ -59,6 +59,7 @@ object NetworkSim extends IOApp {
     node: Node[F, M, S, T],
     balanceApi: (Blake2b256Hash, Wallet) => F[Option[Long]],
     historyStore: InMemoryKeyValueStore[F],
+    fringeMapping: Set[M] => F[Blake2b256Hash],
   )
 
   def genesisBlock[F[_]: Async: Parallel](sender: S, genesisExec: FinalData[S]): F[Block.WithId[M, S, T]] = {
@@ -187,6 +188,7 @@ object NetworkSim extends IOApp {
             _,
             balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet),
             historyStore,
+            (x: Set[M]) => fringeMappingRef.get.map(_.getUnsafe(x)),
           ),
         )
       }
@@ -204,12 +206,13 @@ object NetworkSim extends IOApp {
                 Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc),
                 balancesApi,
                 historyStore,
+                fringeToHash,
               ) -> idx =>
             val bootstrap =
               Stream.eval(genesisBlock[F](senders.head, genesisExec).flatMap { genesisM =>
                 saveBlock(genesisM) *> dProc.acceptMsg(genesisM.id) >> Console[F].println(s"Bootstrap done for ${self}")
               })
-            val notSelf   = net.collect { case NetNode(id, node, _, _) -> _ if id != self => node }
+            val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
 
             val run = dProc.dProcStream concurrently {
               dProc.output.through(broadcast(notSelf, c.propDelay))
@@ -223,9 +226,20 @@ object NetworkSim extends IOApp {
               // finality is computed by each sender eventually so / c.size
               .evalTap(x => tpsRef.set(x.toFloat / c.size))
             val getData   =
-              (idx.pure, tpsRef.get, weaverStRef.get, proposerStRef.get, processorStRef.get, bufferStRef.get).mapN(
-                NetworkSnapshot.NodeSnapshot(_, _, _, _, _, _, historyStore.State.size),
-              )
+              (
+                idx.pure,
+                tpsRef.get,
+                weaverStRef.get,
+                proposerStRef.get,
+                processorStRef.get,
+                bufferStRef.get,
+              ).flatMapN { case (id, tps, w, p, pe, b) =>
+                val lfsHashF =
+                  fringeToHash(
+                    w.lazo.fringes.minByOption { case (i, _) => i }.map { case (_, fringe) => fringe }.getOrElse(Set()),
+                  )
+                lfsHashF.map(NetworkSnapshot.NodeSnapshot(id, tps, w, p, pe, b, historyStore.State.size, _))
+              }
 
             val apiServerStream: Stream[F, ExitCode] = if (idx == 0) {
               implicit val a: EntityEncoder[F, Long] = org.http4s.circe.jsonEncoderOf[F, Long]
