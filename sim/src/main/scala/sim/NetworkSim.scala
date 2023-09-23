@@ -7,13 +7,13 @@ import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
 import dproc.data.Block
 import fs2.{Pipe, Stream}
+import io.circe.Encoder
 import io.rhonix.node.Node
 import io.rhonix.node.api.http
 import io.rhonix.node.api.http.routes.*
 import org.http4s.EntityEncoder
 import rhonix.diagnostics.KamonContextStore
 import sdk.api.*
-import sdk.api.data.{Block as ApiBlock, BlockDeploys}
 import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
@@ -107,13 +107,14 @@ object NetworkSim extends IOApp {
 
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
-    val senders           = Iterator.range(0, c.size).map(n => s"s#$n").toList
+    val senders           = Iterator.range(0, c.size).map(n => s"s$n").toList
     // Create lfs message, it has no parents, sees no offences and final fringe is empty set
     val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
-    val lfs               = MessageData[M, S]("s#0", Set(), Set(), FringeData(Set()), genesisExec)
+    val lfs               = MessageData[M, S]("s0", Set(), Set(), FringeData(Set()), genesisExec)
 
     /// Shared block store across simulation
+    // TODO replace with pgSql
     val blockStore: Ref[F, Map[M, Block[M, S, T]]] = Ref.unsafe(Map.empty[M, Block[M, S, T]])
 
     def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
@@ -204,7 +205,7 @@ object NetworkSim extends IOApp {
           case NetNode(
                 self,
                 Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc),
-                balancesApi,
+                getBalance,
                 historyStore,
                 fringeToHash,
               ) -> idx =>
@@ -241,27 +242,51 @@ object NetworkSim extends IOApp {
                 lfsHashF.map(NetworkSnapshot.NodeSnapshot(id, tps, w, p, pe, b, historyStore.State.size, _))
               }
 
-            val apiServerStream: Stream[F, ExitCode] = if (idx == 0) {
-              implicit val a: EntityEncoder[F, Long] = org.http4s.circe.jsonEncoderOf[F, Long]
+            val apiServerStream: Stream[F, ExitCode] = {
+              import io.circe.generic.auto.*
+              import io.circe.generic.semiauto.*
+              import org.http4s.circe.*
 
-              val dummyBlockDBApi   = new BlockDbApi[F] {
-                override def insert(block: ApiBlock, senderId: Long): F[Long]           = 1L.pure[F]
-                override def update(id: Long, block: ApiBlock, senderId: Long): F[Unit] = ().pure[F]
-                override def getById(id: Long): F[Option[ApiBlock]]                     = none[ApiBlock].pure[F]
-                override def getByHash(hash: Array[Byte]): F[Option[ApiBlock]]          = none[ApiBlock].pure[F]
-              }
-              val dummyDeploysDbApi = new BlockDeploysDbApi[F] {
-                override def insert(blockDeploys: BlockDeploys): F[Unit]     = ().pure[F]
-                override def getByBlock(blockId: Long): F[Seq[BlockDeploys]] = Seq.empty[BlockDeploys].pure[F]
-              }
-
-              implicit val decA: String => Try[Int]            = (x: String) => Try(x.toInt)
-              implicit val decB: String => Try[Blake2b256Hash] =
+              implicit val c: String => Try[Int]            = (x: String) => Try(x.toInt)
+              implicit val d: String => Try[String]         = (x: String) => Try(x)
+              implicit val e: String => Try[Blake2b256Hash] =
                 (x: String) => Base16.decode(x).flatMap(Blake2b256Hash.deserialize)
+              implicit val encoder: Encoder[Blake2b256Hash] =
+                Encoder[String].imap(s => Blake2b256Hash(Base16.decode(s).getUnsafe))(x => Base16.encode(x.bytes.bytes))
 
-              val routes = All[F, Long](dummyBlockDBApi, dummyDeploysDbApi, balancesApi)
-              http.server(routes, 8080, "localhost")
-            } else Stream.empty
+              implicit val a: EntityEncoder[F, Long]           = jsonEncoderOf[F, Long]
+              implicit val x: EntityEncoder[F, Int]            = jsonEncoderOf[F, Int]
+              implicit val f: EntityEncoder[F, String]         = jsonEncoderOf[F, String]
+              implicit val g: EntityEncoder[F, Blake2b256Hash] = jsonEncoderOf[F, Blake2b256Hash]
+              implicit val h1: EntityEncoder[F, Set[String]]   = jsonEncoderOf[F, Set[String]]
+
+              implicit val h: EntityEncoder[F, Block[String, String, String]] =
+                jsonEncoderOf[F, Block[String, String, String]]
+
+              def blockByHash(x: M): F[Option[Block[M, S, String]]] =
+                blockStore.get
+                  .map(_.get(x))
+                  .map(
+                    _.map(x =>
+                      x.copy(
+                        merge = x.merge.map(_.id),
+                        txs = x.txs.map(_.id),
+                        finalized = x.finalized.map { case ConflictResolution(accepted, rejected) =>
+                          ConflictResolution(accepted.map(_.id), rejected.map(_.id))
+                        },
+                      ),
+                    ),
+                  )
+
+              def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
+
+              val routes =
+                HttpGet[F, Set[M]]("latest", latestBlocks.map(_.some)) <+>
+                  HttpGet[F, Blake2b256Hash, Wallet, Balance](BalancesApi.MethodName, getBalance) <+>
+                  HttpGet[F, M, Block[M, S, String]](BlockDbApi.MethodName, blockByHash)
+
+              http.server(routes, 8080 + idx, "localhost")
+            }
 
             (run concurrently bootstrap concurrently tpsUpdate concurrently apiServerStream) -> getData
         }
