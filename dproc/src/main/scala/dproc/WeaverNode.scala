@@ -156,10 +156,13 @@ final case class WeaverNode[F[_]: Sync, M, S, T](state: WeaverState[M, S, T]) {
 
       ((finalState, _), (postState, _)) = r
 
-      _ <- EitherT.fromOption(
-             (finalState == m.finalStateHash && postState == m.postStateHash).guard[Option],
-             Offence.iexec,
-           )
+      _ <-
+        EitherT.fromOption(
+          (java.util.Arrays.equals(finalState, m.finalStateHash) &&
+            java.util.Arrays.equals(postState, m.postStateHash))
+            .guard[Option],
+          Offence.iexec,
+        )
     } yield ()
 
   def createBlockWithId(

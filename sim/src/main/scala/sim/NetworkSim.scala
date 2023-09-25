@@ -95,8 +95,8 @@ object NetworkSim extends IOApp {
               genesisExec.bonds,
               genesisExec.lazinessTolerance,
               genesisExec.expirationThreshold,
-              finalStateHash = EmptyRootHash,
-              postStateHash = postState,
+              finalStateHash = EmptyRootHash.bytes.bytes,
+              postStateHash = postState.bytes.bytes,
             ),
           )
         }
@@ -161,7 +161,7 @@ object NetworkSim extends IOApp {
           toFinalize: Set[T],
           toMerge: Set[T],
           toExecute: Set[T],
-        ): F[((Blake2b256Hash, Seq[T]), (Blake2b256Hash, Seq[T]))] =
+        ): F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))] =
           for {
             baseState <- fringeMappingRef.get.map(_(baseFringe))
             r         <- mergeRejectNegativeOverflow(balancesEngine, baseState, toFinalize, toMerge ++ toExecute)
@@ -173,7 +173,7 @@ object NetworkSim extends IOApp {
             (finalHash, postHash) = r
 
             _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
-          } yield ((finalHash, finRj), (postHash, provRj))
+          } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
 
         Node[F, M, S, T](
           vId,
@@ -244,7 +244,6 @@ object NetworkSim extends IOApp {
 
             val apiServerStream: Stream[F, ExitCode] = {
               import io.circe.generic.auto.*
-              import io.circe.generic.semiauto.*
               import org.http4s.circe.*
 
               implicit val c: String => Try[Int]            = (x: String) => Try(x.toInt)

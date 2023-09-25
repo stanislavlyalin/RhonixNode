@@ -9,7 +9,6 @@ import dproc.data.Block
 import io.github.liquibase4s.cats.CatsMigrationHandler.*
 import io.github.liquibase4s.{Liquibase, LiquibaseConfig}
 import sdk.DagCausalQueue
-import sdk.hashing.Blake2b256Hash
 import sdk.merging.Relation
 import sdk.node.{Processor, Proposer}
 import weaver.WeaverState
@@ -40,7 +39,7 @@ object Node {
       Set[T],
       Set[T],
       Set[T],
-    ) => F[((Blake2b256Hash, Seq[T]), (Blake2b256Hash, Seq[T]))],
+    ) => F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))],
     saveBlock: Block.WithId[M, S, T] => F[Unit],
     readBlock: M => F[Block[M, S, T]],
   ): F[Node[F, M, S, T]] =
@@ -57,7 +56,7 @@ object Node {
                       toFinalize: Set[T],
                       toMerge: Set[T],
                       txs: Set[T],
-                    ): F[((Blake2b256Hash, Seq[T]), (Blake2b256Hash, Seq[T]))] =
+                    ): F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))] =
                       computePreStateWithEffects(base, fringe, toFinalize, toMerge, txs)
 
                     // data read from the final state associated with the final fringe

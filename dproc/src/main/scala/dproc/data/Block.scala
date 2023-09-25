@@ -1,12 +1,10 @@
 package dproc.data
 
-import sdk.hashing.Blake2b256Hash
 import weaver.GardState.GardM
 import weaver.data.*
 
 /**
  * All data required to be packed in a block.
- * This does not include data required from execution engine to do execution.
  * @param sender block sender
  * @param minGenJs minimal generative justifications set
  * @param offences offences computed by the message
@@ -17,9 +15,9 @@ import weaver.data.*
  * @param bonds bonds map of a message
  * @param lazTol laziness tolerance
  * @param expThresh transaction expiration threshold
- * @tparam M
- * @tparam S
- * @tparam T
+ * @tparam M type for block ID
+ * @tparam S type for sender ID
+ * @tparam T type for transaction ID
  */
 final case class Block[M, S, T](
   sender: S,
@@ -32,8 +30,8 @@ final case class Block[M, S, T](
   bonds: Bonds[S],
   lazTol: Int,
   expThresh: Int,
-  finalStateHash: Blake2b256Hash,
-  postStateHash: Blake2b256Hash,
+  finalStateHash: Array[Byte],
+  postStateHash: Array[Byte],
 )
 
 object Block {
