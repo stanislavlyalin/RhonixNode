@@ -250,14 +250,14 @@ object NetworkSim extends IOApp {
               implicit val d: String => Try[String]         = (x: String) => Try(x)
               implicit val e: String => Try[Blake2b256Hash] =
                 (x: String) => Base16.decode(x).flatMap(Blake2b256Hash.deserialize)
-              implicit val encoder: Encoder[Blake2b256Hash] =
-                Encoder[String].imap(s => Blake2b256Hash(Base16.decode(s).getUnsafe))(x => Base16.encode(x.bytes.bytes))
+              implicit val encoder: Encoder[Array[Byte]]    =
+                Encoder[String].imap(s => Base16.decode(s).getUnsafe)(x => Base16.encode(x))
 
-              implicit val a: EntityEncoder[F, Long]           = jsonEncoderOf[F, Long]
-              implicit val x: EntityEncoder[F, Int]            = jsonEncoderOf[F, Int]
-              implicit val f: EntityEncoder[F, String]         = jsonEncoderOf[F, String]
-              implicit val g: EntityEncoder[F, Blake2b256Hash] = jsonEncoderOf[F, Blake2b256Hash]
-              implicit val h1: EntityEncoder[F, Set[String]]   = jsonEncoderOf[F, Set[String]]
+              implicit val a: EntityEncoder[F, Long]         = jsonEncoderOf[F, Long]
+              implicit val x: EntityEncoder[F, Int]          = jsonEncoderOf[F, Int]
+              implicit val f: EntityEncoder[F, String]       = jsonEncoderOf[F, String]
+              implicit val g: EntityEncoder[F, Array[Byte]]  = jsonEncoderOf[F, Array[Byte]]
+              implicit val h1: EntityEncoder[F, Set[String]] = jsonEncoderOf[F, Set[String]]
 
               implicit val h: EntityEncoder[F, Block[String, String, String]] =
                 jsonEncoderOf[F, Block[String, String, String]]
