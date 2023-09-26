@@ -1,5 +1,5 @@
 FROM ubuntu:20.04
-LABEL Build environment for https://github.com/Rhonix-Network/RhonixNode for Debian 20.04
+LABEL Build environment for https://github.com/gorki-network/node for Debian 20.04
 RUN apt-get update
 # java 17
 RUN apt-get install -y --no-install-recommends openjdk-17-jre

@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import sdk.api.BlockBondsDbApi
 import sdk.api.data.BlockBonds
 import sdk.db.SqlConn
-import squeryl.RhonixNodeDb.blockBondsTable
+import squeryl.NodeDb.blockBondsTable
 import squeryl.tables.BlockBondsTable
 import squeryl.CustomTypeMode.*
 import squeryl.withSession

@@ -3,7 +3,6 @@ import Dependencies.*
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
 lazy val commonSettings = Seq(
-  organization      := "io.rhonix",
   version           := "0.1.0-SNAPSHOT",
   scalafmtOnCompile := !sys.env.contains("CI"), // Format on compile, disable in CI environments
 
@@ -35,7 +34,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
   Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2,
 )
 
-lazy val rhonix = (project in file("."))
+lazy val all = (project in file("."))
   .settings(commonSettings*)
   .aggregate(sdk, weaver, dproc, db, node, sim, diag)
 
@@ -108,9 +107,8 @@ lazy val sim = (project in file("sim"))
   .settings(
     libraryDependencies ++= common,
     version                          := "0.1.0-SNSHOT",
-    organization                     := "io.rhonix",
     assembly / mainClass             := Some("sim.NetworkSim"),
-    assembly / assemblyJarName       := "rhonix.sim.jar",
+    assembly / assemblyJarName       := "sim.jar",
     assembly / assemblyMergeStrategy := {
       case PathList("reference.conf")    => MergeStrategy.concat
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard

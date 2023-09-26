@@ -1,4 +1,4 @@
-package io.rhonix.node.api.http.codecs
+package node.api.http.codecs
 
 import cats.effect.kernel.Concurrent
 import io.circe.generic.auto.*

@@ -1,10 +1,12 @@
+package node
+
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import io.grpc.*
 import io.grpc.netty.NettyChannelBuilder
-import io.rhonix.node.api.grpc
-import io.rhonix.node.api.grpc.methods.Balances
+import node.api.grpc
+import node.api.grpc.methods.Balances
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime

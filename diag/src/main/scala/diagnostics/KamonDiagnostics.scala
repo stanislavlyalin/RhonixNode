@@ -1,4 +1,4 @@
-package rhonix.diagnostics
+package diagnostics
 
 import cats.effect.kernel.Outcome
 import cats.effect.{Async, Resource, Sync}

@@ -1,4 +1,4 @@
-package io.rhonix.node.api
+package node.api
 
 import cats.effect.{Async, ExitCode}
 import org.http4s.{HttpApp, HttpRoutes, Uri}

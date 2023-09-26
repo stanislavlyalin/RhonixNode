@@ -1,7 +1,7 @@
-package io.rhonix.node.api.grpc.methods
+package node.api.grpc.methods
 
 import io.grpc.ServerServiceDefinition
-import io.rhonix.node.api.grpc.methods.Balances.{balancesMethodDescriptor, balancesServerCallHandler}
+import node.api.grpc.methods.Balances.{balancesMethodDescriptor, balancesServerCallHandler}
 
 object All {
 

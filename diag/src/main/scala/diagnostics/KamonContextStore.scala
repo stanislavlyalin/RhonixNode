@@ -1,4 +1,4 @@
-package rhonix.diagnostics
+package diagnostics
 
 import cats.effect.{IO, IOLocal}
 import kamon.Kamon

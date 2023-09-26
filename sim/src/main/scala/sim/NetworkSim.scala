@@ -5,14 +5,14 @@ import cats.effect.*
 import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
+import diagnostics.KamonContextStore
 import dproc.data.Block
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
-import io.rhonix.node.Node
-import io.rhonix.node.api.http
-import io.rhonix.node.api.http.routes.*
+import node.Node
+import node.api.http
+import node.api.http.routes.*
 import org.http4s.EntityEncoder
-import rhonix.diagnostics.KamonContextStore
 import sdk.api.*
 import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash

@@ -1,14 +1,14 @@
-package rhonix.diagnostics
+package diagnostics
 
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO}
 import cats.syntax.all.*
 import com.typesafe.config.ConfigValueFactory
+import diagnostics.syntax.all.kamonSyntax
 import kamon.Kamon
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import rhonix.diagnostics.syntax.all.*
 
 class KamonTest extends AnyFlatSpec with Matchers {
 

@@ -1,4 +1,4 @@
-package io.rhonix.node
+package node
 
 import cats.effect.Ref
 import cats.effect.kernel.{Async, Sync}
@@ -88,7 +88,7 @@ object Node {
   /** Example of programmatically applying liquibase migrations */
   private def applyDBMigrations[F[_]: Sync](user: String, password: String): F[Unit] = {
     val config: LiquibaseConfig = LiquibaseConfig(
-      url = "jdbc:postgresql://localhost:5432/rhonixnode",
+      url = "jdbc:postgresql://localhost:5432/node",
       user = user,
       password = password,
       driver = "org.postgresql.Driver",

@@ -1,8 +1,8 @@
-package rhonix.diagnostics.syntax
+package diagnostics.syntax
 
 import cats.effect.Async
 import cats.effect.kernel.Sync
-import rhonix.diagnostics.{KamonContextStore, KamonDiagnostics}
+import diagnostics.{KamonContextStore, KamonDiagnostics}
 
 /** Syntax provided by Kamon for any effectful computation of a value. */
 final class KamonEffectOps[F[_], T](private val f: F[T]) extends AnyVal {

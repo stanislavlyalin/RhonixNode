@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import sdk.api.BlockDbApi
 import sdk.api.data.*
 import sdk.db.SqlConn
-import squeryl.RhonixNodeDb.blockTable
+import squeryl.NodeDb.blockTable
 import squeryl.tables.BlockTable
 import squeryl.CustomTypeMode.*
 import squeryl.withSession

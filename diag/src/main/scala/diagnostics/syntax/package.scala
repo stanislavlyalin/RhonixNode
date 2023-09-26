@@ -1,4 +1,4 @@
-package rhonix.diagnostics
+package diagnostics
 
 package object syntax {
   object all extends KamonEffectSyntax

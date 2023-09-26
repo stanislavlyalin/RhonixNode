@@ -4,7 +4,7 @@ import org.squeryl.{Schema, Table}
 import CustomTypeMode.*
 import squeryl.tables.*
 
-object RhonixNodeDb extends Schema {
+object NodeDb extends Schema {
   val validatorTable: Table[ValidatorTable]                     = table[ValidatorTable]("Validator")
   val bondTable: Table[BondTable]                               = table[BondTable]("Bond")
   val deployTable: Table[DeployTable]                           = table[DeployTable]("Deploy")

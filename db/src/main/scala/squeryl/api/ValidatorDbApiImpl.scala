@@ -3,7 +3,7 @@ package squeryl.api
 import cats.effect.Sync
 import sdk.api.ValidatorDbApi
 import sdk.api.data.Validator
-import squeryl.RhonixNodeDb.validatorTable
+import squeryl.NodeDb.validatorTable
 import squeryl.CustomTypeMode.*
 import squeryl.tables.ValidatorTable
 import squeryl.withSession

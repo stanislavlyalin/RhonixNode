@@ -1,4 +1,4 @@
-package io.rhonix.node.api
+package node.api
 
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}

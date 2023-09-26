@@ -1,4 +1,4 @@
-package io.rhonix.node.api.grpc.codecs
+package node.api.grpc.codecs
 
 import com.google.protobuf.{CodedInputStream, CodedOutputStream}
 

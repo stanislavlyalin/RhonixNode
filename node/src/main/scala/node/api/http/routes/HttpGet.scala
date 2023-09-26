@@ -1,8 +1,8 @@
-package io.rhonix.node.api.http.routes
+package node.api.http.routes
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import io.rhonix.node.api.http.ApiPath
+import node.api.http.ApiPath
 import org.http4s.Uri.Path.Segment
 import org.http4s.{EntityEncoder, HttpRoutes}
 
