@@ -31,9 +31,6 @@ import scala.util.Try
 
 object NetworkSim extends IOApp {
 
-  /// Users (wallets) making transactions
-  val users: Set[Wallet] = (1 to 100).toSet
-
   // Dummy types for message id, sender id and transaction
   type M = String
   type S = String
@@ -44,14 +41,11 @@ object NetworkSim extends IOApp {
 
   final case class Config(
     size: Int,
+    usersNum: Int,
     processingConcurrency: Int,
+    txPerBlock: Int,
     exeDelay: Duration,
-    hashDelay: Duration,
     propDelay: Duration,
-    rcvDelay: Duration,
-    stateReadTime: Duration,
-    // TODO for partially sync consensus
-    //    lazinessTolerance: Int,
   )
 
   final case class NetNode[F[_]](
@@ -62,7 +56,11 @@ object NetworkSim extends IOApp {
     fringeMapping: Set[M] => F[Blake2b256Hash],
   )
 
-  def genesisBlock[F[_]: Async: Parallel](sender: S, genesisExec: FinalData[S]): F[Block.WithId[M, S, T]] = {
+  def genesisBlock[F[_]: Async: Parallel](
+    sender: S,
+    genesisExec: FinalData[S],
+    users: Set[Int],
+  ): F[Block.WithId[M, S, T]] = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[F])
     val mkValuesStore = Sync[F].delay {
       new ByteArrayKeyValueTypedStore[F, Blake2b256Hash, Balance](
@@ -105,6 +103,9 @@ object NetworkSim extends IOApp {
 
   def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](c: Config): Stream[F, Unit] = {
 
+    /// Users (wallets) making transactions
+    val users: Set[Wallet] = (1 to c.usersNum).toSet
+
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
     val senders           = Iterator.range(0, c.size).map(n => s"s$n").toList
@@ -137,9 +138,11 @@ object NetworkSim extends IOApp {
       val assignBlockId  = (_: Any) => blockSeqNumRef.updateAndGet(_ + 1).map(idx => s"$vId-$idx")
 
       val txSeqNumRef = Ref.unsafe(0)
-      val nextTxs     = txSeqNumRef.updateAndGet(_ + 1).flatMap { idx =>
-        random(users).map(st => Set(balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
-      }
+      val nextTxs     = txSeqNumRef
+        .updateAndGet(_ + 1)
+        .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
+        .replicateA(c.txPerBlock)
+        .map(_.toSet)
 
       val historyStore  = new InMemoryKeyValueStore[F]
       val mkHistory     = sdk.history.History.create(EmptyRootHash, historyStore)
@@ -165,6 +168,7 @@ object NetworkSim extends IOApp {
           for {
             baseState <- fringeMappingRef.get.map(_(baseFringe))
             r         <- mergeRejectNegativeOverflow(balancesEngine, baseState, toFinalize, toMerge ++ toExecute)
+            _         <- Async[F].sleep(c.exeDelay).replicateA(toExecute.size)
 
             ((newFinState, finRj), (newMergeState, provRj)) = r
 
@@ -210,7 +214,7 @@ object NetworkSim extends IOApp {
                 fringeToHash,
               ) -> idx =>
             val bootstrap =
-              Stream.eval(genesisBlock[F](senders.head, genesisExec).flatMap { genesisM =>
+              Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
                 saveBlock(genesisM) *> dProc.acceptMsg(genesisM.id) >> Console[F].println(s"Bootstrap done for ${self}")
               })
             val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
@@ -297,7 +301,7 @@ object NetworkSim extends IOApp {
         val logDiag = {
           val getNetworkState = diags.sequence
           import NetworkSnapshot.*
-          getNetworkState.showAnimated(samplingTime = 1.second)
+          getNetworkState.showAnimated(samplingTime = 150.milli)
         }
 
         simStream concurrently logDiag
@@ -308,27 +312,57 @@ object NetworkSim extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
     val prompt = """
-    This uberjar simulates the network of nodes running block merge with synchronous consensus.
-    Execution engine (rholang) and the network conditions are abstracted away but their behaviour can be configurable.
+    This application simulates the network of nodes with the following features:
+      1. Speculative execution (block merge).
+      2. Garbage collection of the consensus state.
+      3. Synchronous flavour of a consensus protocol.
+      4. The state that the network agrees on is a map of wallet balances.
+      5. A transaction is a move of some random amount from one wallet to another.
 
-    Usage: specify 8 input arguments:
-     1. Number of nodes in the network.
-     2. Number of blocks that node is allowed to process concurrently.
-     3. Time to execute block (microseconds).
-     4. Time to hash and sign block (microseconds).
-     5. Network propagation delay (microseconds).
-     6. Time to download full block having hash (microseconds).
-     7. Rholang state read time (microseconds).
-     8. Laziness tolerance (number of fringes to keep) To get the fastest result keep it 0.
+    Blocks are created by all nodes as fast as possible. Number of transactions per block can be adjusted
+      with the argument. Transactions are generated randomly.
 
-     eg java -jar *.jar 16 16 0 0 0 0 0 0
+    Usage: specify 6 input arguments
+      1. Number of nodes in the network
+      2. Number of blocks that node is allowed to process concurrently
+      3. Number of users of the network
+      4. Number of transactions in a block
+      5. Delay to add to transaction execution time (microseconds)
+      6. Network propagation delay (microseconds)
 
-    The output of this binary is the data read from each nodes state every 150ms and is formatted as follows:
-      BPS - blocks finalized by the node per second.
-      Consensus size - number of blocks required to run consensus (with some leeway set by laziness tolerance).
+      eg java -jar *.jar 4 4 100 1 0 0
+
+    Output: console animation of the diagnostics data read from nodes. One line per node, sorted by the node index.
+    
+      BPS | Consensus size | Proposer status | Processor size | History size | LFS hash
+    110.0         23         Creating            0 / 0(10)           3456          a71bbe62ee03c16498b9d975501f4063e8ca344f9f5b1efb95aedc13e432393e
+    110.0         23             Idle            1 / 0(10)           3456          a71bbe62ee03c16498b9d975501f4063e8ca344f9f5b1efb95aedc13e432393e
+    110.0         23             Idle            1 / 0(10)           3456          a71bbe62ee03c16498b9d975501f4063e8ca344f9f5b1efb95aedc13e432393e
+    110.0         23             Idle            1 / 0(10)           3456          a71bbe62ee03c16498b9d975501f4063e8ca344f9f5b1efb95aedc13e432393e
+
+      BPS             - blocks finalized per second (measured on the node with index 0).
+      Consensus size  - number of blocks in the consensus state.
       Proposer status - status of the block proposer.
-      Processor size - number of blocks currently in processing / waiting for processing.
-      Buffer size - number of blocks in the buffer.
+      Processor size  - number of blocks currently in processing / waiting for processing.
+      History size    - blockchain state size. Number of records in key value store underlying the radix tree.
+                      Keys are integers and values are longs.
+      LFS hash        - hash of the oldest onchain state required for the node to operate (hash of last finalized state).
+
+      In addition to console animation each node exposes its API via http on the port 808<i> where i is the index
+        of the node.
+
+    Available API endpoints:
+      - latest blocks node observes from each peer
+      http://127.0.0.1:8080/api/v1/latest
+
+      - block given id
+      http://127.0.0.1:8080/api/v1/block/<block_id>
+      Example: http://127.0.0.1:8080/api/v1/block/s0-1
+
+      - balance of a wallet given its id for historical state identified by hash
+      http://127.0.0.1:8080/api/v1/balance/<hash>/<wallet_id>
+      Example: http://127.0.0.1:8080/api/v1/balances/7da2990385661697cf7017a206084625720439429c26a580783ab0768a80251d/1
+
     """.stripMargin
 
     args match {
@@ -336,21 +370,18 @@ object NetworkSim extends IOApp {
       case List(
             size,
             processingConcurrency,
+            usersNum,
+            txsNum,
             exeDelay,
-            hashDelay,
             propDelay,
-            rcvDelay,
-            stateReadTime,
-            lazinessTolerance,
           ) =>
         val config = Config(
-          size.toInt,
-          processingConcurrency.toInt,
+          size = size.toInt,
+          usersNum = usersNum.toInt,
+          processingConcurrency = processingConcurrency.toInt,
+          txPerBlock = txsNum.toInt,
           Duration(exeDelay.toLong, MICROSECONDS),
-          Duration(hashDelay.toLong, MICROSECONDS),
           Duration(propDelay.toLong, MICROSECONDS),
-          Duration(rcvDelay.toLong, MICROSECONDS),
-          Duration(stateReadTime.toLong, MICROSECONDS),
 //          lazinessTolerance.toInt,
         )
 

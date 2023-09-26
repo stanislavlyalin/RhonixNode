@@ -33,7 +33,6 @@ object NetworkSnapshot {
       f"$tps%5s ${weaver.lazo.dagData.size}%10s " +
         f"${proposer.status}%16s " +
         f"$processorData%20s " +
-        f"${buffer.dequeue._2.size}%12s" +
         f"$historyKeysSize%14s" +
         f"${lfsHash.bytes.toHex}%74s"
     }
@@ -41,7 +40,7 @@ object NetworkSnapshot {
 
   implicit def showNetworkSnapshot[M, S, T]: Show[List[NodeSnapshot[M, S, T]]] = new Show[List[NodeSnapshot[M, S, T]]] {
     override def show(x: List[NodeSnapshot[M, S, T]]): String =
-      s"""  BPS | Consensus size | Proposer status | Processor size | Buffer size | History size | LFS hash
+      s"""  BPS | Consensus size | Proposer status | Processor size | History size | LFS hash
          |${x.sortBy(_.id).map(_.show).mkString("\n")}
          |""".stripMargin
   }
