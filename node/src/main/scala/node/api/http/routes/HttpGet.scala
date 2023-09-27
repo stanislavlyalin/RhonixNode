@@ -3,7 +3,6 @@ package node.api.http.routes
 import cats.effect.Sync
 import cats.syntax.all.*
 import node.api.http.ApiPath
-import org.http4s.Uri.Path.Segment
 import org.http4s.{EntityEncoder, HttpRoutes}
 
 import scala.util.Try
@@ -20,13 +19,24 @@ object HttpGet {
     }
   }
 
-  def apply[F[_]: Sync, A, B](
-    methodName: String,
+  def blocks[F[_]: Sync, A, B](
     getApi: A => F[Option[B]],
   )(implicit decA: String => Try[A], eeC: EntityEncoder[F, B]): HttpRoutes[F] = {
     val dsl = org.http4s.dsl.Http4sDsl[F]
     import dsl.*
-    HttpRoutes.of[F] { case GET -> ApiPath / s"$methodName" / a =>
+    HttpRoutes.of[F] { case GET -> ApiPath / "block" / a =>
+      decA(a)
+        .map(a => getApi(a).flatMap(_.map(Ok(_)).getOrElse(NotFound())))
+        .getOrElse(BadRequest())
+    }
+  }
+
+  def transactions[F[_]: Sync, A, B](
+    getApi: A => F[Option[B]],
+  )(implicit decA: String => Try[A], eeC: EntityEncoder[F, B]): HttpRoutes[F] = {
+    val dsl = org.http4s.dsl.Http4sDsl[F]
+    import dsl.*
+    HttpRoutes.of[F] { case GET -> ApiPath / "deploy" / a =>
       decA(a)
         .map(a => getApi(a).flatMap(_.map(Ok(_)).getOrElse(NotFound())))
         .getOrElse(BadRequest())

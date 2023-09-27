@@ -10,8 +10,8 @@ import dproc.data.Block
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
 import node.Node
+import node.api.http.routes.HttpGet
 import node.api.http
-import node.api.http.routes.*
 import org.http4s.EntityEncoder
 import sdk.api.*
 import sdk.codecs.Base16
@@ -122,6 +122,11 @@ object NetworkSim extends IOApp {
 
     def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id))
 
+    // Shared transactions store
+    val txStore: Ref[F, Map[String, BalancesState]]  = Ref.unsafe(Map.empty[String, BalancesState])
+    def saveTx(tx: BalancesDeploy): F[Unit]          = txStore.update(_.updated(tx.id, tx.state))
+    def readTx(id: String): F[Option[BalancesState]] = txStore.get.map(_.get(id))
+
     def broadcast(
       peers: List[Node[F, M, S, T]],
       time: Duration,
@@ -142,6 +147,7 @@ object NetworkSim extends IOApp {
         .updateAndGet(_ + 1)
         .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
         .replicateA(c.txPerBlock)
+        .flatTap(_.traverse(saveTx))
         .map(_.toSet)
 
       val historyStore  = new InMemoryKeyValueStore[F]
@@ -215,7 +221,9 @@ object NetworkSim extends IOApp {
               ) -> idx =>
             val bootstrap =
               Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
-                saveBlock(genesisM) *> dProc.acceptMsg(genesisM.id) >> Console[F].println(s"Bootstrap done for ${self}")
+                val genesis = genesisM.m.txs.head
+                saveBlock(genesisM) *> saveTx(genesis) *> dProc.acceptMsg(genesisM.id) *>
+                  Console[F].println(s"Bootstrap done for ${self}")
               })
             val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
 
@@ -266,19 +274,22 @@ object NetworkSim extends IOApp {
               implicit val h: EntityEncoder[F, Block[String, String, String]] =
                 jsonEncoderOf[F, Block[String, String, String]]
 
+              implicit val bs: EntityEncoder[F, BalancesState] = jsonEncoderOf[F, BalancesState]
+
               def blockByHash(x: M): F[Option[Block[M, S, String]]] =
                 blockStore.get
+                  .flatTap(x => Sync[F].delay(println(x)))
                   .map(_.get(x))
                   .map(
-                    _.map(x =>
+                    _.map { x =>
                       x.copy(
                         merge = x.merge.map(_.id),
                         txs = x.txs.map(_.id),
                         finalized = x.finalized.map { case ConflictResolution(accepted, rejected) =>
                           ConflictResolution(accepted.map(_.id), rejected.map(_.id))
                         },
-                      ),
-                    ),
+                      )
+                    },
                   )
 
               def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
@@ -286,7 +297,8 @@ object NetworkSim extends IOApp {
               val routes =
                 HttpGet[F, Set[M]]("latest", latestBlocks.map(_.some)) <+>
                   HttpGet[F, Blake2b256Hash, Wallet, Balance](BalancesApi.MethodName, getBalance) <+>
-                  HttpGet[F, M, Block[M, S, String]](BlockDbApi.MethodName, blockByHash)
+                  HttpGet.transactions[F, String, BalancesState](readTx) <+>
+                  HttpGet.blocks[F, M, Block[M, S, String]](blockByHash)
 
               http.server(routes, 8080 + idx, "localhost")
             }
@@ -357,11 +369,15 @@ object NetworkSim extends IOApp {
 
       - block given id
       http://127.0.0.1:8080/api/v1/block/<block_id>
-      Example: http://127.0.0.1:8080/api/v1/block/s0-1
+      Example: http://127.0.0.1:8080/api/v1/block/genesis
 
       - balance of a wallet given its id for historical state identified by hash
       http://127.0.0.1:8080/api/v1/balance/<hash>/<wallet_id>
       Example: http://127.0.0.1:8080/api/v1/balances/7da2990385661697cf7017a206084625720439429c26a580783ab0768a80251d/1
+
+      - deploy given id
+      http://127.0.0.1:8080/api/v1/deploy/<deploy_id>
+      Example: http://127.0.0.1:8080/api/v1/deploy/genesis
 
     """.stripMargin
 
