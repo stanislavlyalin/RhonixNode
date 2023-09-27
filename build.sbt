@@ -72,7 +72,7 @@ lazy val node = (project in file("node"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
   .settings(settingsScala2*)
   .settings(
-    libraryDependencies ++= common ++ Seq(protobuf, grpc, grpcNetty) ++ tests ++ log ++ http4s,
+    libraryDependencies ++= common ++ Seq(protobuf, grpc, grpcNetty) ++ tests ++ log ++ http4s ++ endpoints4s,
     resolvers ++=
       // for embedded InfluxDB
       Resolver.sonatypeOssRepos("releases") ++

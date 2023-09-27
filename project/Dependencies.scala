@@ -39,6 +39,14 @@ object Dependencies {
   // for auto-derivation of JSON codecs
   val circeGeneric = "io.circe"   %% "circe-generic"       % "0.14.5"
 
+  val endpointsAlg       = "org.endpoints4s" %% "algebra"             % "1.9.0"
+  val endpointsAlgCirce  = "org.endpoints4s" %% "algebra-circe"       % "2.3.0"
+  val endpointsAlgJson   = "org.endpoints4s" %% "algebra-json-schema" % "1.9.0"
+  val endpointsGeneric   = "org.endpoints4s" %% "json-schema-generic" % "1.10.0"
+  val endpointsHttp4s    = "org.endpoints4s" %% "http4s-server"       % "10.1.0"
+  val endpointsJsonCirce = "org.endpoints4s" %% "json-schema-circe"   % "2.3.0"
+  val endpointsOpenApi   = "org.endpoints4s" %% "openapi"             % "4.4.0"
+
   // Database
   val embeddedPostgres           = "io.zonky.test"     % "embedded-postgres" % "2.0.4"  % Test
   val junitJupiter               = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0" % Test
@@ -58,7 +66,17 @@ object Dependencies {
 
   val log = Seq(logbackClassic, slf4j)
 
-  val http4s = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze, circeGeneric)
+  val http4s      = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze, circeGeneric)
+  val endpoints4s =
+    Seq(
+      endpointsAlg,
+      endpointsAlgCirce,
+      endpointsAlgJson,
+      endpointsGeneric,
+      endpointsHttp4s,
+      endpointsJsonCirce,
+      endpointsOpenApi,
+    )
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 

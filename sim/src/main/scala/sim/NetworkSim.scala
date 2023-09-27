@@ -7,13 +7,13 @@ import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
 import diagnostics.KamonContextStore
 import dproc.data.Block
+import endpoints4s.openapi.model.OpenApi
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
 import node.Node
-import node.api.http.routes.HttpGet
-import node.api.http
+import node.api.web
+import node.api.web.PublicApiJson
 import org.http4s.EntityEncoder
-import sdk.api.*
 import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
@@ -294,13 +294,22 @@ object NetworkSim extends IOApp {
 
               def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
 
-              val routes =
-                HttpGet[F, Set[M]]("latest", latestBlocks.map(_.some)) <+>
-                  HttpGet[F, Blake2b256Hash, Wallet, Balance](BalancesApi.MethodName, getBalance) <+>
-                  HttpGet.transactions[F, String, BalancesState](readTx) <+>
-                  HttpGet.blocks[F, M, Block[M, S, String]](blockByHash)
+              val routes = PublicApiJson[F, Block[M, S, String], BalancesState](
+                blockByHash(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
+                readTx(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
+                (h: String, w: String) => {
+                  val blakeH = Base16.decode(h).flatMap(Blake2b256Hash.deserialize)
+                  val longW  = Try(w.toInt)
+                  (blakeH, longW)
+                    .traverseN { case (hash, wallet) =>
+                      getBalance(hash, wallet).flatMap(_.liftTo(new Exception(s"Not Found")))
+                    }
+                    .flatMap(_.liftTo[F])
+                },
+                latestBlocks,
+              ).routes
 
-              http.server(routes, 8080 + idx, "localhost")
+              web.server(routes, 8080 + idx, "localhost")
             }
 
             (run concurrently bootstrap concurrently tpsUpdate concurrently apiServerStream) -> getData
