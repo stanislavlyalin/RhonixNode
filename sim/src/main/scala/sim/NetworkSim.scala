@@ -7,13 +7,14 @@ import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
 import diagnostics.KamonContextStore
 import dproc.data.Block
-import endpoints4s.openapi.model.OpenApi
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
 import node.Node
 import node.api.web
 import node.api.web.PublicApiJson
+import node.api.web.https4s.RouterFix
 import org.http4s.EntityEncoder
+import org.http4s.server.Router
 import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
@@ -309,7 +310,9 @@ object NetworkSim extends IOApp {
                 latestBlocks,
               ).routes
 
-              web.server(routes, 8080 + idx, "localhost")
+              val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
+
+              web.server(allRoutes, 8080 + idx, "localhost")
             }
 
             (run concurrently bootstrap concurrently tpsUpdate concurrently apiServerStream) -> getData

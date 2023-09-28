@@ -6,7 +6,7 @@ import org.http4s.Uri.Path.{Root, Segment}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.{HttpApp, HttpRoutes, Uri}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import sdk.api.Path
+import sdk.api.RootPath
 
 package object web {
   def server[F[_]: Async](
