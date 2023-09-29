@@ -6,7 +6,7 @@ import sdk.api.DeployDbApi
 import sdk.api.data.Deploy
 import sdk.db.*
 import squeryl.withSession
-import squeryl.RhonixNodeDb.deployTable
+import squeryl.NodeDb.deployTable
 import squeryl.CustomTypeMode.*
 import squeryl.tables.DeployTable
 

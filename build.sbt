@@ -3,7 +3,6 @@ import Dependencies.*
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
 lazy val commonSettings = Seq(
-  organization      := "io.rhonix",
   version           := "0.1.0-SNAPSHOT",
   scalafmtOnCompile := !sys.env.contains("CI"), // Format on compile, disable in CI environments
 
@@ -35,9 +34,9 @@ lazy val settingsScala2 = commonSettings ++ Seq(
   Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2,
 )
 
-lazy val rhonix = (project in file("."))
+lazy val all = (project in file("."))
   .settings(commonSettings*)
-  .aggregate(sdk, weaver, dproc, db, node)
+  .aggregate(sdk, weaver, dproc, db, node, sim, diag)
 
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
@@ -66,14 +65,14 @@ lazy val dproc = (project in file("dproc"))
   .settings(
     libraryDependencies ++= common ++ tests,
   )
-  .dependsOn(sdk, weaver, execution)
+  .dependsOn(sdk, weaver)
 
 // Node implementation
 lazy val node = (project in file("node"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
   .settings(settingsScala2*)
   .settings(
-    libraryDependencies ++= common ++ Seq(protobuf, grpc, grpcNetty) ++ tests,
+    libraryDependencies ++= common ++ Seq(protobuf, grpc, grpcNetty) ++ tests ++ log ++ http4s ++ endpoints4s,
     resolvers ++=
       // for embedded InfluxDB
       Resolver.sonatypeOssRepos("releases") ++
@@ -89,24 +88,6 @@ lazy val diag = (project in file("diag"))
     libraryDependencies ++= common ++ tests ++ diagnostics,
     // for embedded InfluxDB
     resolvers ++= Resolver.sonatypeOssRepos("releases"),
-  )
-  .dependsOn(sdk % "compile->compile;test->test")
-
-// Execution
-lazy val execution = (project in file("execution"))
-  //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
-  .settings(settingsScala2*)
-  .settings(
-    libraryDependencies ++= common ++ tests ++ diagnostics,
-  )
-  .dependsOn(sdk % "compile->compile;test->test")
-
-// API implementations
-lazy val api = (project in file("api"))
-  //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
-  .settings(settingsScala2*)
-  .settings(
-    libraryDependencies ++= common ++ tests ++ diagnostics ++ http4s,
   )
   .dependsOn(sdk % "compile->compile;test->test")
 
@@ -126,12 +107,12 @@ lazy val sim = (project in file("sim"))
   .settings(
     libraryDependencies ++= common,
     version                          := "0.1.0-SNSHOT",
-    organization                     := "io.rhonix",
-    assembly / mainClass             := Some("sim.Sim"),
-    assembly / assemblyJarName       := "rhonix.sim.jar",
+    assembly / mainClass             := Some("sim.NetworkSim"),
+    assembly / assemblyJarName       := "sim.jar",
     assembly / assemblyMergeStrategy := {
+      case PathList("reference.conf")    => MergeStrategy.concat
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x                             => MergeStrategy.first
     },
   )
-  .dependsOn(node, api, db)
+  .dependsOn(node, db, diag)

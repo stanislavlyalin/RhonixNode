@@ -9,7 +9,7 @@ import sdk.db.SqlConn
 
 import java.sql.Connection
 import squeryl.withSession
-import squeryl.RhonixNodeDb.{bondTable, validatorTable}
+import squeryl.NodeDb.{bondTable, validatorTable}
 import squeryl.tables.BondTable
 import squeryl.CustomTypeMode.*
 

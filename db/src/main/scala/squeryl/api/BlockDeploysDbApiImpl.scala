@@ -8,7 +8,7 @@ import sdk.db.SqlConn
 
 import java.sql.Connection
 import squeryl.withSession
-import squeryl.RhonixNodeDb.blockDeploysTable
+import squeryl.NodeDb.blockDeploysTable
 import squeryl.tables.BlockDeploysTable
 import squeryl.CustomTypeMode.*
 

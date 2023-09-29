@@ -1,6 +1,6 @@
 package squeryl
 
-import squeryl.RhonixNodeDb.{blockDeploysTable, deployTable}
+import squeryl.NodeDb.{blockDeploysTable, deployTable}
 import CustomTypeMode.*
 
 /**

@@ -37,7 +37,13 @@ final case class DProc[F[_], M, T](
 
 object DProc {
   trait ExeEngine[F[_], M, S, T] {
-    def execute(toFinalize: Set[T], toMerge: Set[T], txs: Set[T]): F[Boolean]
+    def execute(
+      base: Set[M],
+      finalFringe: Set[M],
+      toFinalize: Set[T],
+      toMerge: Set[T],
+      txs: Set[T],
+    ): F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))]
 
     // data read from the final state associated with the final fringe
     def consensusData(fringe: Set[M]): F[FinalData[S]]

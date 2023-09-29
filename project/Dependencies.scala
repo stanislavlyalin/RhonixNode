@@ -32,10 +32,20 @@ object Dependencies {
   val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
   val slf4j          = "org.slf4j"      % "slf4j-api"       % "2.0.5"
 
-  val http4sNetty = "org.http4s" %% "http4s-netty-server" % "0.5.9"
-  val http4sBlaze = "org.http4s" %% "http4s-blaze-server" % "0.23.14"
-  val http4sDSL   = "org.http4s" %% "http4s-dsl"          % "0.23.23"
-  val circeCodec  = "org.http4s" %% "http4s-circe"        % "0.23.23"
+  val http4sNetty  = "org.http4s" %% "http4s-netty-server" % "0.5.9"
+  val http4sBlaze  = "org.http4s" %% "http4s-blaze-server" % "0.23.14"
+  val http4sDSL    = "org.http4s" %% "http4s-dsl"          % "0.23.23"
+  val circeCodec   = "org.http4s" %% "http4s-circe"        % "0.23.23"
+  // for auto-derivation of JSON codecs
+  val circeGeneric = "io.circe"   %% "circe-generic"       % "0.14.5"
+
+  val endpointsAlg       = "org.endpoints4s" %% "algebra"             % "1.9.0"
+  val endpointsAlgCirce  = "org.endpoints4s" %% "algebra-circe"       % "2.3.0"
+  val endpointsAlgJson   = "org.endpoints4s" %% "algebra-json-schema" % "1.9.0"
+  val endpointsGeneric   = "org.endpoints4s" %% "json-schema-generic" % "1.10.0"
+  val endpointsHttp4s    = "org.endpoints4s" %% "http4s-server"       % "10.1.0"
+  val endpointsJsonCirce = "org.endpoints4s" %% "json-schema-circe"   % "2.3.0"
+  val endpointsOpenApi   = "org.endpoints4s" %% "openapi"             % "4.4.0"
 
   // Database
   val embeddedPostgres           = "io.zonky.test"     % "embedded-postgres" % "2.0.4"  % Test
@@ -56,7 +66,17 @@ object Dependencies {
 
   val log = Seq(logbackClassic, slf4j)
 
-  val http4s = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
+  val http4s      = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze, circeGeneric)
+  val endpoints4s =
+    Seq(
+      endpointsAlg,
+      endpointsAlgCirce,
+      endpointsAlgJson,
+      endpointsGeneric,
+      endpointsHttp4s,
+      endpointsJsonCirce,
+      endpointsOpenApi,
+    )
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 

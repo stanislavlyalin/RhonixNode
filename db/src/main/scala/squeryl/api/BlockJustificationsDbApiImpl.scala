@@ -8,7 +8,7 @@ import sdk.db.SqlConn
 
 import java.sql.Connection
 import squeryl.withSession
-import squeryl.RhonixNodeDb.blockJustificationsTable
+import squeryl.NodeDb.blockJustificationsTable
 import squeryl.tables.BlockJustificationsTable
 import squeryl.CustomTypeMode.*
 
