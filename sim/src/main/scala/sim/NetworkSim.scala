@@ -7,6 +7,7 @@ import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
 import diagnostics.KamonContextStore
 import dproc.data.Block
+import fs2.concurrent.SignallingRef
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
 import node.Node
@@ -102,7 +103,11 @@ object NetworkSim extends IOApp {
     }
   }
 
-  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](c: Config): Stream[F, Unit] = {
+  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](
+    c: Config,
+    resetRef: SignallingRef[F, Boolean],
+    historySizeThreshold: Int,
+  ): Stream[F, Unit] = {
 
     /// Users (wallets) making transactions
     val users: Set[Wallet] = (1 to c.usersNum).toSet
@@ -279,7 +284,6 @@ object NetworkSim extends IOApp {
 
               def blockByHash(x: M): F[Option[Block[M, S, String]]] =
                 blockStore.get
-                  .flatTap(x => Sync[F].delay(println(x)))
                   .map(_.get(x))
                   .map(
                     _.map { x =>
@@ -325,13 +329,17 @@ object NetworkSim extends IOApp {
         val logDiag = {
           val getNetworkState = diags.sequence
           import NetworkSnapshot.*
-          getNetworkState.showAnimated(samplingTime = 150.milli)
+          getNetworkState
+            .flatTap(x =>
+              resetRef.set(true).whenA(x.head.historyKeysSize > historySizeThreshold).whenA(historySizeThreshold > 0),
+            )
+            .showAnimated(samplingTime = 150.milli)
         }
 
         simStream concurrently logDiag
       }
 
-    Stream.force(x)
+    Stream.force(x) interruptWhen resetRef
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -353,11 +361,12 @@ object NetworkSim extends IOApp {
       4. Number of transactions in a block
       5. Delay to add to transaction execution time (microseconds)
       6. Network propagation delay (microseconds)
+      7. History size upon reaching which simulation will be restarted. Set this to 0 disable restart.
 
-      eg java -jar *.jar 4 4 100 1 0 0
+      eg java -jar *.jar 4 4 100 1 0 0 200000
 
     Output: console animation of the diagnostics data read from nodes. One line per node, sorted by the node index.
-    
+
       BPS | Consensus size | Proposer status | Processor size | History size | LFS hash
     110.0         23         Creating            0 / 0(10)           3456          a71bbe62ee03c16498b9d975501f4063e8ca344f9f5b1efb95aedc13e432393e
     110.0         23             Idle            1 / 0(10)           3456          a71bbe62ee03c16498b9d975501f4063e8ca344f9f5b1efb95aedc13e432393e
@@ -402,6 +411,7 @@ object NetworkSim extends IOApp {
             txsNum,
             exeDelay,
             propDelay,
+            historySizeThreshold,
           ) =>
         val config = Config(
           size = size.toInt,
@@ -415,7 +425,10 @@ object NetworkSim extends IOApp {
 
         implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
         Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
-          NetworkSim.sim[IO](config).compile.drain.as(ExitCode.Success)
+          val run = Stream.eval(SignallingRef.of[IO, Boolean](false)).flatMap { resetRef =>
+            NetworkSim.sim[IO](config, resetRef, historySizeThreshold.toInt)
+          }
+          run.repeat.compile.drain.as(ExitCode.Success)
         }
 
       case x => IO.println(s"Illegal option '${x.mkString(" ")}': see --help").as(ExitCode.Error)
