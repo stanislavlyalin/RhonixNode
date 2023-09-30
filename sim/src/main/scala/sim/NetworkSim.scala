@@ -312,6 +312,7 @@ object NetworkSim extends IOApp {
                     .flatMap(_.liftTo[F])
                 },
                 latestBlocks,
+                getData.map(_.show),
               ).routes
 
               val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
@@ -387,6 +388,9 @@ object NetworkSim extends IOApp {
     Available API endpoints:
       - latest blocks node observes from each peer
       http://127.0.0.1:8080/api/v1/latest
+
+      - status
+      http://127.0.0.1:8080/api/v1/status
 
       - block given id
       http://127.0.0.1:8080/api/v1/block/<block_id>

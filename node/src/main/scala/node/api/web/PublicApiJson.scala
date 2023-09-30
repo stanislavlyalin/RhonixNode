@@ -12,6 +12,7 @@ final case class PublicApiJson[F[_]: Concurrent, B, D](
   deployF: String => F[D],
   balanceF: (String, String) => F[Long],
   latestF: F[Set[String]],
+  statusF: F[String],
 )(implicit
   blockEncoder: EntityEncoder[F, B],
   deployEncoder: EntityEncoder[F, D],
@@ -26,6 +27,7 @@ final case class PublicApiJson[F[_]: Concurrent, B, D](
       deploy[D].implementedByEffect(deployF),
       balance[Long].implementedByEffect(balanceF.tupled),
       latest[Set[String]].implementedByEffect(_ => latestF),
+      status[String].implementedByEffect(_ => statusF),
     ),
   )
 }
