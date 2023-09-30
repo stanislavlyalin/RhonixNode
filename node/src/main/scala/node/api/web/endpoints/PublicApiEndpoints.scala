@@ -34,4 +34,10 @@ trait PublicApiEndpoints extends algebra.Endpoints with algebra.JsonEntitiesFrom
     ok(r),
     docs = EndpointDocs().withDescription("Balance of a wallet at the state specified".some),
   )
+
+  def status[A](implicit r: ResponseEntity[A]): Endpoint[Unit, A] = endpoint(
+    get(path / "status"),
+    ok(r),
+    docs = EndpointDocs().withDescription("Status".some),
+  )
 }
