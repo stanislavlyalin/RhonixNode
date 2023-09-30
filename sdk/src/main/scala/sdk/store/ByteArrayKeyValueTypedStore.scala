@@ -24,7 +24,7 @@ class ByteArrayKeyValueTypedStore[F[_]: Sync, K, V](
   override def get(keys: Seq[K]): F[Seq[Option[V]]] =
     for {
       keysByteArray <- keys.toVector.traverse(encodeKey)
-      keysBuf        = keysByteArray.map(_.toByteBuffer)
+      keysBuf        = keysByteArray.map(_.toDirectByteBuffer)
       valuesBytes   <- store.get(keysBuf, ByteArray(_))
       values        <- valuesBytes.toVector.traverse(_.traverse(decodeValue))
     } yield values
@@ -34,21 +34,21 @@ class ByteArrayKeyValueTypedStore[F[_]: Sync, K, V](
       pairsByteArray <- kvPairs.toVector.traverse { case (k, v) =>
                           encodeKey(k).map2(encodeValue(v))((x, y) => (x, y))
                         }
-      pairs           = pairsByteArray.map { case (k, v) => (k.toByteBuffer, v) }
-      _              <- store.put[ByteArray](pairs, _.toByteBuffer)
+      pairs           = pairsByteArray.map { case (k, v) => (k.toDirectByteBuffer, v) }
+      _              <- store.put[ByteArray](pairs, _.toDirectByteBuffer)
     } yield ()
 
   override def delete(keys: Seq[K]): F[Int] =
     for {
       keysByteArray <- keys.toVector.traverse(encodeKey)
-      keysBuf        = keysByteArray.map(_.toByteBuffer)
+      keysBuf        = keysByteArray.map(_.toDirectByteBuffer)
       deletedCount  <- store.delete(keysBuf)
     } yield deletedCount
 
   override def contains(keys: Seq[K]): F[Seq[Boolean]] =
     for {
       keysByteArray <- keys.toVector.traverse(encodeKey)
-      keysBuf        = keysByteArray.map(_.toByteBuffer)
+      keysBuf        = keysByteArray.map(_.toDirectByteBuffer)
       results       <- store.get(keysBuf, _ => ())
     } yield results.map(_.nonEmpty)
 
