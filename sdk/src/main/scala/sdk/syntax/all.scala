@@ -18,3 +18,4 @@ trait AllSyntax
     with ByteArraySyntax
     with EffectSyntax
     with Fs2StreamSyntax
+    with FutureSyntax

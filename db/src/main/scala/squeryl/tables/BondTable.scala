@@ -11,5 +11,5 @@ case class BondTable(
 
 object BondTable {
   def toDb(id: Long, bond: Bond, validatorId: Long): BondTable = BondTable(id, validatorId, bond.stake)
-  def fromDb(bond: BondTable, validator: ValidatorTable): Bond = Bond(ValidatorTable.fromDb(validator), bond.stake)
+//  def fromDb(bond: BondTable, validator: ValidatorTable): Bond = Bond(ValidatorTable.fromDb(validator), bond.stake)
 }

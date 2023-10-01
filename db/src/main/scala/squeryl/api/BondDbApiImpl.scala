@@ -20,11 +20,11 @@ class BondDbApiImpl[F[_]: Sync: SqlConn] extends BondDbApi[F] {
   override def update(id: Long, bond: Bond, validatorId: Long): F[Unit] =
     withSession(bondTable.update(BondTable.toDb(id, bond, validatorId)))
 
-  override def getById(id: Long): F[Option[Bond]] =
-    (for {
-      bond      <- OptionT(withSession(bondTable.where(_.id === id).headOption))
-      validator <- OptionT(withSession(validatorTable.where(_.id === bond.validatorId).headOption))
-    } yield BondTable.fromDb(bond, validator)).value
+  override def getById(id: Long): F[Option[Bond]] = ???
+//    (for {
+//      bond      <- OptionT(withSession(bondTable.where(_.id === id).headOption))
+//      validator <- OptionT(withSession(validatorTable.where(_.id === bond.validatorId).headOption))
+//    } yield BondTable.fromDb(bond, validator)).value
 }
 
 object BondDbApiImpl {

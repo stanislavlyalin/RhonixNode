@@ -1,16 +1,16 @@
 package slick.tables
 
+import sdk.api.data.Bond
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
 
-class BondTableSlick(tag: Tag) extends Table[(Long, Long, Long)](tag, "Bond") {
+class TableBonds(tag: Tag) extends Table[Bond](tag, "Bonds") {
+
+  // Fields
   def id: Rep[Long]          = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def validatorId: Rep[Long] = column[Long]("validatorId", O.Unique)
   def stake: Rep[Long]       = column[Long]("stake")
 
-  def * : ProvenShape[(Long, Long, Long)] = (id, validatorId, stake)
-}
-
-object BondTableSlick {
-  val bondTableSlick = TableQuery[BondTableSlick]
+  // Projection
+  def * : ProvenShape[Bond] = (validatorId, stake).mapTo[Bond]
 }

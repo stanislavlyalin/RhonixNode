@@ -1,7 +1,9 @@
-import cats.effect.{Async, Sync}
-
-import scala.concurrent.Future
+import slick.lifted.TableQuery
+import slick.tables.{TableBonds, TableValidators}
 
 package object slick {
-  def tx[F[_]: Async, R](code: => Future[R]): F[R] = Async[F].fromFuture(Sync[F].blocking(code))
+
+  // all queries
+  val bonds      = TableQuery[TableBonds]
+  val validators = TableQuery[TableValidators]
 }
