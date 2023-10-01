@@ -13,13 +13,13 @@ import node.Node
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
-import node.lmdb.{LmdbKeyValueStore, LmdbStoreManager}
+import node.lmdb.LmdbStoreManager
 import org.http4s.EntityEncoder
 import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
-import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore, KeyValueStoreManager, KeyValueTypedStore}
+import sdk.store.*
 import sdk.syntax.all.*
 import sim.balances.*
 import sim.balances.MergeLogicForPayments.mergeRejectNegativeOverflow
@@ -28,7 +28,7 @@ import sim.balances.data.{BalancesDeploy, BalancesState}
 import weaver.WeaverState
 import weaver.data.*
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 import scala.concurrent.duration.{Duration, DurationInt, MICROSECONDS}
 import scala.util.Try
 
@@ -157,6 +157,7 @@ object NetworkSim extends IOApp {
 
     def mkNode(vId: S): Resource[F, NetNode[F]] = {
       val dataPath     = Paths.get(s".lmdb/node-$vId")
+//      val storeManager = Sync[F].delay(InMemoryKeyValueStoreManager[F])
       val storeManager = LmdbStoreManager(dataPath)
       Resource.eval(storeManager).flatMap(onChainStoreResource).flatMap { case history -> valueStore =>
         val blockSeqNumRef = Ref.unsafe(0)
