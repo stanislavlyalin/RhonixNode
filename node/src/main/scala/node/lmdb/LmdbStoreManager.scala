@@ -3,6 +3,7 @@ package node.lmdb
 import cats.effect.{Async, Deferred, Ref, Sync}
 import cats.syntax.all.*
 import enumeratum.{Enum, EnumEntry}
+import node.lmdb.LmdbDirStoreManager.tb
 import org.lmdbjava.ByteBufferProxy.PROXY_SAFE
 import org.lmdbjava.{DbiFlags, Env, EnvFlags}
 import sdk.store.{KeyValueStore, KeyValueStoreManager}
@@ -11,7 +12,7 @@ import java.nio.ByteBuffer
 import java.nio.file.{Files, Path}
 
 object LmdbStoreManager {
-  def apply[F[_]: Async](dirPath: Path, maxEnvSize: Long): F[KeyValueStoreManager[F]] =
+  def apply[F[_]: Async](dirPath: Path, maxEnvSize: Long = 1L * tb): F[KeyValueStoreManager[F]] =
     Deferred[F, Env[ByteBuffer]] map (LmdbStoreManagerImpl(dirPath, maxEnvSize, _))
 }
 
