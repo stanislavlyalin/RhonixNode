@@ -11,7 +11,6 @@ import sdk.api.data.*
 import sdk.db.*
 import slick.SlickDb
 import slick.api.*
-import squeryl.api.*
 
 // TODO re-enable these tests when it is possible to execute them on CI.
 // At the moment Github Actions does not allow non-root users and embedded postgres requires non-root.

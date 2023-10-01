@@ -6,8 +6,6 @@ import cats.syntax.all.*
 import dproc.DProc
 import dproc.DProc.ExeEngine
 import dproc.data.Block
-import io.github.liquibase4s.cats.CatsMigrationHandler.*
-import io.github.liquibase4s.{Liquibase, LiquibaseConfig}
 import sdk.DagCausalQueue
 import sdk.merging.Relation
 import sdk.node.{Processor, Proposer}
@@ -84,16 +82,4 @@ object Node {
       bufferStRef,
       dproc,
     )
-
-  /** Example of programmatically applying liquibase migrations */
-  private def applyDBMigrations[F[_]: Sync](user: String, password: String): F[Unit] = {
-    val config: LiquibaseConfig = LiquibaseConfig(
-      url = "jdbc:postgresql://localhost:5432/node",
-      user = user,
-      password = password,
-      driver = "org.postgresql.Driver",
-      changelog = "db/changelog.yaml",
-    )
-    Liquibase[F](config).migrate()
-  }
 }
