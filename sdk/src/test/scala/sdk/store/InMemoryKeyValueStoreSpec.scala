@@ -10,12 +10,35 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import sdk.codecs.Codec
 import sdk.primitive.ByteArray
 import sdk.syntax.all.*
-import scodec.codecs.{int64, utf8}
 
 import java.nio.{ByteBuffer, ByteOrder, CharBuffer}
 import scala.util.Try
 
 class KeyValueStoreSut[F[_]: Sync: KeyValueStoreManager] {
+
+  val utf8 = new Codec[String, ByteArray] {
+    override def encode(x: String): Try[ByteArray] = Try {
+      val encoder = java.nio.charset.Charset.forName("UTF8").newEncoder
+      val buffer  = CharBuffer.wrap(x)
+      ByteArray(encoder.encode(buffer))
+    }
+
+    override def decode(x: ByteArray): Try[String] = Try {
+      val decoder = java.nio.charset.Charset.forName("UTF8").newDecoder()
+      decoder.decode(x.toByteBuffer).toString
+    }
+  }
+
+  val int64 = new Codec[Long, ByteArray] {
+    override def encode(x: Long): Try[ByteArray] = Try {
+      val buffer = ByteBuffer.allocate(64).order(ByteOrder.BIG_ENDIAN).putLong(x)
+      ByteArray(buffer.flip().toArray)
+    }
+
+    override def decode(x: ByteArray): Try[Long] = Try {
+      x.toByteBuffer.getLong
+    }
+  }
 
   def copyToDb(data: Map[Long, String]): F[KeyValueTypedStore[F, Long, String]] =
     for {
