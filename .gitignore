@@ -89,3 +89,5 @@ integration-tests.log
 # graphviz outputs
 ###################
 vdags/
+
+.lmdb/

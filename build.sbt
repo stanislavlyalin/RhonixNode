@@ -14,6 +14,8 @@ lazy val commonSettings = Seq(
   // to run such tests in IntelliJ this argument has to be added explicitly.
   javaOptions ++= Seq(
     "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
   ),
   Test / fork               := true,
   Test / parallelExecution  := false,
@@ -72,7 +74,11 @@ lazy val node = (project in file("node"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
   .settings(settingsScala2*)
   .settings(
-    libraryDependencies ++= common ++ Seq(protobuf, grpc, grpcNetty) ++ tests ++ log ++ http4s ++ endpoints4s,
+    libraryDependencies ++= common ++ Seq(
+      protobuf,
+      grpc,
+      grpcNetty,
+    ) ++ tests ++ log ++ http4s ++ endpoints4s :+ lmdbjava :+ enumeratum,
     resolvers ++=
       // for embedded InfluxDB
       Resolver.sonatypeOssRepos("releases") ++

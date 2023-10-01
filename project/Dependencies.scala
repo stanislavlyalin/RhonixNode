@@ -57,6 +57,9 @@ object Dependencies {
     "io.github.liquibase4s" %% "liquibase4s-cats-effect" % "1.0.0",
   )
 
+  val lmdbjava   = "org.lmdbjava"  % "lmdbjava"   % "0.8.3"
+  val enumeratum = "com.beachape" %% "enumeratum" % "1.7.2"
+
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
