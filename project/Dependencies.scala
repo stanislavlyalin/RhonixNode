@@ -13,6 +13,7 @@ object Dependencies {
 
   // LEGACY dependencies of imported projects
   val protobuf = "com.google.protobuf" % "protobuf-java" % "3.22.2"
+  val jaxb     = "javax.xml.bind"      % "jaxb-api"      % "2.3.1"
 
   // Testing frameworks
   val scalacheckShapeless = "com.github.alexarchambault" %% "scalacheck-shapeless_1.16" % "1.3.1" % Test
@@ -61,7 +62,7 @@ object Dependencies {
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
-  val common = Seq(catsCore, catsEffect, fs2Core)
+  val common = Seq(catsCore, catsEffect, fs2Core, jaxb)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter)
 
