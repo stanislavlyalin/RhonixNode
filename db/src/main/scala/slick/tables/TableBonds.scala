@@ -1,6 +1,7 @@
 package slick.tables
 
 import sdk.api.data.Bond
+import sdk.primitive.ByteArray
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
 
