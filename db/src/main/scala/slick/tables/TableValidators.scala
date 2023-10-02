@@ -11,7 +11,7 @@ class TableValidators(tag: Tag) extends Table[Validator](tag, "Validators") {
   def publicKey: Rep[Array[Byte]] = column[Array[Byte]]("publicKey", O.Unique)
 
   // Projection
-  def * : ProvenShape[Validator] = publicKey.mapTo[Validator]
+  def * : ProvenShape[Validator] = (id, publicKey).mapTo[Validator]
 
   // Indices
   def idx = index("idx", publicKey, unique = true)

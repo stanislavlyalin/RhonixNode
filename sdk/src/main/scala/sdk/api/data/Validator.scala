@@ -1,7 +1,8 @@
 package sdk.api.data
 
 final case class Validator(
-  publicKey: Array[Byte], // Unique index
+  id: Long,              // PK key
+  publicKey: Array[Byte],// Unique index
 ) {
   override def equals(obj: Any): Boolean = obj match {
     case that: Validator =>

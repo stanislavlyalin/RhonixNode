@@ -17,10 +17,10 @@ import slick.api.*
 // https://github.com/fergusstrange/embedded-postgres/issues/95
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
-  "Validator insert function call" should "add the correct entry to the Validator table" ignore {
+  "Validator insert function call" should "add the correct entry to the Validator table" in {
     forAll { (validator: Validator) =>
       def test(api: ValidatorDbApiImplSlick[IO]) = for {
-        id                <- api.insert(validator)
+        id                <- api.insert(validator.publicKey)
         validatorById     <- OptionT(api.getById(id)).getOrRaise(new RecordNotFound)
         validatorByPubKey <- OptionT(api.getByPublicKey(validator.publicKey)).getOrRaise(new RecordNotFound)
       } yield {
