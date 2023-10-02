@@ -31,7 +31,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         validatorById shouldBe validatorByPubKey
       }
 
-      EmbeddedPgSlickDb[IO]
+      EmbeddedH2SlickDb[IO]
         .map(new ValidatorDbApiImplSlick[IO](_))
         .use(test)
         .unsafeRunSync()

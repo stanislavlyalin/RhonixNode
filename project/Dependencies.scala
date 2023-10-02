@@ -49,9 +49,9 @@ object Dependencies {
   val endpointsOpenApi   = "org.endpoints4s" %% "openapi"             % "4.4.0"
 
   // Database
-  val embeddedPostgres     = "io.zonky.test"     % "embedded-postgres" % "2.0.4"  % Test
-  val junitJupiter         = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0" % Test
+  val junitJupiter         = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0"  % Test
   val postgresql           = "org.postgresql"    % "postgresql"        % "42.6.0"
+  val h2db                 = "com.h2database"    % "h2"                % "2.1.214" % Test
   val slick: Seq[ModuleID] = Seq(
     "com.typesafe.slick"                 %% "slick"               % "3.4.1",
     "org.slf4j"                           % "slf4j-nop"           % "2.0.5",
@@ -82,7 +82,7 @@ object Dependencies {
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 
-  val dbLibs = Seq(embeddedPostgres, postgresql, junitJupiter) ++ slick
+  val dbLibs = Seq(h2db, postgresql, junitJupiter) ++ slick
 
   val cryptoLibs = Seq(bcprov)
 }
