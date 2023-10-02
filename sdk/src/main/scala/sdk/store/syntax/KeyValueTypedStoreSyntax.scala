@@ -1,11 +1,12 @@
-package sdk.store
+package sdk.store.syntax
 
 import cats.effect.Sync
 import cats.syntax.all.*
 import cats.{Functor, Show}
+import sdk.store.KeyValueTypedStore
 
 trait KeyValueTypedStoreSyntax {
-  implicit final def sharedSyntaxKeyValueTypedStore[F[_], K, V](
+  implicit final def sdkSyntaxKeyValueTypedStore[F[_], K, V](
     store: KeyValueTypedStore[F, K, V],
   ): KeyValueTypedStoreOps[F, K, V] = new KeyValueTypedStoreOps[F, K, V](store)
 }

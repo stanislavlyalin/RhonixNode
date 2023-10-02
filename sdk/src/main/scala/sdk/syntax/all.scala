@@ -2,8 +2,8 @@ package sdk.syntax
 
 import sdk.api.syntax.ApiFindSyntax
 import sdk.fs2.Fs2StreamSyntax
-import sdk.store.{KeyValueStoreSyntax, KeyValueTypedStoreSyntax}
 import sdk.primitive.*
+import sdk.store.syntax.{KeyValueStoreManagerSyntax, KeyValueStoreSyntax, KeyValueTypedStoreSyntax}
 
 trait AllSyntax
     extends ThrowableSyntax
@@ -13,6 +13,7 @@ trait AllSyntax
     with ApiFindSyntax
     with KeyValueStoreSyntax
     with KeyValueTypedStoreSyntax
+    with KeyValueStoreManagerSyntax
     with ByteBufferSyntax
     with ArrayByteSyntax
     with ByteArraySyntax

@@ -7,19 +7,19 @@ import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
 import diagnostics.KamonContextStore
 import dproc.data.Block
-import fs2.concurrent.SignallingRef
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
 import node.Node
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
+import node.lmdb.LmdbStoreManager
 import org.http4s.EntityEncoder
-import org.http4s.server.Router
 import sdk.codecs.Base16
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
-import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
+import sdk.history.instances.RadixHistory
+import sdk.store.*
 import sdk.syntax.all.*
 import sim.balances.*
 import sim.balances.MergeLogicForPayments.mergeRejectNegativeOverflow
@@ -28,6 +28,7 @@ import sim.balances.data.{BalancesDeploy, BalancesState}
 import weaver.WeaverState
 import weaver.data.*
 
+import java.nio.file.Paths
 import scala.concurrent.duration.{Duration, DurationInt, MICROSECONDS}
 import scala.util.Try
 
@@ -54,7 +55,6 @@ object NetworkSim extends IOApp {
     id: S,
     node: Node[F, M, S, T],
     balanceApi: (Blake2b256Hash, Wallet) => F[Option[Long]],
-    historyStore: InMemoryKeyValueStore[F],
     fringeMapping: Set[M] => F[Blake2b256Hash],
   )
 
@@ -103,11 +103,7 @@ object NetworkSim extends IOApp {
     }
   }
 
-  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](
-    c: Config,
-    resetRef: SignallingRef[F, Boolean],
-    historySizeThreshold: Int,
-  ): Stream[F, Unit] = {
+  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](c: Config): Stream[F, Unit] = {
 
     /// Users (wallets) making transactions
     val users: Set[Wallet] = (1 to c.usersNum).toSet
@@ -144,29 +140,37 @@ object NetworkSim extends IOApp {
       to    <- Random[F].elementOf(users - from)
     } yield new BalancesState(Map(from -> -txVal, to -> txVal))
 
-    def mkNode(vId: S): F[NetNode[F]] = Sync[F].defer {
-      val blockSeqNumRef = Ref.unsafe(0)
-      val assignBlockId  = (_: Any) => blockSeqNumRef.updateAndGet(_ + 1).map(idx => s"$vId-$idx")
-
-      val txSeqNumRef = Ref.unsafe(0)
-      val nextTxs     = txSeqNumRef
-        .updateAndGet(_ + 1)
-        .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
-        .replicateA(c.txPerBlock)
-        .flatTap(_.traverse(saveTx))
-        .map(_.toSet)
-
-      val historyStore  = new InMemoryKeyValueStore[F]
-      val mkHistory     = sdk.history.History.create(EmptyRootHash, historyStore)
-      val mkValuesStore = Sync[F].delay {
-        new ByteArrayKeyValueTypedStore[F, Blake2b256Hash, Balance](
-          new InMemoryKeyValueStore[F],
-          Blake2b256Hash.codec,
-          balanceCodec,
-        )
+    /** Storage resource for on chain storage (history and values) */
+    def onChainStoreResource(
+      kvStoreManager: KeyValueStoreManager[F],
+    ): Resource[F, (RadixHistory[F], KeyValueTypedStore[F, Blake2b256Hash, Balance])] = kvStoreManager.asResource
+      .flatMap { kvStoreManager =>
+        Resource.eval {
+          for {
+            historyStore <- kvStoreManager.store("history")
+            valuesStore  <- kvStoreManager.store("data")
+            history      <- sdk.history.History.create(EmptyRootHash, historyStore)
+            values        = valuesStore.toByteArrayTypedStore[Blake2b256Hash, Balance](Blake2b256Hash.codec, balanceCodec)
+          } yield history -> values
+        }
       }
 
-      (mkHistory, mkValuesStore).flatMapN { case history -> valueStore =>
+    def mkNode(vId: S): Resource[F, NetNode[F]] = {
+      val dataPath     = Paths.get(s".lmdb/node-$vId")
+//      val storeManager = Sync[F].delay(InMemoryKeyValueStoreManager[F])
+      val storeManager = LmdbStoreManager(dataPath)
+      Resource.eval(storeManager).flatMap(onChainStoreResource).flatMap { case history -> valueStore =>
+        val blockSeqNumRef = Ref.unsafe(0)
+        val assignBlockId  = (_: Any) => blockSeqNumRef.updateAndGet(_ + 1).map(idx => s"$vId-$idx")
+
+        val txSeqNumRef = Ref.unsafe(0)
+        val nextTxs     = txSeqNumRef
+          .updateAndGet(_ + 1)
+          .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
+          .replicateA(c.txPerBlock)
+          .flatTap(_.traverse(saveTx))
+          .map(_.toSet)
+
         val balancesEngine   = BalancesStateBuilderWithReader(history, valueStore)
         val fringeMappingRef = Ref.unsafe(Map(Set.empty[M] -> EmptyRootHash))
 
@@ -191,7 +195,7 @@ object NetworkSim extends IOApp {
             _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
           } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
 
-        Node[F, M, S, T](
+        val netNode = Node[F, M, S, T](
           vId,
           WeaverState.empty[M, S, T](lfs.state),
           assignBlockId,
@@ -204,17 +208,19 @@ object NetworkSim extends IOApp {
             vId,
             _,
             balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet),
-            historyStore,
             (x: Set[M]) => fringeMappingRef.get.map(_.getUnsafe(x)),
           ),
         )
+        Resource.liftK(netNode)
       }
     }
 
     /** Make the computer, init all peers with lfs. */
-    def mkNet(lfs: MessageData[M, S]): F[List[NetNode[F]]] = lfs.state.bonds.activeSet.toList.traverse(mkNode)
+    def mkNet(lfs: MessageData[M, S]): Resource[F, List[NetNode[F]]] =
+      lfs.state.bonds.activeSet.toList.traverse(mkNode)
 
-    val x: F[Stream[F, Unit]] = mkNet(lfs)
+    Stream
+      .resource(mkNet(lfs))
       .map(_.zipWithIndex)
       .map { net =>
         net.map {
@@ -222,7 +228,6 @@ object NetworkSim extends IOApp {
                 self,
                 Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc),
                 getBalance,
-                historyStore,
                 fringeToHash,
               ) -> idx =>
             val bootstrap =
@@ -231,7 +236,7 @@ object NetworkSim extends IOApp {
                 saveBlock(genesisM) *> saveTx(genesis) *> dProc.acceptMsg(genesisM.id) *>
                   Console[F].println(s"Bootstrap done for ${self}")
               })
-            val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
+            val notSelf   = net.collect { case NetNode(id, node, _, _) -> _ if id != self => node }
 
             val run = dProc.dProcStream concurrently {
               dProc.output.through(broadcast(notSelf, c.propDelay))
@@ -257,7 +262,7 @@ object NetworkSim extends IOApp {
                   fringeToHash(
                     w.lazo.fringes.minByOption { case (i, _) => i }.map { case (_, fringe) => fringe }.getOrElse(Set()),
                   )
-                lfsHashF.map(NetworkSnapshot.NodeSnapshot(id, tps, w, p, pe, b, historyStore.State.size, _))
+                lfsHashF.map(NetworkSnapshot.NodeSnapshot(id, tps, w, p, pe, b, _))
               }
 
             val apiServerStream: Stream[F, ExitCode] = {
@@ -324,23 +329,17 @@ object NetworkSim extends IOApp {
         }
       }
       .map(_.unzip)
-      .map { case (streams, diags) =>
+      .flatMap { case (streams, diags) =>
         val simStream = Stream.emits(streams).parJoin(streams.size)
 
         val logDiag = {
           val getNetworkState = diags.sequence
           import NetworkSnapshot.*
-          getNetworkState
-            .flatTap(x =>
-              resetRef.set(true).whenA(x.head.historyKeysSize > historySizeThreshold).whenA(historySizeThreshold > 0),
-            )
-            .showAnimated(samplingTime = 150.milli)
+          getNetworkState.showAnimated(samplingTime = 150.milli)
         }
 
         simStream concurrently logDiag
       }
-
-    Stream.force(x) interruptWhen resetRef
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -362,9 +361,8 @@ object NetworkSim extends IOApp {
       4. Number of transactions in a block
       5. Delay to add to transaction execution time (microseconds)
       6. Network propagation delay (microseconds)
-      7. History size upon reaching which simulation will be restarted. Set this to 0 disable restart.
 
-      eg java -jar *.jar 4 4 100 1 0 0 200000
+      eg java -jar *.jar 4 4 100 1 0 0
 
     Output: console animation of the diagnostics data read from nodes. One line per node, sorted by the node index.
 
@@ -415,7 +413,6 @@ object NetworkSim extends IOApp {
             txsNum,
             exeDelay,
             propDelay,
-            historySizeThreshold,
           ) =>
         val config = Config(
           size = size.toInt,
@@ -429,10 +426,7 @@ object NetworkSim extends IOApp {
 
         implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
         Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
-          val run = Stream.eval(SignallingRef.of[IO, Boolean](false)).flatMap { resetRef =>
-            NetworkSim.sim[IO](config, resetRef, historySizeThreshold.toInt)
-          }
-          run.repeat.compile.drain.as(ExitCode.Success)
+          NetworkSim.sim[IO](config).compile.drain.as(ExitCode.Success)
         }
 
       case x => IO.println(s"Illegal option '${x.mkString(" ")}': see --help").as(ExitCode.Error)

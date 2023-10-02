@@ -20,7 +20,6 @@ object NetworkSnapshot {
     proposer: Proposer.ST,
     processor: Processor.ST[M],
     buffer: DagCausalQueue[M],
-    historyKeysSize: Int,
     lfsHash: Blake2b256Hash,
   )
 
@@ -33,7 +32,6 @@ object NetworkSnapshot {
       f"$tps%5s ${weaver.lazo.dagData.size}%10s " +
         f"${proposer.status}%16s " +
         f"$processorData%20s " +
-        f"$historyKeysSize%14s" +
         f"${lfsHash.bytes.toHex}%74s"
     }
   }

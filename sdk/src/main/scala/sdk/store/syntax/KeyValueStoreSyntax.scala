@@ -1,15 +1,16 @@
-package sdk.store
+package sdk.store.syntax
 
 import cats.Functor
 import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.codecs.Codec
 import sdk.primitive.ByteArray
+import sdk.store.{ByteArrayKeyValueTypedStore, KeyValueStore, KeyValueTypedStore}
 
 import java.nio.ByteBuffer
 
 trait KeyValueStoreSyntax {
-  implicit final def sharedSyntaxKeyValueStore[F[_]](
+  implicit final def sdkSyntaxKeyValueStore[F[_]](
     store: KeyValueStore[F],
   ): KeyValueStoreOps[F] =
     new KeyValueStoreOps[F](store)

@@ -61,6 +61,17 @@ final class ByteArrayOps(private val x: ByteArray) extends AnyVal {
   /**
    * Wrap the copy of underlying array with the ByteBuffer.
    * */
-  def toByteBuffer: ByteBuffer = x.bytes.toByteBuffer
+  def toByteBuffer: ByteBuffer = x.bytes.toByteBuffer.asReadOnlyBuffer()
 
+  /**
+   * Allocate direct buffer and fill with the content of ByteArray.
+   * LMDB works only with direct buffers.
+   * */
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
+  def toDirectByteBuffer: ByteBuffer = {
+    val buffer: ByteBuffer = ByteBuffer.allocateDirect(x.bytes.length)
+    buffer.put(x.bytes)
+    buffer.flip()
+    buffer
+  }
 }
