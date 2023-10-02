@@ -1,7 +1,7 @@
 package db.slick
 
 import cats.data.OptionT
-import cats.effect.IO
+import cats.effect.{IO, Sync}
 import cats.effect.unsafe.implicits.global
 import org.scalacheck.ScalacheckShapeless.*
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -32,7 +32,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedPgSlickDb[IO]
-        .map { case SlickDb(db, profile, _) => new ValidatorDbApiImplSlick[IO](db, profile) }
+        .map(new ValidatorDbApiImplSlick[IO](_))
         .use(test)
         .unsafeRunSync()
     }

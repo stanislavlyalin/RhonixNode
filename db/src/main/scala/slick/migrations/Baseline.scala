@@ -3,7 +3,7 @@ package slick.migrations
 import slick.migration.api.{Dialect, ReversibleMigrationSeq, TableMigration}
 
 // Initial version of the database
-object V1 {
+object Baseline {
   def apply()(implicit dialect: Dialect[?]): ReversibleMigrationSeq = {
     val validatorTable = TableMigration(slick.validators).create
       .addColumns(_.id, _.publicKey)

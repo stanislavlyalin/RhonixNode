@@ -6,5 +6,5 @@ import slick.migration.api.Dialect
 package object migrations {
 
   // This should be appended only.
-  def all(implicit dialect: Dialect[?]) = V1()
+  def all(implicit dialect: Dialect[?]) = Baseline()
 }
