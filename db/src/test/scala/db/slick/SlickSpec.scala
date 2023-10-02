@@ -1,7 +1,7 @@
 package db.slick
 
 import cats.data.OptionT
-import cats.effect.{IO, Sync}
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalacheck.ScalacheckShapeless.*
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -9,7 +9,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sdk.api.data.*
 import sdk.db.*
-import slick.SlickDb
 import slick.api.*
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -29,7 +28,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(new ValidatorDbApiImplSlick[IO](_))
+        .map(implicit x => new ValidatorDbApiImplSlick[IO])
         .use(test)
         .unsafeRunSync()
     }

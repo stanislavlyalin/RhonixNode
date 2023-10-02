@@ -6,18 +6,18 @@ import sdk.api.data.Validator
 import slick.jdbc.JdbcProfile
 import slick.{SlickDb, SlickQuery}
 
-class ValidatorDbApiImplSlick[F[_]: Async](db: SlickDb) extends ValidatorDbApi[F] {
-  implicit val p: JdbcProfile = db.profile
+class ValidatorDbApiImplSlick[F[_]: Async: SlickDb] extends ValidatorDbApi[F] {
+  implicit val p: JdbcProfile = SlickDb[F].profile
 
   override def insert(publicKey: Array[Byte]): F[Long] =
-    db.run(SlickQuery().insertValidator(publicKey))
+    SlickDb[F].run(SlickQuery().insertValidator(publicKey))
 
   override def update(validator: Validator): F[Int] =
-    db.run(SlickQuery().updateValidator(validator))
+    SlickDb[F].run(SlickQuery().updateValidator(validator))
 
   override def getById(id: Long): F[Option[Validator]] =
-    db.run(SlickQuery().getValidatorById(id))
+    SlickDb[F].run(SlickQuery().getValidatorById(id))
 
   override def getByPublicKey(publicKey: Array[Byte]): F[Option[Validator]] =
-    db.run(SlickQuery().getValidatorByPublicKey(publicKey))
+    SlickDb[F].run(SlickQuery().getValidatorByPublicKey(publicKey))
 }
