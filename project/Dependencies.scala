@@ -13,6 +13,7 @@ object Dependencies {
 
   // LEGACY dependencies of imported projects
   val protobuf = "com.google.protobuf" % "protobuf-java" % "3.22.2"
+  val jaxb     = "javax.xml.bind"      % "jaxb-api"      % "2.3.1"
 
   // Testing frameworks
   val scalacheckShapeless = "com.github.alexarchambault" %% "scalacheck-shapeless_1.16" % "1.3.1" % Test
@@ -48,13 +49,14 @@ object Dependencies {
   val endpointsOpenApi   = "org.endpoints4s" %% "openapi"             % "4.4.0"
 
   // Database
-  val embeddedPostgres           = "io.zonky.test"     % "embedded-postgres" % "2.0.4"  % Test
-  val junitJupiter               = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0" % Test
-  val postgresql                 = "org.postgresql"    % "postgresql"        % "42.6.0"
-  val squeryl                    = "org.squeryl"      %% "squeryl"           % "0.10.0"
-  val liquibase4s: Seq[ModuleID] = Seq(
-    "io.github.liquibase4s" %% "liquibase4s-core"        % "1.0.0",
-    "io.github.liquibase4s" %% "liquibase4s-cats-effect" % "1.0.0",
+  val junitJupiter         = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0"  % Test
+  val postgresql           = "org.postgresql"    % "postgresql"        % "42.6.0"
+  val h2db                 = "com.h2database"    % "h2"                % "2.1.214" % Test
+  val slick: Seq[ModuleID] = Seq(
+    "com.typesafe.slick"                 %% "slick"               % "3.4.1",
+    "org.slf4j"                           % "slf4j-nop"           % "2.0.5",
+    "com.typesafe.slick"                 %% "slick-hikaricp"      % "3.4.1",
+    "io.github.nafg.slick-migration-api" %% "slick-migration-api" % "0.9.0",// Migration tool for Slick
   )
 
   val lmdbjava   = "org.lmdbjava"  % "lmdbjava"   % "0.8.3"
@@ -63,7 +65,7 @@ object Dependencies {
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
-  val common = Seq(catsCore, catsEffect, fs2Core)
+  val common = Seq(catsCore, catsEffect, fs2Core, jaxb)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter)
 
@@ -83,7 +85,7 @@ object Dependencies {
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 
-  val dbLibs = Seq(embeddedPostgres, postgresql, squeryl, junitJupiter) ++ liquibase4s
+  val dbLibs = Seq(h2db, postgresql, junitJupiter) ++ slick
 
   val cryptoLibs = Seq(bcprov)
 }
