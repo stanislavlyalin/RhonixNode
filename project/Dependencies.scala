@@ -34,6 +34,10 @@ object Dependencies {
   val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
   val slf4j          = "org.slf4j"      % "slf4j-api"       % "2.0.5"
 
+  // Config
+  val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.4"
+
+  // Web
   val http4sNetty  = "org.http4s" %% "http4s-netty-server" % "0.5.9"
   val http4sBlaze  = "org.http4s" %% "http4s-blaze-server" % "0.23.14"
   val http4sDSL    = "org.http4s" %% "http4s-dsl"          % "0.23.23"

@@ -38,7 +38,7 @@ object NetworkSnapshot {
         Field("latestMessages", s.weaver.lazo.latestMessages.mkString(" | ")),
         Field(
           "blockHeight",
-          s.weaver.lazo.latestMessages.map(_.toString.split("-")(1)).map(_.toInt).maxOption.getOrElse(0).toString,
+          s.weaver.lazo.latestMessages.map(s.weaver.lazo.dagData(_).seqNum).maxOption.getOrElse(0).toString,
         ),
       ),
     )

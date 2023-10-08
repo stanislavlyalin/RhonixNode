@@ -6,21 +6,28 @@ import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
 import diagnostics.KamonContextStore
+import diagnostics.metrics.{Config as InfluxDbConfig, InfluxDbBatchedMetrics}
 import dproc.data.Block
+import fs2.concurrent.SignallingRef
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
-import node.Node
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
 import node.lmdb.LmdbStoreManager
+import node.{Config as NodeConfig, Node}
 import org.http4s.EntityEncoder
+import pureconfig.generic.ProductHint
 import sdk.codecs.Base16
+import sdk.config.ConfigRender
+import sdk.diag.{Metrics, SystemReporter}
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
 import sdk.store.*
 import sdk.syntax.all.*
+import sim.Config as SimConfig
+import sim.NetworkSnapshot.{reportSnapshot, NodeSnapshot}
 import sim.balances.*
 import sim.balances.MergeLogicForPayments.mergeRejectNegativeOverflow
 import sim.balances.data.BalancesState.Default
@@ -28,8 +35,8 @@ import sim.balances.data.{BalancesDeploy, BalancesState}
 import weaver.WeaverState
 import weaver.data.*
 
-import java.nio.file.Paths
-import scala.concurrent.duration.{Duration, DurationInt, MICROSECONDS}
+import java.nio.file.Files
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.Try
 
 object NetworkSim extends IOApp {
@@ -42,23 +49,20 @@ object NetworkSim extends IOApp {
     override def compare(x: S, y: S): Int = x compareTo y
   }
 
-  final case class Config(
-    size: Int,
-    usersNum: Int,
-    processingConcurrency: Int,
-    txPerBlock: Int,
-    exeDelay: Duration,
-    propDelay: Duration,
+  final private case class Config(
+    sim: SimConfig,
+    node: NodeConfig,
+    influxDb: InfluxDbConfig,
   )
 
   final case class NetNode[F[_]](
     id: S,
     node: Node[F, M, S, T],
     balanceApi: (Blake2b256Hash, Wallet) => F[Option[Long]],
-    fringeMapping: Set[M] => F[Blake2b256Hash],
+    getData: F[NodeSnapshot[M, S, T]],
   )
 
-  def genesisBlock[F[_]: Async: Parallel](
+  def genesisBlock[F[_]: Async: Parallel: Metrics](
     sender: S,
     genesisExec: FinalData[S],
     users: Set[Int],
@@ -103,14 +107,18 @@ object NetworkSim extends IOApp {
     }
   }
 
-  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](c: Config): Stream[F, Unit] = {
+  def sim[F[_]: Async: Parallel: Random: Console: KamonContextStore](
+    netCfg: SimConfig,
+    nodeCfg: NodeConfig,
+    ifxDbCfg: InfluxDbConfig,
+  ): Stream[F, Unit] = {
 
     /// Users (wallets) making transactions
-    val users: Set[Wallet] = (1 to c.usersNum).toSet
+    val users: Set[Wallet] = (1 to netCfg.usersNum).toSet
 
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
-    val senders           = Iterator.range(0, c.size).map(n => s"s$n").toList
+    val senders           = Iterator.range(0, netCfg.size).map(n => s"s$n").toList
     // Create lfs message, it has no parents, sees no offences and final fringe is empty set
     val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
@@ -156,62 +164,114 @@ object NetworkSim extends IOApp {
       }
 
     def mkNode(vId: S): Resource[F, NetNode[F]] = {
-      val dataPath     = Paths.get(s".lmdb/node-$vId")
-//      val storeManager = Sync[F].delay(InMemoryKeyValueStoreManager[F])
-      val storeManager = LmdbStoreManager(dataPath)
-      Resource.eval(storeManager).flatMap(onChainStoreResource).flatMap { case history -> valueStore =>
-        val blockSeqNumRef = Ref.unsafe(0)
-        val assignBlockId  = (_: Any) => blockSeqNumRef.updateAndGet(_ + 1).map(idx => s"$vId-$idx")
+      val dataPath     = Files.createTempDirectory(s"gorki-sim-node-$vId")
+      val storeManager =
+        if (nodeCfg.persistOnChainState) LmdbStoreManager(dataPath)
+        else Sync[F].delay(InMemoryKeyValueStoreManager[F]())
+      val metrics      =
+        if (nodeCfg.enableInfluxDb) InfluxDbBatchedMetrics[F](ifxDbCfg, vId)
+        else Resource.eval(Metrics.default.pure[F])
 
-        val txSeqNumRef = Ref.unsafe(0)
-        val nextTxs     = txSeqNumRef
-          .updateAndGet(_ + 1)
-          .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
-          .replicateA(c.txPerBlock)
-          .flatTap(_.traverse(saveTx))
-          .map(_.toSet)
+      (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics).flatMapN {
+        case ((history, valueStore), metrics) =>
+          implicit val x: Metrics[F] = metrics
 
-        val balancesEngine   = BalancesStateBuilderWithReader(history, valueStore)
-        val fringeMappingRef = Ref.unsafe(Map(Set.empty[M] -> EmptyRootHash))
+          val blockSeqNumRef = Ref.unsafe(0)
+          val assignBlockId  = (_: Any) => blockSeqNumRef.updateAndGet(_ + 1).map(idx => s"$vId-$idx")
 
-        def buildState(
-          baseFringe: Set[M],
-          finalFringe: Set[M],
-          toFinalize: Set[T],
-          toMerge: Set[T],
-          toExecute: Set[T],
-        ): F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))] =
-          for {
-            baseState <- fringeMappingRef.get.map(_(baseFringe))
-            r         <- mergeRejectNegativeOverflow(balancesEngine, baseState, toFinalize, toMerge ++ toExecute)
-            _         <- Async[F].sleep(c.exeDelay).replicateA(toExecute.size)
+          val txSeqNumRef = Ref.unsafe(0)
+          val nextTxs     = txSeqNumRef
+            .updateAndGet(_ + 1)
+            .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
+            .replicateA(netCfg.txPerBlock)
+            .flatTap(_.traverse(saveTx))
+            .map(_.toSet)
 
-            ((newFinState, finRj), (newMergeState, provRj)) = r
+          val balancesEngine   = BalancesStateBuilderWithReader(history, valueStore)
+          val fringeMappingRef = Ref.unsafe(Map(Set.empty[M] -> EmptyRootHash))
 
-            r <- balancesEngine.buildState(baseState, newFinState, newMergeState)
+          def buildState(
+            baseFringe: Set[M],
+            finalFringe: Set[M],
+            toFinalize: Set[T],
+            toMerge: Set[T],
+            toExecute: Set[T],
+          ): F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))] =
+            for {
+              baseState <- fringeMappingRef.get.map(_(baseFringe))
+              r         <- mergeRejectNegativeOverflow(balancesEngine, baseState, toFinalize, toMerge ++ toExecute)
+              _         <- Async[F].sleep(netCfg.exeDelay).replicateA(toExecute.size)
 
-            (finalHash, postHash) = r
+              ((newFinState, finRj), (newMergeState, provRj)) = r
 
-            _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
-          } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
+              r <- balancesEngine.buildState(baseState, newFinState, newMergeState)
 
-        val netNode = Node[F, M, S, T](
-          vId,
-          WeaverState.empty[M, S, T](lfs.state),
-          assignBlockId,
-          nextTxs,
-          buildState,
-          saveBlock,
-          readBlock,
-        ).map(
-          NetNode(
+              (finalHash, postHash) = r
+
+              _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
+            } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
+
+          val netNode = Node[F, M, S, T](
             vId,
-            _,
-            balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet),
-            (x: Set[M]) => fringeMappingRef.get.map(_.getUnsafe(x)),
-          ),
-        )
-        Resource.liftK(netNode)
+            WeaverState.empty[M, S, T](lfs.state),
+            assignBlockId,
+            nextTxs,
+            buildState,
+            saveBlock,
+            readBlock,
+          ).map { node =>
+            val tpsRef    = Ref.unsafe[F, Double](0f)
+            val tpsUpdate = node.dProc.finStream
+              .map(_.accepted.toList)
+              .flatMap(Stream.emits(_))
+              .throughput(1.second)
+              // finality is computed by each sender eventually so / c.size
+              .map(_.toDouble / netCfg.size)
+              .evalTap(tpsRef.set)
+
+            val getData =
+              (
+                vId.pure,
+                tpsRef.get,
+                node.weaverStRef.get,
+                node.propStRef.get,
+                node.procStRef.get,
+                node.bufferStRef.get,
+              ).flatMapN { case (id, tps, w, p, pe, b) =>
+                val lfsHashF = fringeMappingRef.get.map(
+                  _.getUnsafe(
+                    w.lazo.fringes.minByOption { case (i, _) => i }.map { case (_, fringe) => fringe }.getOrElse(Set()),
+                  ),
+                )
+                lfsHashF.map(
+                  NetworkSnapshot.NodeSnapshot(id, tps.toFloat, tps.toFloat / netCfg.txPerBlock, w, p, pe, b, _),
+                )
+              }
+
+            val animateDiag = Stream
+              .repeatEval(getData)
+              .metered(1.second)
+              .evalTap { x =>
+                implicit val m: Metrics[F] = metrics
+                reportSnapshot(x)
+              }
+              .map(v => s"\u001b[2J${v.show}")
+              .printlns
+
+            NetNode(
+              vId,
+              node.copy(dProc =
+                node.dProc
+                  .copy(dProcStream =
+                    node.dProc.dProcStream concurrently tpsUpdate concurrently
+                      SystemReporter[F]() concurrently animateDiag,
+                  ),
+              ),
+              balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet),
+              getData,
+            )
+          }
+          Resource.liftK(netNode)
       }
     }
 
@@ -226,44 +286,23 @@ object NetworkSim extends IOApp {
         net.map {
           case NetNode(
                 self,
-                Node(weaverStRef, processorStRef, proposerStRef, bufferStRef, dProc),
+                Node(weaverStRef, _, _, _, dProc),
                 getBalance,
-                fringeToHash,
+                getData,
               ) -> idx =>
-            val bootstrap =
+            val bootstrap = {
+              implicit val m: Metrics[F] = Metrics.default
               Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
                 val genesis = genesisM.m.txs.head
                 saveBlock(genesisM) *> saveTx(genesis) *> dProc.acceptMsg(genesisM.id) *>
                   Console[F].println(s"Bootstrap done for ${self}")
               })
+            }
             val notSelf   = net.collect { case NetNode(id, node, _, _) -> _ if id != self => node }
 
             val run = dProc.dProcStream concurrently {
-              dProc.output.through(broadcast(notSelf, c.propDelay))
+              dProc.output.through(broadcast(notSelf, netCfg.propDelay))
             }
-
-            val tpsRef    = Ref.unsafe[F, Float](0f)
-            val tpsUpdate = dProc.finStream
-              .map(_.accepted.toList)
-              .flatMap(Stream.emits(_))
-              .throughput(1.second)
-              // finality is computed by each sender eventually so / c.size
-              .evalTap(x => tpsRef.set(x.toFloat / c.size))
-            val getData   =
-              (
-                idx.pure,
-                tpsRef.get,
-                weaverStRef.get,
-                proposerStRef.get,
-                processorStRef.get,
-                bufferStRef.get,
-              ).flatMapN { case (id, tps, w, p, pe, b) =>
-                val lfsHashF =
-                  fringeToHash(
-                    w.lazo.fringes.minByOption { case (i, _) => i }.map { case (_, fringe) => fringe }.getOrElse(Set()),
-                  )
-                lfsHashF.map(NetworkSnapshot.NodeSnapshot(id, tps, w, p, pe, b, _))
-              }
 
             val apiServerStream: Stream[F, ExitCode] = {
               import io.circe.generic.auto.*
@@ -325,7 +364,7 @@ object NetworkSim extends IOApp {
               web.server(allRoutes, 8080 + idx, "localhost")
             }
 
-            (run concurrently bootstrap concurrently tpsUpdate concurrently apiServerStream) -> getData
+            (run concurrently bootstrap concurrently apiServerStream) -> getData
         }
       }
       .map(_.unzip)
@@ -354,15 +393,9 @@ object NetworkSim extends IOApp {
     Blocks are created by all nodes as fast as possible. Number of transactions per block can be adjusted
       with the argument. Transactions are generated randomly.
 
-    Usage: specify 6 input arguments
-      1. Number of nodes in the network
-      2. Number of blocks that node is allowed to process concurrently
-      3. Number of users of the network
-      4. Number of transactions in a block
-      5. Delay to add to transaction execution time (microseconds)
-      6. Network propagation delay (microseconds)
-
-      eg java -jar *.jar 4 4 100 1 0 0
+    Usage:
+      Run simulation:           java -jar sim.jar -Dconfig.file <path to config file> run
+      Dump default config file: java -jar sim.jar --print-default-config <path>
 
     Output: console animation of the diagnostics data read from nodes. One line per node, sorted by the node index.
 
@@ -404,6 +437,11 @@ object NetworkSim extends IOApp {
 
     """.stripMargin
 
+    import pureconfig.*
+    import pureconfig.generic.auto.*
+
+    implicit def hint[A]: ProductHint[A] = ProductHint[A](ConfigFieldMapping(CamelCase, CamelCase))
+
     args match {
       case List("--help")                 => IO.println(prompt).as(ExitCode.Success)
       case List("--print-default-config") =>
@@ -415,10 +453,36 @@ object NetworkSim extends IOApp {
         )
         IO.println(referenceConf).as(ExitCode.Success)
 
-        implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
-        Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
-          NetworkSim.sim[IO](config).compile.drain.as(ExitCode.Success)
-        }
+      case List("run") =>
+        final case class GorkiConfig(gorki: Config)
+        ConfigSource.default
+          .load[GorkiConfig]
+          .map(_.gorki)
+          .leftTraverse[IO, Config] { err =>
+            new Exception("Invalid configuration file", new Exception(err.toList.map(_.description).mkString("\n")))
+              .raiseError[IO, Config]
+          }
+          .map(_.merge)
+          .flatMap { case Config(network, node, influxDb) =>
+            implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
+            Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
+              if (node.persistOnChainState)
+                NetworkSim.sim[IO](network, node, influxDb).compile.drain.as(ExitCode.Success)
+              else {
+                // in memory cannot run forever so restart each minute
+                Stream
+                  .eval(SignallingRef.of[IO, Boolean](false))
+                  .flatMap { sRef =>
+                    val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
+                    NetworkSim.sim[IO](network, node, influxDb).interruptWhen(sRef) concurrently resetStream
+                  }
+                  .repeat
+                  .compile
+                  .drain
+                  .as(ExitCode.Success)
+              }
+            }
+          }
 
       case x => IO.println(s"Illegal option '${x.mkString(" ")}': see --help").as(ExitCode.Error)
     }
