@@ -405,24 +405,15 @@ object NetworkSim extends IOApp {
     """.stripMargin
 
     args match {
-      case List("--help") => IO.println(prompt).as(ExitCode.Success)
-      case List(
-            size,
-            processingConcurrency,
-            usersNum,
-            txsNum,
-            exeDelay,
-            propDelay,
-          ) =>
-        val config = Config(
-          size = size.toInt,
-          usersNum = usersNum.toInt,
-          processingConcurrency = processingConcurrency.toInt,
-          txPerBlock = txsNum.toInt,
-          Duration(exeDelay.toLong, MICROSECONDS),
-          Duration(propDelay.toLong, MICROSECONDS),
-//          lazinessTolerance.toInt,
+      case List("--help")                 => IO.println(prompt).as(ExitCode.Success)
+      case List("--print-default-config") =>
+        val referenceConf = ConfigRender.referenceConf(
+          "gorki",
+          InfluxDbConfig.Default,
+          NodeConfig.Default,
+          SimConfig.Default,
         )
+        IO.println(referenceConf).as(ExitCode.Success)
 
         implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
         Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
