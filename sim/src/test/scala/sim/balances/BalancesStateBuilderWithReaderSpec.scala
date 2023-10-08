@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sdk.diag.Metrics
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
@@ -51,6 +52,8 @@ object BalancesStateBuilderWithReaderSpec {
         balanceCodec,
       )
     }
+
+    implicit val m: Metrics[IO] = Metrics.default[IO]
 
     (mkHistory, mkValuesStore)
       .flatMapN { case history -> valueStore => f(BalancesStateBuilderWithReader(history, valueStore)) }

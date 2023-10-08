@@ -5,12 +5,15 @@ import cats.effect.Ref
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
+import diagnostics.syntax.all.kamonSyntax
 import dproc.DProc.ExeEngine
 import dproc.WeaverNode.{validateExeData, ReplayResult}
 import dproc.data.Block
 import fs2.Stream
+import sdk.diag.Metrics
 import sdk.merging.{DagMerge, Relation, Resolve}
 import sdk.node.Processor
+import sdk.syntax.all.*
 import weaver.*
 import weaver.GardState.GardM
 import weaver.LazoState.isSynchronous
@@ -19,7 +22,7 @@ import weaver.data.*
 import weaver.rules.{Dag, Finality, InvalidBasic}
 import weaver.syntax.all.*
 
-final case class WeaverNode[F[_]: Sync, M, S, T](state: WeaverState[M, S, T]) {
+final case class WeaverNode[F[_]: Sync: Metrics, M, S, T](state: WeaverState[M, S, T]) {
   def dag: DagMerge[F, M] = new DagMerge[F, M] {
     override def between(ceil: Set[M], floor: Set[M]): F[Iterator[M]] = {
       val seqWithSender: M => (S, Int)  = (x: M) => state.lazo.dagData(x).sender -> state.lazo.dagData(x).seqNum
@@ -181,39 +184,41 @@ final case class WeaverNode[F[_]: Sync, M, S, T](state: WeaverState[M, S, T]) {
     m: Block.WithId[M, S, T],
     exeEngine: ExeEngine[F, M, S, T],
     relations: Relation[F, T],
-  ): F[ReplayResult[M, S, T]] = Sync[F].defer {
-    lazy val conflictSet =
-      Dag.between[M](m.m.minGenJs, m.m.finalFringe, state.lazo.seenMap).flatMap(state.meld.txsMap).toList
-    lazy val unseen      = state.lazo.dagData.keySet -- state.lazo.view(m.m.minGenJs)
-    lazy val mkMeld      = MeldState
-      .computeRelationMaps[F, T](
-        m.m.txs,
-        unseen.flatMap(state.meld.txsMap).toList,
-        conflictSet,
-        relations.conflicts,
-        relations.depends,
-      )
-      .map { case (cm, dm) =>
-        MergingData(
+  ): F[ReplayResult[M, S, T]] = Sync[F]
+    .defer {
+      lazy val conflictSet =
+        Dag.between[M](m.m.minGenJs, m.m.finalFringe, state.lazo.seenMap).flatMap(state.meld.txsMap).toList
+      lazy val unseen      = state.lazo.dagData.keySet -- state.lazo.view(m.m.minGenJs)
+      lazy val mkMeld      = MeldState
+        .computeRelationMaps[F, T](
           m.m.txs,
-          conflictSet.toSet,
-          cm,
-          dm,
-          m.m.finalized.map(_.accepted).getOrElse(Set()),
-          m.m.finalized.map(_.rejected).getOrElse(Set()),
+          unseen.flatMap(state.meld.txsMap).toList,
+          conflictSet,
+          relations.conflicts,
+          relations.depends,
         )
-      }
+        .map { case (cm, dm) =>
+          MergingData(
+            m.m.txs,
+            conflictSet.toSet,
+            cm,
+            dm,
+            m.m.finalized.map(_.accepted).getOrElse(Set()),
+            m.m.finalized.map(_.rejected).getOrElse(Set()),
+          )
+        }
 
-    val lazoME  = Block.toLazoM(m.m).computeExtended(state.lazo)
-    val offOptT = validateMessage(m.m, exeEngine).swap.toOption
+      val lazoME  = Block.toLazoM(m.m).computeExtended(state.lazo)
+      val offOptT = validateMessage(m.m, exeEngine).swap.toOption
 
-    // invalid messages do not participate in merge and are not accounted for double spend guard
-    val offCase   = offOptT.map(off => ReplayResult(lazoME, none[MergingData[T]], none[GardM[M, T]], off.some))
-    // if msg is valid - Meld state and Gard state should be updated
-    val validCase = mkMeld.map(_.some).map(ReplayResult(lazoME, _, Block.toGardM(m.m).some, none[Offence]))
+      // invalid messages do not participate in merge and are not accounted for double spend guard
+      val offCase   = offOptT.map(off => ReplayResult(lazoME, none[MergingData[T]], none[GardM[M, T]], off.some))
+      // if msg is valid - Meld state and Gard state should be updated
+      val validCase = mkMeld.map(_.some).map(ReplayResult(lazoME, _, Block.toGardM(m.m).some, none[Offence]))
 
-    offCase.getOrElseF(validCase)
-  }
+      offCase.getOrElseF(validCase)
+    }
+    .timedM("replay")
 }
 
 object WeaverNode {
@@ -240,7 +245,7 @@ object WeaverNode {
   /**
    * Replay block and add it to the Weaver state.
    */
-  private def replayAndAdd[F[_]: Sync, M, S, T: Ordering](
+  private def replayAndAdd[F[_]: Sync: Metrics, M, S, T: Ordering](
     b: Block.WithId[M, S, T],
     weaverStRef: Ref[F, WeaverState[M, S, T]],
     exeEngine: ExeEngine[F, M, S, T],
@@ -249,7 +254,7 @@ object WeaverNode {
     for {
       w  <- weaverStRef.get
       br <- WeaverNode(w).replay(b, exeEngine, relation)
-      r  <- weaverStRef.modify(_.add(b.id, br.lazoME, br.meldMOpt, br.gardMOpt, br.offenceOpt))
+      r  <- weaverStRef.modify(_.add(b.id, br.lazoME, br.meldMOpt, br.gardMOpt, br.offenceOpt)).timedM("state-add")
       _  <- new Exception(s"Add failed after replay which should not be possible.").raiseError.unlessA(r._2)
     } yield AddEffect(r._1, b.m.finalized, br.offenceOpt)
 
@@ -267,14 +272,14 @@ object WeaverNode {
   /**
    * Propose given the latest state of the node.
    */
-  def proposeOnLatest[F[_]: Sync, M, S, T: Ordering](
+  def proposeOnLatest[F[_]: Sync: Metrics, M, S, T: Ordering](
     sender: S,
     weaverStRef: Ref[F, WeaverState[M, S, T]],
     readTxs: => F[Set[T]],
     exeEngine: ExeEngine[F, M, S, T],
     idGen: Block[M, S, T] => F[M],
   ): F[Block.WithId[M, S, T]] = (weaverStRef.get, readTxs).flatMapN { case (w, txs) =>
-    WeaverNode(w).createBlockWithId(sender, txs, exeEngine, idGen)
+    WeaverNode(w).createBlockWithId(sender, txs, exeEngine, idGen).timedM("propose")
   }
 
   def isSynchronousF[F[_]: Monad, M, S, T](id: S, weaverStRef: Ref[F, WeaverState[M, S, T]]): F[Boolean] =
@@ -283,7 +288,7 @@ object WeaverNode {
   /**
    * Stream of processed blocks with callback to trigger process
    */
-  def processor[F[_]: Async, M, S, T: Ordering](
+  def processor[F[_]: Async: Metrics, M, S, T: Ordering](
     weaverStRef: Ref[F, WeaverState[M, S, T]],
     exeEngine: ExeEngine[F, M, S, T],
     relation: Relation[F, T],

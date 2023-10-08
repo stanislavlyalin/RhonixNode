@@ -67,7 +67,7 @@ lazy val dproc = (project in file("dproc"))
   .settings(
     libraryDependencies ++= common ++ tests,
   )
-  .dependsOn(sdk, weaver)
+  .dependsOn(sdk, weaver, diag)
 
 // Node implementation
 lazy val node = (project in file("node"))

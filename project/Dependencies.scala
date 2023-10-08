@@ -25,9 +25,10 @@ object Dependencies {
   val scalatestScalacheck = "org.scalatestplus" %% "scalacheck-1-17"    % "3.2.16.0" % Test
 
   // Diagnostics
-  val kamonBundle           = "io.kamon" %% "kamon-bundle"   % "2.6.1"
-  val kamonInfluxDbReporter = "io.kamon" %% "kamon-influxdb" % "2.6.0"
-  val kamonJaegerReporter   = "io.kamon" %% "kamon-jaeger"   % "2.6.0"
+  val kamonBundle           = "io.kamon"    %% "kamon-bundle"         % "2.6.1"
+  val kamonInfluxDbReporter = "io.kamon"    %% "kamon-influxdb"       % "2.6.0"
+  val kamonJaegerReporter   = "io.kamon"    %% "kamon-jaeger"         % "2.6.0"
+  val influxDbClient        = "com.influxdb" % "influxdb-client-java" % "6.10.0"
 
   // Logging
   val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
@@ -67,7 +68,7 @@ object Dependencies {
 
   val common = Seq(catsCore, catsEffect, fs2Core, jaxb)
 
-  val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter)
+  val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter, influxDbClient)
 
   val log = Seq(logbackClassic, slf4j)
 

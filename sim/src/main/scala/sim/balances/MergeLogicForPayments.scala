@@ -2,8 +2,10 @@ package sim.balances
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import diagnostics.syntax.all.kamonSyntax
+import sdk.diag.Metrics
 import sdk.hashing.Blake2b256Hash
-import sdk.syntax.all.mapSyntax
+import sdk.syntax.all.{effectSyntax, mapSyntax}
 import sim.balances.data.{BalancesDeploy, BalancesState}
 
 object MergeLogicForPayments {
@@ -43,7 +45,7 @@ object MergeLogicForPayments {
   /**
    * Merge deploys into the base state rejecting those leading to overflow.
    * */
-  def mergeRejectNegativeOverflow[F[_]: Sync](
+  def mergeRejectNegativeOverflow[F[_]: Sync: Metrics](
     reader: BalancesStateBuilderWithReader[F],
     baseState: Blake2b256Hash,
     toFinalize: Set[BalancesDeploy],
@@ -58,16 +60,19 @@ object MergeLogicForPayments {
       .map(_.toMap)
 
     readAllBalances
-      .map { allInitValues =>
+      .flatMap { allInitValues =>
         val initFinal        = new BalancesState(allInitValues.view.filterKeys(adjustedInFinal.contains).toMap)
         val initAll          = new BalancesState(allInitValues)
         val toFinalizeSorted = toFinalize.toList.sorted
         val toMergeSorted    = toMerge.toList.sorted
 
-        val (finChange, finRj)    = foldCollectFailures(initFinal, toFinalizeSorted, attemptCombine)
-        val (mergeChange, provRj) = foldCollectFailures(initAll ++ finChange, toMergeSorted, attemptCombine)
-
-        (finChange, finRj) -> (mergeChange, provRj)
+        Sync[F]
+          .delay(foldCollectFailures(initFinal, toFinalizeSorted, attemptCombine))
+          .timedM("buildFinalState")
+          .map { case (finChange, finRj) =>
+            val (mergeChange, provRj) = foldCollectFailures(initAll ++ finChange, toMergeSorted, attemptCombine)
+            (finChange, finRj) -> (mergeChange, provRj)
+          }
       }
   }
 }
