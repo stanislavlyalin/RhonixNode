@@ -53,7 +53,7 @@ object BalancesStateBuilderWithReaderSpec {
       )
     }
 
-    implicit val m: Metrics[IO] = Metrics.default[IO]
+    implicit val m: Metrics[IO] = Metrics.unit[IO]
 
     (mkHistory, mkValuesStore)
       .flatMapN { case history -> valueStore => f(BalancesStateBuilderWithReader(history, valueStore)) }

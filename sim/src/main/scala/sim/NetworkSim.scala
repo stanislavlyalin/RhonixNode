@@ -170,7 +170,7 @@ object NetworkSim extends IOApp {
         else Sync[F].delay(InMemoryKeyValueStoreManager[F]())
       val metrics      =
         if (nodeCfg.enableInfluxDb) InfluxDbBatchedMetrics[F](ifxDbCfg, vId)
-        else Resource.eval(Metrics.default.pure[F])
+        else Resource.eval(Metrics.unit.pure[F])
 
       (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics).flatMapN {
         case ((history, valueStore), metrics) =>
@@ -291,7 +291,7 @@ object NetworkSim extends IOApp {
                 getData,
               ) -> idx =>
             val bootstrap = {
-              implicit val m: Metrics[F] = Metrics.default
+              implicit val m: Metrics[F] = Metrics.unit
               Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
                 val genesis = genesisM.m.txs.head
                 saveBlock(genesisM) *> saveTx(genesis) *> dProc.acceptMsg(genesisM.id) *>

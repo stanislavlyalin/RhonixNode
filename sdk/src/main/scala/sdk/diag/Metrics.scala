@@ -18,7 +18,7 @@ object Metrics {
 
   def apply[F[_]](implicit m: Metrics[F]): Metrics[F] = m
 
-  def default[F[_]: Applicative]: Metrics[F] = new Metrics[F] {
+  def unit[F[_]: Applicative]: Metrics[F] = new Metrics[F] {
     override def measurement(name: String, fields: List[Field], tags: List[Tag]): F[Unit] = Applicative[F].unit
   }
 }
