@@ -1,6 +1,6 @@
 package node
 
-import sdk.config.Description
+import sdk.reflect.Description
 
 @Description("node")
 final case class Config(

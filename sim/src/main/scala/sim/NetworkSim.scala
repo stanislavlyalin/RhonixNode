@@ -19,11 +19,11 @@ import node.{Config as NodeConfig, Node}
 import org.http4s.EntityEncoder
 import pureconfig.generic.ProductHint
 import sdk.codecs.Base16
-import sdk.config.ConfigRender
 import sdk.diag.{Metrics, SystemReporter}
 import sdk.hashing.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
+import sdk.reflect.ClassesAsConfig
 import sdk.store.*
 import sdk.syntax.all.*
 import sim.Config as SimConfig
@@ -445,7 +445,7 @@ object NetworkSim extends IOApp {
     args match {
       case List("--help")                 => IO.println(prompt).as(ExitCode.Success)
       case List("--print-default-config") =>
-        val referenceConf = ConfigRender.referenceConf(
+        val referenceConf = ClassesAsConfig(
           "gorki",
           InfluxDbConfig.Default,
           NodeConfig.Default,

@@ -1,8 +1,8 @@
-package sdk.config
+package sdk.reflect
 
 import scala.reflect.runtime.universe.*
 
-object ConfigRender {
+object ClassAsTuple {
   def apply(cc: Any): Iterable[(String, Any, String)] = {
     val rm             = runtimeMirror(cc.getClass.getClassLoader)
     val instanceMirror = rm.reflect(cc)
@@ -26,24 +26,4 @@ object ConfigRender {
       (fieldName, fieldValue, fieldDescription)
     }
   }
-
-  def referenceConf(root: String, classes: Any*): String = classes
-    .map { clz =>
-      val rm             = runtimeMirror(clz.getClass.getClassLoader)
-      val instanceMirror = rm.reflect(clz)
-      val classSymbol    = instanceMirror.symbol.asClass
-      val configName     = classSymbol.annotations.head.tree.children.tail.head match {
-        case Literal(Constant(value: String)) => value
-        case _                                => "Could not extract annotation string"
-      }
-
-      ConfigRender(clz)
-        .map { case (name, value, anno) =>
-          s"""|# $anno
-              |$root.$configName.$name: $value
-              |""".stripMargin
-        }
-        .mkString("")
-    }
-    .mkString(s"\n")
 }

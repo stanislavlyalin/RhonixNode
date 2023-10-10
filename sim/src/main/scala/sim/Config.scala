@@ -1,7 +1,6 @@
 package sim
 
-import sdk.config.Description
-
+import sdk.reflect.Description
 import scala.concurrent.duration.{Duration, DurationInt}
 
 @Description("sim")

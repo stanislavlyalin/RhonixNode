@@ -1,4 +1,4 @@
-package sdk.config
+package sdk.reflect
 
 import scala.annotation.StaticAnnotation
 

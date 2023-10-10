@@ -1,4 +1,4 @@
-package sdk.config
+package sdk.reflect
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +13,7 @@ class ConfigRenderSpec extends AnyFlatSpec with Matchers {
   )
 
   "it" should "generate valid list of fields" in {
-    val s = ConfigRender(Config())
+    val s = ClassAsTuple(Config())
     s shouldBe List(("value1", true, "anno1"), ("value2", 0, "anno2"))
   }
 }
