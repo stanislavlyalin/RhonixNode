@@ -4,9 +4,8 @@ import cats.Parallel
 import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.codecs.Codec
-import sdk.hashing.Blake2b256Hash
 import sdk.history.RadixTree.*
-import sdk.history.{History, HistoryAction, KeySegment, RadixTree}
+import sdk.history.{Blake2b256Hash, History, HistoryAction, KeySegment, RadixTree}
 import sdk.primitive.ByteArray
 import sdk.store.{KeyValueStore, KeyValueTypedStore}
 import sdk.syntax.all.*

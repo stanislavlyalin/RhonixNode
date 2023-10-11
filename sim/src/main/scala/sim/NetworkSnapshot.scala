@@ -7,7 +7,7 @@ import weaver.WeaverState
 import cats.syntax.all.*
 import sdk.diag.Metrics
 import sdk.diag.Metrics.Field
-import sdk.hashing.Blake2b256Hash
+import sdk.history.Blake2b256Hash
 import sdk.syntax.all.sdkSyntaxByteArray
 
 /// Snapshot of the simulation state.

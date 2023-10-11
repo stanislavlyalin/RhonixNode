@@ -2,7 +2,6 @@ package sdk.history
 
 import cats.Parallel
 import cats.effect.{Async, Sync}
-import sdk.hashing.Blake2b256Hash
 import sdk.history.instances.RadixHistory
 import sdk.store.KeyValueStore
 

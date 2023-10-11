@@ -20,7 +20,7 @@ import org.http4s.EntityEncoder
 import pureconfig.generic.ProductHint
 import sdk.codecs.Base16
 import sdk.diag.{Metrics, SystemReporter}
-import sdk.hashing.Blake2b256Hash
+import sdk.history.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
 import sdk.reflect.ClassesAsConfig

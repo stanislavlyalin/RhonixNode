@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import diagnostics.syntax.all.kamonSyntax
 import sdk.diag.Metrics
-import sdk.hashing.Blake2b256Hash
+import sdk.history.Blake2b256Hash
 import sdk.syntax.all.{effectSyntax, mapSyntax}
 import sim.balances.data.{BalancesDeploy, BalancesState}
 

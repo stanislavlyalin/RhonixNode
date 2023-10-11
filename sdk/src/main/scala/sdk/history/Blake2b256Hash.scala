@@ -1,4 +1,4 @@
-package sdk.hashing
+package sdk.history
 
 import sdk.codecs.Codec
 import sdk.primitive.ByteArray

@@ -4,7 +4,8 @@ import org.scalacheck.ScalacheckShapeless.arbitrarySingletonType
 import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.Checkers
-import sdk.hashing.Blake2b256Hash.codec
+import sdk.history.Blake2b256Hash
+import sdk.history.Blake2b256Hash.codec
 import sdk.primitive.ByteArray
 import sdk.syntax.all.*
 

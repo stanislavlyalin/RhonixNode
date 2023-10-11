@@ -7,7 +7,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
 import sdk.codecs.Base16
-import sdk.hashing.Blake2b256Hash
 import sdk.history.KeySegment.commonPrefix
 import sdk.history.RadixTree.*
 import sdk.history.instances.RadixHistory

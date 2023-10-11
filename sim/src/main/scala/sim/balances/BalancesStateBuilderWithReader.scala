@@ -5,8 +5,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import sdk.diag.Metrics
 import sdk.diag.Metrics.{Field, Tag}
-import sdk.hashing.Blake2b256Hash
-import sdk.history.{History, InsertAction}
+import sdk.history.{Blake2b256Hash, History, InsertAction}
 import sdk.store.KeyValueTypedStore
 import sdk.syntax.all.*
 import sim.balances.data.BalancesState

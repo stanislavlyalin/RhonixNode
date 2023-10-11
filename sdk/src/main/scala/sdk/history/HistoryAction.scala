@@ -1,7 +1,5 @@
 package sdk.history
 
-import sdk.hashing.Blake2b256Hash
-
 sealed trait HistoryAction {
   def key: KeySegment
 }

@@ -7,7 +7,6 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.codecs.Base16
-import sdk.hashing.Blake2b256Hash
 import sdk.history.TestData.*
 import sdk.primitive.ByteArray
 import sdk.store.InMemoryKeyValueStore

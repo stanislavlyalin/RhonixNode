@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.diag.Metrics
-import sdk.hashing.Blake2b256Hash
+import sdk.history.Blake2b256Hash
 import sdk.history.History.EmptyRootHash
 import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
 import sim.balances.BalancesStateBuilderWithReaderSpec.witSut

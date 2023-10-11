@@ -1,8 +1,7 @@
 package sim
 
 import sdk.codecs.Codec
-import sdk.hashing.Blake2b256Hash
-import sdk.history.KeySegment
+import sdk.history.{Blake2b256Hash, KeySegment}
 import sdk.primitive.ByteArray
 import sdk.syntax.all.sdkSyntaxTry
 
