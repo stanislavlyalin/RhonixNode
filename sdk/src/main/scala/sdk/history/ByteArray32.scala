@@ -27,7 +27,7 @@ object ByteArray32 {
   // Ordering for hash uses underlying ordering of ByteArray
   implicit val ordering: Ordering[ByteArray32] = Ordering.by(_.bytes)
 
-  val Length: Int = Blake2b.Hash256LengthBytes
+  val Length: Int = 32
 
   /**
    * Calculates Blake2b hash from bytes and creates [[ByteArray32]] instance.
