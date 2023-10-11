@@ -1,12 +1,13 @@
 package node
 
 import cats.effect.Ref
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 import dproc.DProc
 import dproc.DProc.ExeEngine
 import dproc.data.Block
 import sdk.DagCausalQueue
+import sdk.diag.Metrics
 import sdk.merging.Relation
 import sdk.node.{Processor, Proposer}
 import weaver.WeaverState
@@ -26,7 +27,7 @@ object Node {
 
   /** Make instance of a process - peer or the network.
    * Init with last finalized state (lfs as the simplest). */
-  def apply[F[_]: Async, M, S, T: Ordering](
+  def apply[F[_]: Async: Metrics, M, S, T: Ordering](
     id: S,
     lfs: WeaverState[M, S, T],
     hash: Block[M, S, T] => F[M],

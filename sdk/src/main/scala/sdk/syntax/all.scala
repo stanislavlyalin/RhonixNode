@@ -1,6 +1,7 @@
 package sdk.syntax
 
 import sdk.api.syntax.ApiFindSyntax
+import sdk.diag.MetricsWriterSdkSyntax
 import sdk.fs2.Fs2StreamSyntax
 import sdk.primitive.*
 import sdk.store.syntax.{KeyValueStoreManagerSyntax, KeyValueStoreSyntax, KeyValueTypedStoreSyntax}
@@ -19,3 +20,4 @@ trait AllSyntax
     with ByteArraySyntax
     with EffectSyntax
     with Fs2StreamSyntax
+    with MetricsWriterSdkSyntax

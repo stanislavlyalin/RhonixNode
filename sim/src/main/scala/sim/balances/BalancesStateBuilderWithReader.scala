@@ -3,6 +3,8 @@ package sim.balances
 import cats.Parallel
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
+import sdk.diag.Metrics
+import sdk.diag.Metrics.{Field, Tag}
 import sdk.hashing.Blake2b256Hash
 import sdk.history.{History, InsertAction}
 import sdk.store.KeyValueTypedStore
@@ -28,7 +30,7 @@ object BalancesStateBuilderWithReader {
   private def negativeBalanceException(w: Wallet, b: Balance): Exception =
     new Exception(s"Attempt to commit negative balance $b for wallet $w.")
 
-  def apply[F[_]: Async: Parallel](
+  def apply[F[_]: Async: Parallel: Metrics](
     history: History[F],
     valueStore: KeyValueTypedStore[F, Blake2b256Hash, Balance],
   ): BalancesStateBuilderWithReader[F] = {
@@ -63,7 +65,8 @@ object BalancesStateBuilderWithReader {
         toMerge: BalancesState,
       ): F[(Blake2b256Hash, Blake2b256Hash)] = for {
         // merge final state
-        finalHash <- applyActions(baseState, toFinalize.diffs.toList)
+        finalHash <- applyActions(baseState, toFinalize.diffs.toList).timedM("commit-final-state")
+        _         <- Metrics[F].gauge("final-hash", finalHash.bytes.toHex)
         // merge pre state, apply tx on top top get post state
         postState  = toFinalize ++ toMerge
         // merge post state

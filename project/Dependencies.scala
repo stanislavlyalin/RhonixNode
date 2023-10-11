@@ -25,14 +25,19 @@ object Dependencies {
   val scalatestScalacheck = "org.scalatestplus" %% "scalacheck-1-17"    % "3.2.16.0" % Test
 
   // Diagnostics
-  val kamonBundle           = "io.kamon" %% "kamon-bundle"   % "2.6.1"
-  val kamonInfluxDbReporter = "io.kamon" %% "kamon-influxdb" % "2.6.0"
-  val kamonJaegerReporter   = "io.kamon" %% "kamon-jaeger"   % "2.6.0"
+  val kamonBundle           = "io.kamon"    %% "kamon-bundle"         % "2.6.1"
+  val kamonInfluxDbReporter = "io.kamon"    %% "kamon-influxdb"       % "2.6.0"
+  val kamonJaegerReporter   = "io.kamon"    %% "kamon-jaeger"         % "2.6.0"
+  val influxDbClient        = "com.influxdb" % "influxdb-client-java" % "6.10.0"
 
   // Logging
   val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
   val slf4j          = "org.slf4j"      % "slf4j-api"       % "2.0.5"
 
+  // Config
+  val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.4"
+
+  // Web
   val http4sNetty  = "org.http4s" %% "http4s-netty-server" % "0.5.9"
   val http4sBlaze  = "org.http4s" %% "http4s-blaze-server" % "0.23.14"
   val http4sDSL    = "org.http4s" %% "http4s-dsl"          % "0.23.23"
@@ -67,7 +72,7 @@ object Dependencies {
 
   val common = Seq(catsCore, catsEffect, fs2Core, jaxb)
 
-  val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter)
+  val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter, influxDbClient)
 
   val log = Seq(logbackClassic, slf4j)
 

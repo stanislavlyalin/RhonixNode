@@ -67,7 +67,7 @@ lazy val dproc = (project in file("dproc"))
   .settings(
     libraryDependencies ++= common ++ tests,
   )
-  .dependsOn(sdk, weaver)
+  .dependsOn(sdk, weaver, diag)
 
 // Node implementation
 lazy val node = (project in file("node"))
@@ -78,7 +78,7 @@ lazy val node = (project in file("node"))
       protobuf,
       grpc,
       grpcNetty,
-    ) ++ tests ++ log ++ http4s ++ endpoints4s :+ lmdbjava :+ enumeratum,
+    ) ++ tests ++ log ++ http4s ++ endpoints4s :+ lmdbjava :+ enumeratum :+ pureConfig,
     resolvers ++=
       // for embedded InfluxDB
       Resolver.sonatypeOssRepos("releases") ++
