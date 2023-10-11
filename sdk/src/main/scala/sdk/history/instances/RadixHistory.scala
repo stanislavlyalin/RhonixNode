@@ -5,7 +5,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import sdk.codecs.Codec
 import sdk.history.RadixTree.*
-import sdk.history.{Blake2b256Hash, History, HistoryAction, KeySegment, RadixTree}
+import sdk.history.{ByteArray32, History, HistoryAction, KeySegment, RadixTree}
 import sdk.primitive.ByteArray
 import sdk.store.{KeyValueStore, KeyValueTypedStore}
 import sdk.syntax.all.*
@@ -14,14 +14,14 @@ import sdk.syntax.all.*
   * History implementation with radix tree
   */
 object RadixHistory {
-  val EmptyRootHash: Blake2b256Hash = RadixTree.EmptyRootHash
+  val EmptyRootHash: ByteArray32 = RadixTree.EmptyRootHash
 
-  def kCodec: Codec[Blake2b256Hash, ByteArray] = Blake2b256Hash.codec
-  def vCodec: Codec[ByteArray, ByteArray]      = Codec.Identity[ByteArray]
+  def kCodec: Codec[ByteArray32, ByteArray] = ByteArray32.codec
+  def vCodec: Codec[ByteArray, ByteArray]   = Codec.Identity[ByteArray]
 
   def apply[F[_]: Sync: Parallel](
-    root: Blake2b256Hash,
-    store: KeyValueTypedStore[F, Blake2b256Hash, ByteArray],
+    root: ByteArray32,
+    store: KeyValueTypedStore[F, ByteArray32, ByteArray],
   ): F[RadixHistory[F]] =
     for {
       impl <- Sync[F].delay(new RadixTreeImpl[F](store))
@@ -30,25 +30,25 @@ object RadixHistory {
 
   def createStore[F[_]: Sync](
     store: KeyValueStore[F],
-  ): KeyValueTypedStore[F, Blake2b256Hash, ByteArray] =
+  ): KeyValueTypedStore[F, ByteArray32, ByteArray] =
     store.toByteArrayTypedStore(kCodec, vCodec)
 }
 
 final case class RadixHistory[F[_]: Sync: Parallel](
-  rootHash: Blake2b256Hash,
+  rootHash: ByteArray32,
   rootNode: Node,
   impl: RadixTreeImpl[F],
-  store: KeyValueTypedStore[F, Blake2b256Hash, ByteArray],
+  store: KeyValueTypedStore[F, ByteArray32, ByteArray],
 ) extends History[F] {
-  override def root: Blake2b256Hash = rootHash
+  override def root: ByteArray32 = rootHash
 
-  override def reset(root: Blake2b256Hash): F[History[F]] =
+  override def reset(root: ByteArray32): F[History[F]] =
     for {
       impl <- Sync[F].delay(new RadixTreeImpl[F](store))
       node <- impl.loadNode(root, noAssert = true)
     } yield this.copy(root, node, impl, store)
 
-  override def read(key: KeySegment): F[Option[Blake2b256Hash]] =
+  override def read(key: KeySegment): F[Option[ByteArray32]] =
     impl.read(rootNode, key)
 
   override def process(actions: List[HistoryAction]): F[History[F]] =

@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.diag.Metrics
-import sdk.history.Blake2b256Hash
+import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
 import sim.balances.BalancesStateBuilderWithReaderSpec.witSut
@@ -46,9 +46,9 @@ object BalancesStateBuilderWithReaderSpec {
   def witSut[A](f: BalancesStateBuilderWithReader[IO] => IO[A]): A = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[IO])
     val mkValuesStore = IO.delay {
-      new ByteArrayKeyValueTypedStore[IO, Blake2b256Hash, Balance](
+      new ByteArrayKeyValueTypedStore[IO, ByteArray32, Balance](
         new InMemoryKeyValueStore[IO],
-        Blake2b256Hash.codec,
+        ByteArray32.codec,
         balanceCodec,
       )
     }

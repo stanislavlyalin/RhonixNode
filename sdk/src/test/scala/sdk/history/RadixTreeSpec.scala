@@ -641,10 +641,10 @@ class RadixTreeSpec extends AnyFlatSpec with Matchers with OptionValues with Eit
     }
   }
 
-  def createBlakeHash(s: String): Blake2b256Hash = {
+  def createBlakeHash(s: String): ByteArray32 = {
     val notEmptyPart = createBA(s)
     val emptyPart    = List.fill(32 - notEmptyPart.size)(0x00.toByte)
-    Blake2b256Hash.deserialize(ByteArray(emptyPart) ++ notEmptyPart).getUnsafe
+    ByteArray32.deserialize(ByteArray(emptyPart) ++ notEmptyPart).getUnsafe
   }
 
   def createBA(s: String): ByteArray = ByteArray(Base16.unsafeDecode(s))
@@ -669,7 +669,7 @@ class RadixTreeSpec extends AnyFlatSpec with Matchers with OptionValues with Eit
       InsertAction(ds.rKey, ds.rValue)
     }
 
-  case class radixKV(rKey: KeySegment, rValue: Blake2b256Hash)
+  case class radixKV(rKey: KeySegment, rValue: ByteArray32)
 
   object radixKV {
     def apply(strKey: String, strValue: String): radixKV =
@@ -707,8 +707,8 @@ class RadixTreeSpec extends AnyFlatSpec with Matchers with OptionValues with Eit
     flagLeafValues = true,
   )
   case class ExportParameters(
-    rootHash: Blake2b256Hash,      // hash
-    typedStore: KeyValueTypedStore[IO, Blake2b256Hash, ByteArray],
+    rootHash: ByteArray32,         // hash
+    typedStore: KeyValueTypedStore[IO, ByteArray32, ByteArray],
     takeSize: Int,                 // take size
     skipSize: Int,                 // skip size
     withSkip: Boolean,             // start with skip is true
@@ -722,8 +722,8 @@ class RadixTreeSpec extends AnyFlatSpec with Matchers with OptionValues with Eit
   )
 
   def validateMultipageExport(
-    rootHash: Blake2b256Hash,
-    store: KeyValueTypedStore[IO, Blake2b256Hash, ByteArray],
+    rootHash: ByteArray32,
+    store: KeyValueTypedStore[IO, ByteArray32, ByteArray],
     withSkip: Boolean,
   ): IO[MultipageExportResults] = {
 
