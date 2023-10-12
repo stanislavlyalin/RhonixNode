@@ -14,7 +14,7 @@ import sdk.syntax.all.*
   * History implementation with radix tree
   */
 object RadixHistory {
-  val EmptyRootHash: ByteArray32 = RadixTree.EmptyRootHash
+  def EmptyRootHash(implicit hash32: Array[Byte] => ByteArray32): ByteArray32 = RadixTree.EmptyRootHash
 
   def kCodec: Codec[ByteArray32, ByteArray] = ByteArray32.codec
   def vCodec: Codec[ByteArray, ByteArray]   = Codec.Identity[ByteArray]
@@ -22,7 +22,7 @@ object RadixHistory {
   def apply[F[_]: Sync: Parallel](
     root: ByteArray32,
     store: KeyValueTypedStore[F, ByteArray32, ByteArray],
-  ): F[RadixHistory[F]] =
+  )(implicit hash32: Array[Byte] => ByteArray32): F[RadixHistory[F]] =
     for {
       impl <- Sync[F].delay(new RadixTreeImpl[F](store))
       node <- impl.loadNode(root, noAssert = true)
@@ -39,7 +39,8 @@ final case class RadixHistory[F[_]: Sync: Parallel](
   rootNode: Node,
   impl: RadixTreeImpl[F],
   store: KeyValueTypedStore[F, ByteArray32, ByteArray],
-) extends History[F] {
+)(implicit hash32: Array[Byte] => ByteArray32)
+    extends History[F] {
   override def root: ByteArray32 = rootHash
 
   override def reset(root: ByteArray32): F[History[F]] =

@@ -22,10 +22,11 @@ trait History[F[_]] {
 }
 
 object History {
-  val EmptyRootHash: ByteArray32 = RadixHistory.EmptyRootHash
+  def EmptyRootHash(implicit hash32: Array[Byte] => ByteArray32): ByteArray32 = RadixHistory.EmptyRootHash
 
   def create[F[_]: Async: Sync: Parallel](
     root: ByteArray32,
     store: KeyValueStore[F],
-  ): F[RadixHistory[F]] = RadixHistory(root, RadixHistory.createStore(store))
+  )(implicit hash32: Array[Byte] => ByteArray32): F[RadixHistory[F]] =
+    RadixHistory(root, RadixHistory.createStore(store))
 }

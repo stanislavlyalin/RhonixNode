@@ -53,7 +53,7 @@ object RadixTree {
     */
   val EmptyNode: Node = (0 until NumItems).map(_ => EmptyItem).toVector
 
-  val EmptyRootHash: ByteArray32 = hashNode(EmptyNode)._1
+  def EmptyRootHash(implicit hash32: Array[Byte] => ByteArray32): ByteArray32 = hashNode(EmptyNode)._1
 
   /**
     * Binary codecs for serializing/deserializing Node in Radix tree
@@ -222,9 +222,9 @@ object RadixTree {
     *
     * @return Blake2b256 hash of input data.
     */
-  def hashNode(node: Node): (ByteArray32, ByteArray) = {
+  def hashNode(node: Node)(implicit hash32: Array[Byte] => ByteArray32): (ByteArray32, ByteArray) = {
     val bytes = Codecs.encode(node)
-    (ByteArray32(bytes.bytes), bytes)
+    (hash32(bytes.bytes), bytes)
   }
 
   def byteToInt(b: Byte): Int = b & 0xff
@@ -562,7 +562,7 @@ object RadixTree {
   @SuppressWarnings(Array("org.wartremover.warts.SeqApply", "org.wartremover.warts.SeqUpdated"))
   class RadixTreeImpl[F[_]: Sync: Parallel](
     store: KeyValueTypedStore[F, ByteArray32, ByteArray],
-  ) {
+  )(implicit hash32: Array[Byte] => ByteArray32) {
 
     /**
       * Load and decode serializing data from KVDB.

@@ -13,6 +13,7 @@ import sdk.history.instances.RadixHistory
 import sdk.primitive.ByteArray
 import sdk.store.{InMemoryKeyValueStore, KeyValueTypedStore}
 import sdk.syntax.all.*
+import sdk.hashing.Sha256.*
 
 import java.nio.ByteBuffer
 import scala.concurrent.duration.*

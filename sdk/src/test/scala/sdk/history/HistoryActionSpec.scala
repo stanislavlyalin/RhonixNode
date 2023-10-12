@@ -11,6 +11,7 @@ import sdk.history.TestData.*
 import sdk.primitive.ByteArray
 import sdk.store.InMemoryKeyValueStore
 import sdk.syntax.all.*
+import sdk.hashing.Sha256.*
 
 import java.nio.ByteBuffer
 import scala.collection.concurrent.TrieMap
@@ -314,9 +315,9 @@ object TestData {
   def hexKey(s: String): KeySegment = KeySegment(Base16.unsafeDecode(s).toList)
 
   def randomBlake: ByteArray32 =
-    ByteArray32(Random.alphanumeric.take(32).map(_.toByte).toArray)
+    ByteArray32.deserialize(ByteArray(Random.alphanumeric.take(32).map(_.toByte).toArray)).getUnsafe
 
-  def zerosBlake: ByteArray32 = ByteArray32(List.fill(32)(0.toByte).toArray)
+  def zerosBlake: ByteArray32 = ByteArray32.deserialize(ByteArray(List.fill(32)(0.toByte).toArray)).getUnsafe
 
   def insert(k: KeySegment): InsertAction = InsertAction(k, randomBlake)
 
