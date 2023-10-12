@@ -14,6 +14,7 @@ import io.circe.Encoder
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
+import node.hashing.Blake2b
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import org.http4s.EntityEncoder
@@ -40,6 +41,8 @@ import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.Try
 
 object NetworkSim extends IOApp {
+
+  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.deserialize(Blake2b.hash256(x)).getUnsafe
 
   // Dummy types for message id, sender id and transaction
   type M = String

@@ -32,7 +32,7 @@ object BalancesStateBuilderWithReader {
   def apply[F[_]: Async: Parallel: Metrics](
     history: History[F],
     valueStore: KeyValueTypedStore[F, ByteArray32, Balance],
-  ): BalancesStateBuilderWithReader[F] = {
+  )(implicit hash32: Array[Byte] => ByteArray32): BalancesStateBuilderWithReader[F] = {
 
     /**
      * Create action for history and persist hash -> value relation.

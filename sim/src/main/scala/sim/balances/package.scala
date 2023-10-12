@@ -30,6 +30,8 @@ package object balances {
     override def decode(x: ByteArray): Try[Balance] = Try(ByteBuffer.wrap(x.bytes).getLong)
   }
 
-  def balanceToHash(balance: Balance): ByteArray32   = ByteArray32(longToArray(balance))
+  def balanceToHash(balance: Balance)(implicit hash32: Array[Byte] => ByteArray32): ByteArray32 =
+    hash32(longToArray(balance))
+
   def walletToKeySegment(wallet: Wallet): KeySegment = KeySegment(walletCodec.encode(wallet).getUnsafe)
 }

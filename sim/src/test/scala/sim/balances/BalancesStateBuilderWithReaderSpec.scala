@@ -3,13 +3,15 @@ package sim.balances
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import node.hashing.Blake2b
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.diag.Metrics
 import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
-import sim.balances.BalancesStateBuilderWithReaderSpec.witSut
+import sdk.syntax.all.sdkSyntaxTry
+import sim.balances.BalancesStateBuilderWithReaderSpec.*
 import sim.balances.data.BalancesState
 
 class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
@@ -42,6 +44,8 @@ class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
 }
 
 object BalancesStateBuilderWithReaderSpec {
+
+  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.deserialize(Blake2b.hash256(x)).getUnsafe
 
   def witSut[A](f: BalancesStateBuilderWithReader[IO] => IO[A]): A = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[IO])
