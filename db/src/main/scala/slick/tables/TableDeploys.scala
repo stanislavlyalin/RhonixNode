@@ -2,9 +2,9 @@ package slick.tables
 
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
-import slick.tables.TableDeploy.Deploy
+import slick.tables.TableDeploys.Deploy
 
-class TableDeploy(tag: Tag) extends Table[Deploy](tag, "deploy") {
+class TableDeploys(tag: Tag) extends Table[Deploy](tag, "deploy") {
   def id: Rep[Long]         = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def sig: Rep[Array[Byte]] = column[Array[Byte]]("sig", O.Unique)
   def deployerId: Rep[Long] = column[Long]("deployer_id")
@@ -14,15 +14,15 @@ class TableDeploy(tag: Tag) extends Table[Deploy](tag, "deploy") {
   def phloLimit: Rep[Long]  = column[Long]("phlo_limit")
   def nonce: Rep[Long]      = column[Long]("nonce")
 
-  def fk1 = foreignKey("fk_deploy_deployer_id", deployerId, slick.qDeployer)(_.id)
-  def fk2 = foreignKey("fk_deploy_shard_id", shardId, slick.qShard)(_.id)
+  def fk1 = foreignKey("fk_deploy_deployer_id", deployerId, slick.qDeployers)(_.id)
+  def fk2 = foreignKey("fk_deploy_shard_id", shardId, slick.qShards)(_.id)
 
   def idx = index("idx_deploy", sig, unique = true)
 
   def * : ProvenShape[Deploy] = (id, sig, deployerId, shardId, program, phloPrice, phloLimit, nonce).mapTo[Deploy]
 }
 
-object TableDeploy {
+object TableDeploys {
   final case class Deploy(
     id: Long,         // primary key
     sig: Array[Byte], // deploy signature

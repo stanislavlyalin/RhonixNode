@@ -6,7 +6,7 @@ import slick.*
 // Initial version of the database
 object Baseline {
   def apply()(implicit dialect: Dialect[?]): ReversibleMigrationSeq = {
-    val BlockTM = TableMigration(qBlock).create
+    val BlockTM = TableMigration(qBlocks).create
       .addColumns(
         _.id,
         _.version,
@@ -31,55 +31,56 @@ object Baseline {
       .addForeignKeys(_.fk1, _.fk2, _.fk3, _.fk4, _.fk5, _.fk6, _.fk7, _.fk8, _.fk9, _.fk10, _.fk11)
       .addIndexes(_.idx)
 
-    val BlockSetTM = TableMigration(qBlockSet).create
+    val BlockSetTM = TableMigration(qBlockSets).create
       .addColumns(_.id, _.hash)
 
-    val BlockSetBindTM = TableMigration(slick.qBlockSetBind).create
+    val BlockSetBindTM = TableMigration(slick.qBlockSetBinds).create
       .addColumns(_.blockSetId, _.blockId)
       .addPrimaryKeys(_.pk)
       .addForeignKeys(_.fk1, _.fk2)
       .addIndexes(_.idx)
 
-    val bondTM = TableMigration(qBond).create
+    val bondTM = TableMigration(qBonds).create
       .addColumns(_.id, _.validatorId, _.stake)
 
-    val bondSetTM = TableMigration(qBondSet).create
+    val bondSetTM = TableMigration(qBondSets).create
       .addColumns(_.id, _.hash)
 
-    val BondSetBindTM = TableMigration(qBondSetBind).create
+    val BondSetBindTM = TableMigration(qBondSetBinds).create
       .addColumns(_.bondSetId, _.bondId)
       .addPrimaryKeys(_.pk)
       .addForeignKeys(_.fk1, _.fk2)
       .addIndexes(_.idx)
 
-    val DeployTM = TableMigration(slick.qDeploy).create
+    val DeployTM = TableMigration(slick.qDeploys).create
       .addColumns(_.id, _.sig, _.deployerId, _.shardId, _.program, _.phloPrice, _.phloLimit, _.nonce)
       .addForeignKeys(_.fk1, _.fk2)
       .addIndexes(_.idx)
 
-    val DeployerTM = TableMigration(slick.qDeployer).create
+    val DeployerTM = TableMigration(slick.qDeployers).create
       .addColumns(_.id, _.pubKey)
       .addIndexes(_.idx)
 
-    val DeploySetTM = TableMigration(slick.qDeploySet).create
+    val DeploySetTM = TableMigration(slick.qDeploySets).create
       .addColumns(_.id, _.hash)
 
-    val DeploySetBindTM = TableMigration(slick.qDeploySetBind).create
+    val DeploySetBindTM = TableMigration(slick.qDeploySetBinds).create
       .addColumns(_.deploySetId, _.deployId)
       .addPrimaryKeys(_.pk)
       .addForeignKeys(_.fk1, _.fk2)
       .addIndexes(_.idx)
 
-    val ShardTM = TableMigration(qShard).create
+    val ShardTM = TableMigration(qShards).create
       .addColumns(_.id, _.name)
 
-    val validatorTM = TableMigration(qValidator).create
+    val validatorTM = TableMigration(qValidators).create
       .addColumns(_.id, _.pubKey)
       .addIndexes(_.idx)
 
-    val configTable = TableMigration(slick.config).create
+    val configTable = TableMigration(slick.qConfigs).create
       .addColumns(_.name, _.value)
 
-    validatorTM & ShardTM & DeployerTM & DeployTM & DeploySetTM & DeploySetBindTM & bondTM & bondSetTM & BondSetBindTM & BlockSetTM & BlockTM & BlockSetBindTM & configTable
+    validatorTM & ShardTM & DeployerTM & DeployTM & DeploySetTM & DeploySetBindTM & bondTM &
+      bondSetTM & BondSetBindTM & BlockSetTM & BlockTM & BlockSetBindTM & configTable
   }
 }

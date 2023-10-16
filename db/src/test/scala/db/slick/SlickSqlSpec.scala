@@ -10,8 +10,8 @@ import slick.jdbc.JdbcProfile
 class SlickSqlSpec extends AnyFlatSpec with Matchers {
   // TODO: only SQL schema for `Validator` should be printed, but for some reason all tables are printed.
   it should "print SQL schema for testedTable" in {
-    import slick.qValidator
-    val testedTable = qValidator
+    import slick.qValidators
+    val testedTable = qValidators
 
     def test(profile: JdbcProfile): IO[Outcome] = {
       def showSql: String = {
