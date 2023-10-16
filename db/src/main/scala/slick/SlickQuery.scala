@@ -1,8 +1,8 @@
 package slick
 
-import slick.data.Validator
 import slick.jdbc.JdbcProfile
 import slick.sql.SqlAction
+import slick.tables.TableValidator.Validator
 
 final case class SlickQuery()(implicit val profile: JdbcProfile) {
   import profile.api.*

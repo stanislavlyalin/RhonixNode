@@ -1,8 +1,8 @@
 package slick.tables
 
-import slick.data.BlockSetBind
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
+import slick.tables.TableBlockSetBind.BlockSetBind
 
 class TableBlockSetBind(tag: Tag) extends Table[BlockSetBind](tag, "block_set_bind") {
   def blockSetId: Rep[Long] = column[Long]("block_set_id")
@@ -16,4 +16,11 @@ class TableBlockSetBind(tag: Tag) extends Table[BlockSetBind](tag, "block_set_bi
   def idx = index("idx_block_set_bind", blockSetId, unique = false)
 
   def * : ProvenShape[BlockSetBind] = (blockSetId, blockId).mapTo[BlockSetBind]
+}
+
+object TableBlockSetBind {
+  final case class BlockSetBind(
+    blockSetId: Long, // pointer to blockSet
+    blockId: Long,    // pointer to block
+  )
 }

@@ -1,8 +1,8 @@
 package slick.tables
 
-import slick.data.DeploySetBind
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
+import slick.tables.TableDeploySetBind.DeploySetBind
 
 class TableDeploySetBind(tag: Tag) extends Table[DeploySetBind](tag, "deploy_set_bind") {
   def deploySetId: Rep[Long] = column[Long]("deploy_set_id")
@@ -16,4 +16,11 @@ class TableDeploySetBind(tag: Tag) extends Table[DeploySetBind](tag, "deploy_set
   def idx = index("idx_deploy_set_bind", deploySetId, unique = false)
 
   def * : ProvenShape[DeploySetBind] = (deploySetId, deployId).mapTo[DeploySetBind]
+}
+
+object TableDeploySetBind {
+  final case class DeploySetBind(
+    deploySetId: Long, // pointer to deploySet
+    deployId: Long,    // pointer to deploy
+  )
 }

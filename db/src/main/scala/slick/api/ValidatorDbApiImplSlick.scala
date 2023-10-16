@@ -1,9 +1,9 @@
 package slick.api
 
 import cats.effect.Async
-import slick.data.Validator
 import slick.jdbc.JdbcProfile
 import slick.syntax.all.*
+import slick.tables.TableValidator.Validator
 import slick.{SlickDb, SlickQuery}
 
 class ValidatorDbApiImplSlick[F[_]: Async: SlickDb] {

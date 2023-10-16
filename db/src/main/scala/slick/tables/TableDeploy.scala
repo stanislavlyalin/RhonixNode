@@ -1,8 +1,8 @@
 package slick.tables
 
-import slick.data.Deploy
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
+import slick.tables.TableDeploy.Deploy
 
 class TableDeploy(tag: Tag) extends Table[Deploy](tag, "deploy") {
   def id: Rep[Long]         = column[Long]("id", O.PrimaryKey, O.AutoInc)
@@ -20,4 +20,17 @@ class TableDeploy(tag: Tag) extends Table[Deploy](tag, "deploy") {
   def idx = index("idx_deploy", sig, unique = true)
 
   def * : ProvenShape[Deploy] = (id, sig, deployerId, shardId, program, phloPrice, phloLimit, nonce).mapTo[Deploy]
+}
+
+object TableDeploy {
+  final case class Deploy(
+    id: Long,         // primary key
+    sig: Array[Byte], // deploy signature
+    deployerId: Long, // pointer to a deployer
+    shardId: Long,    // pointer to a shard
+    program: String,  // code of the program
+    phloPrice: Long,  // price offered for phlogiston
+    phloLimit: Long,  // limit offered for execution
+    nonce: Long,      // nonce of a deploy
+  )
 }

@@ -15,7 +15,7 @@ import slick.syntax.all.*
 import slick.{SlickDb, SlickQuery}
 import sdk.db.RecordNotFound
 import slick.api.ValidatorDbApiImplSlick
-import slick.data.Validator
+import slick.tables.TableValidator.Validator
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
