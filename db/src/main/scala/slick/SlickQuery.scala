@@ -1,6 +1,6 @@
 package slick
 
-import sdk.api.data.Validator
+import slick.data.Validator
 import slick.jdbc.JdbcProfile
 import slick.sql.SqlAction
 
@@ -8,15 +8,15 @@ final case class SlickQuery()(implicit val profile: JdbcProfile) {
   import profile.api.*
 
   def getValidatorById(id: Long) =
-    validators.filter(_.id === id).result.headOption
+    qValidator.filter(_.id === id).result.headOption
+
+  def getValidatorByPubKey(publicKey: Array[Byte]) =
+    qValidator.filter(_.pubKey === publicKey).result.headOption
 
   def insertValidator(publicKey: Array[Byte]) =
-    (validators.map(r => r.publicKey) returning validators.map(_.id)) += publicKey
+    (qValidator.map(r => r.pubKey) returning qValidator.map(_.id)) += publicKey
 
-  def updateValidator(validator: Validator) = validators.update(validator)
-
-  def getValidatorByPublicKey(publicKey: Array[Byte]) =
-    validators.filter(_.publicKey === publicKey).result.headOption
+  def updateValidator(validator: Validator) = qValidator.update(validator)
 
   def storeValue(key: String, value: String): SqlAction[Int, NoStream, Effect.Write] =
     config.insertOrUpdate((key, value))

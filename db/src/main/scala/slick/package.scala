@@ -1,10 +1,20 @@
 import slick.lifted.TableQuery
-import slick.tables.{TableBonds, TableConfig, TableValidators}
+import slick.tables.*
 
 package object slick {
 
   // all queries
-  val bonds      = TableQuery[TableBonds]
-  val validators = TableQuery[TableValidators]
-  val config     = TableQuery[TableConfig]
+  val qBlock         = TableQuery[TableBlock]
+  val qBlockSet      = TableQuery[TableBlockSet]
+  val qBlockSetBind  = TableQuery[TableBlockSetBind]
+  val qBond          = TableQuery[TableBond]
+  val qBondSet       = TableQuery[TableBondSet]
+  val qBondSetBind   = TableQuery[TableBondSetBind]
+  val qDeploy        = TableQuery[TableDeploy]
+  val qDeployer      = TableQuery[TableDeployer]
+  val qDeploySet     = TableQuery[TableDeploySet]
+  val qDeploySetBind = TableQuery[TableDeploySetBind]
+  val qShard         = TableQuery[TableShard]
+  val qValidator     = TableQuery[TableValidator]
+  val config         = TableQuery[TableConfig]
 }

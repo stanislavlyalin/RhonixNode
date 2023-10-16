@@ -1,22 +1,20 @@
 package slick.api
 
 import cats.effect.Async
-import sdk.api.ValidatorDbApi
-import sdk.api.data.Validator
+import slick.data.Validator
 import slick.jdbc.JdbcProfile
-import slick.{SlickDb, SlickQuery}
 import slick.syntax.all.*
+import slick.{SlickDb, SlickQuery}
 
-class ValidatorDbApiImplSlick[F[_]: Async: SlickDb] extends ValidatorDbApi[F] {
+class ValidatorDbApiImplSlick[F[_]: Async: SlickDb] {
   implicit val p: JdbcProfile = SlickDb[F].profile
   val queries: SlickQuery     = SlickQuery()
-  import queries.*
 
-  override def insert(publicKey: Array[Byte]): F[Long] = insertValidator(publicKey).run
+  def insert(pubKey: Array[Byte]): F[Long] = queries.insertValidator(pubKey).run
 
-  override def update(validator: Validator): F[Int] = updateValidator(validator).run
+  def update(validator: Validator): F[Int] = queries.updateValidator(validator).run
 
-  override def getById(id: Long): F[Option[Validator]] = getValidatorById(id).run
+  def getById(id: Long): F[Option[Validator]] = queries.getValidatorById(id).run
 
-  override def getByPublicKey(publicKey: Array[Byte]): F[Option[Validator]] = getValidatorByPublicKey(publicKey).run
+  def getByPublicKey(pubKey: Array[Byte]): F[Option[Validator]] = queries.getValidatorByPubKey(pubKey).run
 }
