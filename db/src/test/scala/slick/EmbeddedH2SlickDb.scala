@@ -1,4 +1,4 @@
-package db.slick
+package slick
 
 import cats.effect.kernel.Async
 import cats.effect.{Resource, Sync}

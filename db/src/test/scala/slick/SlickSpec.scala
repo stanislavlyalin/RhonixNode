@@ -1,4 +1,4 @@
-package db.slick
+package slick
 
 import cats.data.OptionT
 import cats.effect.unsafe.implicits.global
