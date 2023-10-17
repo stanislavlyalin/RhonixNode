@@ -10,11 +10,12 @@ import org.scalatest.Assertion
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sdk.data.Deploy
+import sdk.db.RecordNotFound
+import sdk.primitive.ByteArray
+import slick.api.SlickApi
 import slick.jdbc.JdbcProfile
 import slick.syntax.all.*
-import slick.{SlickDb, SlickQuery}
-import sdk.db.RecordNotFound
-import slick.api.SlickApi
 import slick.tables.TableValidators.Validator
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -24,6 +25,18 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       id     <- Gen.posNum[Long]
       pubKey <- Gen.alphaStr.map(_.getBytes)
     } yield Validator(id, pubKey)
+  }
+
+  implicit val deployArbitrary: Arbitrary[Deploy] = Arbitrary {
+    for {
+      sig        <- Gen.alphaStr.map(_.getBytes)
+      deployerPk <- Gen.alphaStr.map(_.getBytes)
+      shardName  <- Gen.alphaStr
+      program    <- Gen.alphaStr
+      phloPrice  <- Gen.posNum[Long]
+      phloLimit  <- Gen.posNum[Long]
+      nonce      <- Gen.posNum[Long]
+    } yield Deploy(ByteArray(sig), ByteArray(deployerPk), shardName, program, phloPrice, phloLimit, nonce)
   }
 
   "Validator insert function call" should "add the correct entry to the Validator table" in {
@@ -37,6 +50,28 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
         validatorById.pubKey shouldBe validator.pubKey
         validatorById.id shouldBe validatorByPubKey.id
+      }
+
+      EmbeddedH2SlickDb[IO]
+        .map(implicit x => new SlickApi[IO])
+        .use(test)
+        .unsafeRunSync()
+    }
+  }
+
+  "Deploy insert function call" should "add the correct entry to the Deploys, Deployers and Shards table" in {
+    forAll { (d: Deploy) =>
+      def test(api: SlickApi[IO]) = for {
+        _            <- api.deployInsert(d)
+        dFromDB      <- api.deployGet(d.sig)
+        dList        <- api.deployGetAll
+        deployerList <- api.deployerGetAll
+        shardList    <- api.shardGetAll
+      } yield {
+        d shouldBe dFromDB.get
+        dList shouldBe Seq(d.sig)
+        deployerList shouldBe Seq(d.deployerPk)
+        shardList shouldBe Seq(d.shardName)
       }
 
       EmbeddedH2SlickDb[IO]
