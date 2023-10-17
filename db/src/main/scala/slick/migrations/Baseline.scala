@@ -12,6 +12,9 @@ object Baseline {
     val bondTable = TableMigration(slick.bonds).create
       .addColumns(_.id, _.validatorId, _.stake)
 
-    validatorTable & bondTable
+    val configTable = TableMigration(slick.config).create
+      .addColumns(_.name, _.value)
+
+    validatorTable & bondTable & configTable
   }
 }
