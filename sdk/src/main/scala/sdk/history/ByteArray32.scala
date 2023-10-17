@@ -22,17 +22,11 @@ object ByteArray32 {
 
   val Length: Int = 32
 
-  // Serialization
-
-  /** Deserialization from hash as raw bytes */
-  def deserialize(bytes: ByteArray): Try[ByteArray32] = Try(new ByteArray32(bytes))
-
-  /** Deserialization from hash as raw bytes */
-  def deserialize(bytes: Array[Byte]): Try[ByteArray32] = deserialize(ByteArray(bytes))
+  def convert(bytes: ByteArray): Try[ByteArray32]   = Try(new ByteArray32(bytes))
+  def convert(bytes: Array[Byte]): Try[ByteArray32] = convert(ByteArray(bytes))
 
   def codec: Codec[ByteArray32, ByteArray] = new Codec[ByteArray32, ByteArray] {
     override def encode(x: ByteArray32): Try[ByteArray] = Try(x.bytes)
-
-    override def decode(x: ByteArray): Try[ByteArray32] = ByteArray32.deserialize(x)
+    override def decode(x: ByteArray): Try[ByteArray32] = ByteArray32.convert(x)
   }
 }

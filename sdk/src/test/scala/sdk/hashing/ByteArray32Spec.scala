@@ -13,7 +13,7 @@ class ByteArray32Spec extends AnyFlatSpec with Checkers {
   "Method fromByteArray()" should "create Blake2b256Hash from 32 byte array" in {
     val byteArrayGen: Gen[Array[Byte]] = Gen.listOfN(ByteArray32.Length, Arbitrary.arbitrary[Byte]).map(_.toArray)
     val propFromByteArray: Prop        = Prop.forAll(byteArrayGen) { (bytes: Array[Byte]) =>
-      val hashTry = ByteArray32.deserialize(bytes)
+      val hashTry = ByteArray32.convert(bytes)
       hashTry.isSuccess && hashTry.getUnsafe.bytes == ByteArray(bytes)
     }
     check(propFromByteArray)
@@ -24,7 +24,7 @@ class ByteArray32Spec extends AnyFlatSpec with Checkers {
       Gen.listOfN(size, Arbitrary.arbitrary[Byte]).map(_.toArray)
     }
     val propFromByteArray: Prop        = Prop.forAll(byteArrayGen) { (bytes: Array[Byte]) =>
-      ByteArray32.deserialize(bytes).isFailure
+      ByteArray32.convert(bytes).isFailure
     }
     check(propFromByteArray)
   }

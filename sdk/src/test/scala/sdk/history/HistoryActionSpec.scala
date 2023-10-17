@@ -315,9 +315,9 @@ object TestData {
   def hexKey(s: String): KeySegment = KeySegment(Base16.unsafeDecode(s).toList)
 
   def randomBlake: ByteArray32 =
-    ByteArray32.deserialize(ByteArray(Random.alphanumeric.take(32).map(_.toByte).toArray)).getUnsafe
+    ByteArray32.convert(ByteArray(Random.alphanumeric.take(32).map(_.toByte).toArray)).getUnsafe
 
-  def zerosBlake: ByteArray32 = ByteArray32.deserialize(ByteArray(List.fill(32)(0.toByte).toArray)).getUnsafe
+  def zerosBlake: ByteArray32 = ByteArray32.convert(ByteArray(List.fill(32)(0.toByte).toArray)).getUnsafe
 
   def insert(k: KeySegment): InsertAction = InsertAction(k, randomBlake)
 

@@ -45,7 +45,7 @@ class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
 
 object BalancesStateBuilderWithReaderSpec {
 
-  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.deserialize(Blake2b.hash256(x)).getUnsafe
+  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.convert(Blake2b.hash256(x)).getUnsafe
 
   def witSut[A](f: BalancesStateBuilderWithReader[IO] => IO[A]): A = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[IO])

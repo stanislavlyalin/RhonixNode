@@ -200,8 +200,8 @@ object RadixTree {
           // Decoding type of non-empty item
           val item =
             if (isLeaf(secondByte))
-              Leaf(KeySegment(prefix), ByteArray32.deserialize(valOrPtr).getUnsafe)
-            else NodePtr(KeySegment(prefix), ByteArray32.deserialize(valOrPtr).getUnsafe)
+              Leaf(KeySegment(prefix), ByteArray32.convert(valOrPtr).getUnsafe)
+            else NodePtr(KeySegment(prefix), ByteArray32.convert(valOrPtr).getUnsafe)
 
           val nodeNext = node.updated(idxItem, item)
 

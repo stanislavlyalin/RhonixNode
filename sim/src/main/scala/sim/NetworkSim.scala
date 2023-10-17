@@ -42,7 +42,7 @@ import scala.util.Try
 
 object NetworkSim extends IOApp {
 
-  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.deserialize(Blake2b.hash256(x)).getUnsafe
+  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.convert(Blake2b.hash256(x)).getUnsafe
 
   // Dummy types for message id, sender id and transaction
   type M = String
@@ -314,7 +314,7 @@ object NetworkSim extends IOApp {
               implicit val c: String => Try[Int]         = (x: String) => Try(x.toInt)
               implicit val d: String => Try[String]      = (x: String) => Try(x)
               implicit val e: String => Try[ByteArray32] =
-                (x: String) => Base16.decode(x).flatMap(ByteArray32.deserialize)
+                (x: String) => Base16.decode(x).flatMap(ByteArray32.convert)
               implicit val encoder: Encoder[Array[Byte]] =
                 Encoder[String].imap(s => Base16.decode(s).getUnsafe)(x => Base16.encode(x))
 
@@ -350,7 +350,7 @@ object NetworkSim extends IOApp {
                 blockByHash(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
                 readTx(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
                 (h: String, w: String) => {
-                  val blakeH = Base16.decode(h).flatMap(ByteArray32.deserialize)
+                  val blakeH = Base16.decode(h).flatMap(ByteArray32.convert)
                   val longW  = Try(w.toInt)
                   (blakeH, longW)
                     .traverseN { case (hash, wallet) =>

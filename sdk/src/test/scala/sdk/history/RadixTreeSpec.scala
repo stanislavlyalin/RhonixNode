@@ -645,7 +645,7 @@ class RadixTreeSpec extends AnyFlatSpec with Matchers with OptionValues with Eit
   def createBlakeHash(s: String): ByteArray32 = {
     val notEmptyPart = createBA(s)
     val emptyPart    = List.fill(32 - notEmptyPart.size)(0x00.toByte)
-    ByteArray32.deserialize(ByteArray(emptyPart) ++ notEmptyPart).getUnsafe
+    ByteArray32.convert(ByteArray(emptyPart) ++ notEmptyPart).getUnsafe
   }
 
   def createBA(s: String): ByteArray = ByteArray(Base16.unsafeDecode(s))
