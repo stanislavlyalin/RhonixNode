@@ -8,6 +8,8 @@ class TableShards(tag: Tag) extends Table[Shard](tag, "shard") {
   def id: Rep[Long]     = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def name: Rep[String] = column[String]("name")
 
+  def idx = index("idx_shard", name, unique = true)
+
   def * : ProvenShape[Shard] = (id, name).mapTo[Shard]
 }
 

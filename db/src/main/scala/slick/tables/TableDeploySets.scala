@@ -6,8 +6,9 @@ import slick.tables.TableDeploySets.DeploySet
 
 class TableDeploySets(tag: Tag) extends Table[DeploySet](tag, "deploy_set") {
   def id: Rep[Long]          = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def hash: Rep[Array[Byte]] = column[Array[Byte]]("hash", O.Unique)
+  def hash: Rep[Array[Byte]] = column[Array[Byte]]("hash")
 
+  def idx                        = index("idx_deploy_set", hash, unique = true)
   def * : ProvenShape[DeploySet] = (id, hash).mapTo[DeploySet]
 }
 

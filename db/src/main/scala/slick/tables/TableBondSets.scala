@@ -6,8 +6,9 @@ import slick.tables.TableBondSets.BondSet
 
 class TableBondSets(tag: Tag) extends Table[BondSet](tag, "bond_set") {
   def id: Rep[Long]          = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def hash: Rep[Array[Byte]] = column[Array[Byte]]("hash", O.Unique)
+  def hash: Rep[Array[Byte]] = column[Array[Byte]]("hash")
 
+  def idx                      = index("idx_bond_set", hash, unique = true)
   def * : ProvenShape[BondSet] = (id, hash).mapTo[BondSet]
 }
 

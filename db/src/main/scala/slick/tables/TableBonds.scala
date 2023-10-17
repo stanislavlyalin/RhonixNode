@@ -6,9 +6,10 @@ import slick.lifted.ProvenShape
 
 class TableBonds(tag: Tag) extends Table[Bond](tag, "bond") {
   def id: Rep[Long]          = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def validatorId: Rep[Long] = column[Long]("validator_id", O.Unique)
+  def validatorId: Rep[Long] = column[Long]("validator_id")
   def stake: Rep[Long]       = column[Long]("stake")
 
+  def idx                   = index("idx_bond", validatorId, unique = true)
   def * : ProvenShape[Bond] = (validatorId, stake).mapTo[Bond]
 }
 

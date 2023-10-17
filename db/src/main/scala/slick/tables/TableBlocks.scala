@@ -7,7 +7,7 @@ import slick.tables.TableBlocks.Block
 class TableBlocks(tag: Tag) extends Table[Block](tag, "block") {
   def id: Rep[Long]          = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def version: Rep[Int]      = column[Int]("version")
-  def hash: Rep[Array[Byte]] = column[Array[Byte]]("hash", O.Unique)
+  def hash: Rep[Array[Byte]] = column[Array[Byte]]("hash")
 
   def sigAlg: Rep[String]         = column[String]("sig_alg")
   def signature: Rep[Array[Byte]] = column[Array[Byte]]("signature")

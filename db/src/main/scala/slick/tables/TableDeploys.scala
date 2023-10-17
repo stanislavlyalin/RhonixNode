@@ -6,7 +6,7 @@ import slick.tables.TableDeploys.Deploy
 
 class TableDeploys(tag: Tag) extends Table[Deploy](tag, "deploy") {
   def id: Rep[Long]         = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def sig: Rep[Array[Byte]] = column[Array[Byte]]("sig", O.Unique)
+  def sig: Rep[Array[Byte]] = column[Array[Byte]]("sig")
   def deployerId: Rep[Long] = column[Long]("deployer_id")
   def shardId: Rep[Long]    = column[Long]("shard_id")
   def program: Rep[String]  = column[String]("program")
