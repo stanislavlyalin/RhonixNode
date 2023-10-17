@@ -1,4 +1,4 @@
-package sdk.hashing
+package node.hashing
 
 import org.bouncycastle.crypto.digests.Blake2bDigest
 

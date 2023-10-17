@@ -7,7 +7,7 @@ import weaver.WeaverState
 import cats.syntax.all.*
 import sdk.diag.Metrics
 import sdk.diag.Metrics.Field
-import sdk.hashing.Blake2b256Hash
+import sdk.history.ByteArray32
 import sdk.syntax.all.sdkSyntaxByteArray
 
 /// Snapshot of the simulation state.
@@ -24,7 +24,7 @@ object NetworkSnapshot {
     proposer: Proposer.ST,
     processor: Processor.ST[M],
     buffer: DagCausalQueue[M],
-    lfsHash: Blake2b256Hash,
+    lfsHash: ByteArray32,
   )
 
   def reportSnapshot[F[_]: Metrics: Applicative, M, S, T](s: NodeSnapshot[M, S, T]): F[Unit] =

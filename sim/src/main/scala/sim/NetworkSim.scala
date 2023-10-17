@@ -14,13 +14,14 @@ import io.circe.Encoder
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
+import node.hashing.Blake2b
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import org.http4s.EntityEncoder
 import pureconfig.generic.ProductHint
 import sdk.codecs.Base16
 import sdk.diag.{Metrics, SystemReporter}
-import sdk.hashing.Blake2b256Hash
+import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
 import sdk.reflect.ClassesAsConfig
@@ -41,6 +42,8 @@ import scala.util.Try
 
 object NetworkSim extends IOApp {
 
+  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.convert(Blake2b.hash256(x)).getUnsafe
+
   // Dummy types for message id, sender id and transaction
   type M = String
   type S = String
@@ -58,7 +61,7 @@ object NetworkSim extends IOApp {
   final case class NetNode[F[_]](
     id: S,
     node: Node[F, M, S, T],
-    balanceApi: (Blake2b256Hash, Wallet) => F[Option[Long]],
+    balanceApi: (ByteArray32, Wallet) => F[Option[Long]],
     getData: F[NodeSnapshot[M, S, T]],
   )
 
@@ -69,9 +72,9 @@ object NetworkSim extends IOApp {
   ): F[Block.WithId[M, S, T]] = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[F])
     val mkValuesStore = Sync[F].delay {
-      new ByteArrayKeyValueTypedStore[F, Blake2b256Hash, Balance](
+      new ByteArrayKeyValueTypedStore[F, ByteArray32, Balance](
         new InMemoryKeyValueStore[F],
-        Blake2b256Hash.codec,
+        ByteArray32.codec,
         balanceCodec,
       )
     }
@@ -151,14 +154,14 @@ object NetworkSim extends IOApp {
     /** Storage resource for on chain storage (history and values) */
     def onChainStoreResource(
       kvStoreManager: KeyValueStoreManager[F],
-    ): Resource[F, (RadixHistory[F], KeyValueTypedStore[F, Blake2b256Hash, Balance])] = kvStoreManager.asResource
+    ): Resource[F, (RadixHistory[F], KeyValueTypedStore[F, ByteArray32, Balance])] = kvStoreManager.asResource
       .flatMap { kvStoreManager =>
         Resource.eval {
           for {
             historyStore <- kvStoreManager.store("history")
             valuesStore  <- kvStoreManager.store("data")
             history      <- sdk.history.History.create(EmptyRootHash, historyStore)
-            values        = valuesStore.toByteArrayTypedStore[Blake2b256Hash, Balance](Blake2b256Hash.codec, balanceCodec)
+            values        = valuesStore.toByteArrayTypedStore[ByteArray32, Balance](ByteArray32.codec, balanceCodec)
           } yield history -> values
         }
       }
@@ -267,7 +270,7 @@ object NetworkSim extends IOApp {
                       SystemReporter[F]() concurrently animateDiag,
                   ),
               ),
-              balancesEngine.readBalance(_: Blake2b256Hash, _: Wallet),
+              balancesEngine.readBalance(_: ByteArray32, _: Wallet),
               getData,
             )
           }
@@ -308,11 +311,11 @@ object NetworkSim extends IOApp {
               import io.circe.generic.auto.*
               import org.http4s.circe.*
 
-              implicit val c: String => Try[Int]            = (x: String) => Try(x.toInt)
-              implicit val d: String => Try[String]         = (x: String) => Try(x)
-              implicit val e: String => Try[Blake2b256Hash] =
-                (x: String) => Base16.decode(x).flatMap(Blake2b256Hash.deserialize)
-              implicit val encoder: Encoder[Array[Byte]]    =
+              implicit val c: String => Try[Int]         = (x: String) => Try(x.toInt)
+              implicit val d: String => Try[String]      = (x: String) => Try(x)
+              implicit val e: String => Try[ByteArray32] =
+                (x: String) => Base16.decode(x).flatMap(ByteArray32.convert)
+              implicit val encoder: Encoder[Array[Byte]] =
                 Encoder[String].imap(s => Base16.decode(s).getUnsafe)(x => Base16.encode(x))
 
               implicit val a: EntityEncoder[F, Long]         = jsonEncoderOf[F, Long]
@@ -347,7 +350,7 @@ object NetworkSim extends IOApp {
                 blockByHash(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
                 readTx(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
                 (h: String, w: String) => {
-                  val blakeH = Base16.decode(h).flatMap(Blake2b256Hash.deserialize)
+                  val blakeH = Base16.decode(h).flatMap(ByteArray32.convert)
                   val longW  = Try(w.toInt)
                   (blakeH, longW)
                     .traverseN { case (hash, wallet) =>

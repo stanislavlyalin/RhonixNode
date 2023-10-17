@@ -7,11 +7,11 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.codecs.Base16
-import sdk.hashing.Blake2b256Hash
 import sdk.history.TestData.*
 import sdk.primitive.ByteArray
 import sdk.store.InMemoryKeyValueStore
 import sdk.syntax.all.*
+import sdk.hashing.Sha256.*
 
 import java.nio.ByteBuffer
 import scala.collection.concurrent.TrieMap
@@ -216,7 +216,7 @@ class HistoryActionTests extends AnyFlatSpec with Matchers with EitherValues {
     val sizeInserts = 10000
     val sizeDeletes = 3000
     val sizeUpdates = 1000
-    val state       = TrieMap[KeySegment, Blake2b256Hash]()
+    val state       = TrieMap[KeySegment, ByteArray32]()
     val inserts     = generateRandomInsert(0)
     for {
       emptyHistory <- emptyHistoryF
@@ -225,7 +225,7 @@ class HistoryActionTests extends AnyFlatSpec with Matchers with EitherValues {
                         (
                           History[IO],
                           List[InsertAction],
-                          TrieMap[KeySegment, Blake2b256Hash],
+                          TrieMap[KeySegment, ByteArray32],
                         ),
                       ]((emptyHistory, inserts, state)) { case ((history, inserts, state), _) =>
                         val newInserts  = generateRandomInsert(sizeInserts)
@@ -288,9 +288,9 @@ class HistoryActionTests extends AnyFlatSpec with Matchers with EitherValues {
     Random.shuffle(inserts).take(size).map(i => insert(i.key))
 
   def updateState(
-    state: TrieMap[KeySegment, Blake2b256Hash],
+    state: TrieMap[KeySegment, ByteArray32],
     actions: List[HistoryAction],
-  ): TrieMap[KeySegment, Blake2b256Hash] = {
+  ): TrieMap[KeySegment, ByteArray32] = {
     actions.map {
       case InsertAction(key, hash) => state.put(key, hash)
       case DeleteAction(key)       => state.remove(key)
@@ -314,10 +314,10 @@ object TestData {
 
   def hexKey(s: String): KeySegment = KeySegment(Base16.unsafeDecode(s).toList)
 
-  def randomBlake: Blake2b256Hash =
-    Blake2b256Hash(Random.alphanumeric.take(32).map(_.toByte).toArray)
+  def randomBlake: ByteArray32 =
+    ByteArray32.convert(ByteArray(Random.alphanumeric.take(32).map(_.toByte).toArray)).getUnsafe
 
-  def zerosBlake: Blake2b256Hash = Blake2b256Hash(List.fill(32)(0.toByte).toArray)
+  def zerosBlake: ByteArray32 = ByteArray32.convert(ByteArray(List.fill(32)(0.toByte).toArray)).getUnsafe
 
   def insert(k: KeySegment): InsertAction = InsertAction(k, randomBlake)
 

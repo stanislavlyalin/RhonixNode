@@ -1,8 +1,7 @@
 package sim
 
 import sdk.codecs.Codec
-import sdk.hashing.Blake2b256Hash
-import sdk.history.KeySegment
+import sdk.history.{ByteArray32, KeySegment}
 import sdk.primitive.ByteArray
 import sdk.syntax.all.sdkSyntaxTry
 
@@ -31,6 +30,8 @@ package object balances {
     override def decode(x: ByteArray): Try[Balance] = Try(ByteBuffer.wrap(x.bytes).getLong)
   }
 
-  def balanceToHash(balance: Balance): Blake2b256Hash = Blake2b256Hash(longToArray(balance))
-  def walletToKeySegment(wallet: Wallet): KeySegment  = KeySegment(walletCodec.encode(wallet).getUnsafe)
+  def balanceToHash(balance: Balance)(implicit hash32: Array[Byte] => ByteArray32): ByteArray32 =
+    hash32(longToArray(balance))
+
+  def walletToKeySegment(wallet: Wallet): KeySegment = KeySegment(walletCodec.encode(wallet).getUnsafe)
 }

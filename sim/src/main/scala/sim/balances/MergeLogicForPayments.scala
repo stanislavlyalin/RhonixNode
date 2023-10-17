@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import diagnostics.syntax.all.kamonSyntax
 import sdk.diag.Metrics
-import sdk.hashing.Blake2b256Hash
+import sdk.history.ByteArray32
 import sdk.syntax.all.{effectSyntax, mapSyntax}
 import sim.balances.data.{BalancesDeploy, BalancesState}
 
@@ -47,7 +47,7 @@ object MergeLogicForPayments {
    * */
   def mergeRejectNegativeOverflow[F[_]: Sync: Metrics](
     reader: BalancesStateBuilderWithReader[F],
-    baseState: Blake2b256Hash,
+    baseState: ByteArray32,
     toFinalize: Set[BalancesDeploy],
     toMerge: Set[BalancesDeploy],
   ): F[((BalancesState, Seq[BalancesDeploy]), (BalancesState, Seq[BalancesDeploy]))] = Sync[F].defer {

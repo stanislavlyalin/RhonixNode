@@ -5,8 +5,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import sdk.diag.Metrics
 import sdk.diag.Metrics.{Field, Tag}
-import sdk.hashing.Blake2b256Hash
-import sdk.history.{History, InsertAction}
+import sdk.history.{ByteArray32, History, InsertAction}
 import sdk.store.KeyValueTypedStore
 import sdk.syntax.all.*
 import sim.balances.data.BalancesState
@@ -16,12 +15,12 @@ import sim.balances.data.BalancesState
  * */
 trait BalancesStateBuilderWithReader[F[_]] {
   def buildState(
-    baseState: Blake2b256Hash,
+    baseState: ByteArray32,
     toFinalize: BalancesState,
     toMerge: BalancesState,
-  ): F[(Blake2b256Hash, Blake2b256Hash)]
+  ): F[(ByteArray32, ByteArray32)]
 
-  def readBalance(state: Blake2b256Hash, wallet: Wallet): F[Option[Balance]]
+  def readBalance(state: ByteArray32, wallet: Wallet): F[Option[Balance]]
 }
 
 object BalancesStateBuilderWithReader {
@@ -32,8 +31,8 @@ object BalancesStateBuilderWithReader {
 
   def apply[F[_]: Async: Parallel: Metrics](
     history: History[F],
-    valueStore: KeyValueTypedStore[F, Blake2b256Hash, Balance],
-  ): BalancesStateBuilderWithReader[F] = {
+    valueStore: KeyValueTypedStore[F, ByteArray32, Balance],
+  )(implicit hash32: Array[Byte] => ByteArray32): BalancesStateBuilderWithReader[F] = {
 
     /**
      * Create action for history and persist hash -> value relation.
@@ -49,9 +48,9 @@ object BalancesStateBuilderWithReader {
       } yield InsertAction(walletToKeySegment(wallet), vHash)
 
     def applyActions(
-      root: Blake2b256Hash,
+      root: ByteArray32,
       setBalanceActions: List[(Wallet, Balance)],
-    ): F[Blake2b256Hash] =
+    ): F[ByteArray32] =
       for {
         h       <- history.reset(root)
         actions <- setBalanceActions.traverse { case (w, b) => createHistoryActionAndStoreData(w, b) }
@@ -60,10 +59,10 @@ object BalancesStateBuilderWithReader {
 
     new BalancesStateBuilderWithReader[F] {
       override def buildState(
-        baseState: Blake2b256Hash,
+        baseState: ByteArray32,
         toFinalize: BalancesState,
         toMerge: BalancesState,
-      ): F[(Blake2b256Hash, Blake2b256Hash)] = for {
+      ): F[(ByteArray32, ByteArray32)] = for {
         // merge final state
         finalHash <- applyActions(baseState, toFinalize.diffs.toList).timedM("commit-final-state")
         _         <- Metrics[F].gauge("final-hash", finalHash.bytes.toHex)
@@ -73,7 +72,7 @@ object BalancesStateBuilderWithReader {
         postHash  <- applyActions(finalHash, postState.diffs.toList)
       } yield finalHash -> postHash
 
-      override def readBalance(state: Blake2b256Hash, wallet: Wallet): F[Option[Balance]] = for {
+      override def readBalance(state: ByteArray32, wallet: Wallet): F[Option[Balance]] = for {
         h    <- history.reset(state)
         bOpt <- h.read(walletToKeySegment(wallet))
         r    <- bOpt.flatTraverse(hash => valueStore.get1(hash))

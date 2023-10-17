@@ -43,7 +43,7 @@ lazy val all = (project in file("."))
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
   .settings(settingsScala2*)
-  .settings(libraryDependencies ++= common ++ dbLibs ++ tests ++ cryptoLibs)
+  .settings(libraryDependencies ++= common ++ dbLibs ++ tests)
 
 // Database interfaces implementation
 lazy val db = (project in file("db"))
@@ -78,7 +78,7 @@ lazy val node = (project in file("node"))
       protobuf,
       grpc,
       grpcNetty,
-    ) ++ tests ++ log ++ http4s ++ endpoints4s :+ lmdbjava :+ enumeratum :+ pureConfig,
+    ) ++ tests ++ log ++ http4s ++ endpoints4s ++ cryptoLibs :+ lmdbjava :+ enumeratum :+ pureConfig,
     resolvers ++=
       // for embedded InfluxDB
       Resolver.sonatypeOssRepos("releases") ++

@@ -3,13 +3,15 @@ package sim.balances
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import node.hashing.Blake2b
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.diag.Metrics
-import sdk.hashing.Blake2b256Hash
+import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.store.{ByteArrayKeyValueTypedStore, InMemoryKeyValueStore}
-import sim.balances.BalancesStateBuilderWithReaderSpec.witSut
+import sdk.syntax.all.sdkSyntaxTry
+import sim.balances.BalancesStateBuilderWithReaderSpec.*
 import sim.balances.data.BalancesState
 
 class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
@@ -43,12 +45,14 @@ class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
 
 object BalancesStateBuilderWithReaderSpec {
 
+  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.convert(Blake2b.hash256(x)).getUnsafe
+
   def witSut[A](f: BalancesStateBuilderWithReader[IO] => IO[A]): A = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[IO])
     val mkValuesStore = IO.delay {
-      new ByteArrayKeyValueTypedStore[IO, Blake2b256Hash, Balance](
+      new ByteArrayKeyValueTypedStore[IO, ByteArray32, Balance](
         new InMemoryKeyValueStore[IO],
-        Blake2b256Hash.codec,
+        ByteArray32.codec,
         balanceCodec,
       )
     }
