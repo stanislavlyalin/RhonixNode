@@ -15,19 +15,19 @@ final case class Block(
   postStateHash: ByteArray,  // proof of pre state
 
   // pointers to inner data
-  validatorId: ByteArray,           // pointer to validator
-  shardId: String,                  // pointer to shard
-  justificationSet: Set[ByteArray], // pointer to justification set
+  validatorPk: ByteArray,           // validator public key
+  shardName: String,                // name of a shard
+  justificationSet: Set[ByteArray], // justification set
   seqNum: Long,                     // sequence number
-  offencesSet: Set[ByteArray],      // pointer to offences set
+  offencesSet: Set[ByteArray],      // offences set
 
-  bondsMap: Map[ByteArray, Long],          // pointer to bonds map
-  finalFringe: Set[ByteArray],             // pointer to final fringe set
-  deploySetId: Set[ByteArray],             // pointer to deploy set in the block
-  mergeSetId: Set[ByteArray],              // pointer to deploy set merged into pre state
-  dropSetId: Set[ByteArray],               // pointer to deploy set rejected from pre state
-  mergeSetFinalId: Option[Set[ByteArray]], // pointer to deploy set finally accepted
-  dropSetFinalId: Option[Set[ByteArray]],  // pointer to deploy set finally rejected
+  bondsMap: Map[ByteArray, Long], // bonds map
+  finalFringe: Set[ByteArray],    // final fringe set
+  deploySet: Set[ByteArray],      // deploy set in the block
+  mergeSet: Set[ByteArray],       // deploy set merged into pre state
+  dropSet: Set[ByteArray],        // deploy set rejected from pre state
+  mergeSetFinal: Set[ByteArray],  // deploy set finally accepted
+  dropSetFinal: Set[ByteArray],   // deploy set finally rejected
 ) {
   override def equals(obj: Any): Boolean = obj match {
     case that: Block => this.hash == that.hash
