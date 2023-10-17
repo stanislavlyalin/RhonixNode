@@ -3,7 +3,6 @@ package sdk.data
 import sdk.primitive.ByteArray
 
 final case class Block(
-  id: Long,        // primary key
   version: Int,    // protocol versions
   hash: ByteArray, // strong hash of block content
 
@@ -31,9 +30,9 @@ final case class Block(
   dropSetFinalId: Option[Set[ByteArray]],  // pointer to deploy set finally rejected
 ) {
   override def equals(obj: Any): Boolean = obj match {
-    case that: Block => this.id == that.id
+    case that: Block => this.hash == that.hash
     case _           => false
   }
 
-  override def hashCode(): Int = id.hashCode()
+  override def hashCode(): Int = hash.hashCode()
 }
