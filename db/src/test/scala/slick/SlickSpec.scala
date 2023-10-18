@@ -14,7 +14,7 @@ import slick.jdbc.JdbcProfile
 import slick.syntax.all.*
 import slick.{SlickDb, SlickQuery}
 import sdk.db.RecordNotFound
-import slick.api.ValidatorDbApiImplSlick
+import slick.api.SlickApi
 import slick.tables.TableValidators.Validator
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -28,7 +28,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
   "Validator insert function call" should "add the correct entry to the Validator table" in {
     forAll { (validator: Validator) =>
-      def test(api: ValidatorDbApiImplSlick[IO]) = for {
+      def test(api: SlickApi[IO]) = for {
         id                <- api.insert(validator.pubKey)
         validatorById     <- OptionT(api.getById(id)).getOrRaise(new RecordNotFound)
         validatorByPubKey <- OptionT(api.getByPublicKey(validator.pubKey)).getOrRaise(new RecordNotFound)
@@ -40,7 +40,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new ValidatorDbApiImplSlick[IO])
+        .map(implicit x => new SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
