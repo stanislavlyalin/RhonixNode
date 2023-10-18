@@ -29,9 +29,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   "Validator insert function call" should "add the correct entry to the Validator table" in {
     forAll { (validator: Validator) =>
       def test(api: SlickApi[IO]) = for {
-        id                <- api.insert(validator.pubKey)
-        validatorById     <- OptionT(api.getById(id)).getOrRaise(new RecordNotFound)
-        validatorByPubKey <- OptionT(api.getByPublicKey(validator.pubKey)).getOrRaise(new RecordNotFound)
+        id                <- api.validatorInsert(validator.pubKey)
+        validatorById     <- OptionT(api.validatorGetById(id)).getOrRaise(new RecordNotFound)
+        validatorByPubKey <- OptionT(api.validatorGetByPK(validator.pubKey)).getOrRaise(new RecordNotFound)
       } yield {
         id shouldBe 1L
 

@@ -6,15 +6,15 @@ import slick.syntax.all.*
 import slick.tables.TableValidators.Validator
 import slick.{SlickDb, SlickQuery}
 
-class ValidatorDbApiImplSlick[F[_]: Async: SlickDb] {
+class SlickApi[F[_]: Async: SlickDb] {
   implicit val p: JdbcProfile = SlickDb[F].profile
   val queries: SlickQuery     = SlickQuery()
 
-  def insert(pubKey: Array[Byte]): F[Long] = queries.insertValidator(pubKey).run
+  def validatorInsert(pubKey: Array[Byte]): F[Long] = queries.validatorInsert(pubKey).run
 
-  def update(validator: Validator): F[Int] = queries.updateValidator(validator).run
+  def validatorUpdate(validator: Validator): F[Int] = queries.validatorUpdate(validator).run
 
-  def getById(id: Long): F[Option[Validator]] = queries.getValidatorById(id).run
+  def validatorGetById(id: Long): F[Option[Validator]] = queries.validatorGetById(id).run
 
-  def getByPublicKey(pubKey: Array[Byte]): F[Option[Validator]] = queries.getValidatorByPubKey(pubKey).run
+  def validatorGetByPK(pubKey: Array[Byte]): F[Option[Validator]] = queries.validatorGetByPK(pubKey).run
 }
