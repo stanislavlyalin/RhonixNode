@@ -1,5 +1,5 @@
 package slick
 
 package object syntax {
-  object all extends SqlActionRunSyntax
+  object all extends DBIOActionRunSyntax
 }
