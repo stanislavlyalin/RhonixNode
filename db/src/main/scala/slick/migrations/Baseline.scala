@@ -58,7 +58,9 @@ object Baseline {
     val DeployTM = TableMigration(slick.qDeploys).create
       .addColumns(_.id, _.sig, _.deployerId, _.shardId, _.program, _.phloPrice, _.phloLimit, _.nonce)
       .addForeignKeys(_.fk1, _.fk2)
-      .addIndexes(_.idx)
+      .addIndexes(_.idxSig)
+      .addIndexes(_.idxDeployerId)
+      .addIndexes(_.idxShardId)
 
     val DeployerTM = TableMigration(slick.qDeployers).create
       .addColumns(_.id, _.pubKey)

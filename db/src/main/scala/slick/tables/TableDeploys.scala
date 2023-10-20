@@ -17,7 +17,9 @@ class TableDeploys(tag: Tag) extends Table[Deploy](tag, "deploy") {
   def fk1 = foreignKey("fk_deploy_deployer_id", deployerId, slick.qDeployers)(_.id)
   def fk2 = foreignKey("fk_deploy_shard_id", shardId, slick.qShards)(_.id)
 
-  def idx = index("idx_deploy", sig, unique = true)
+  def idxSig        = index("idx_deploy_sig", sig, unique = true)
+  def idxDeployerId = index("idx_deploy_deployer_id", deployerId, unique = false)
+  def idxShardId    = index("idx_deploy_shard_id", shardId, unique = false)
 
   def * : ProvenShape[Deploy] = (id, sig, deployerId, shardId, program, phloPrice, phloLimit, nonce).mapTo[Deploy]
 }

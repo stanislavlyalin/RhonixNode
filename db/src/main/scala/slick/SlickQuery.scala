@@ -3,7 +3,8 @@ package slick
 import slick.dbio.Effect.{Read, Transactional, Write}
 import slick.jdbc.JdbcProfile
 import slick.sql.SqlAction
-import slick.tables.TableDeploys
+import slick.tables.*
+import slick.tables.TableDeploys.Deploy
 import slick.tables.TableValidators.Validator
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -100,7 +101,7 @@ final case class SlickQuery()(implicit val profile: JdbcProfile) {
     phloPrice: Long,         // price offered for phlogiston
     phloLimit: Long,         // limit offered for execution
     nonce: Long,             // nonce of a deploy
-  ): DBIOAction[Long, NoStream, Read & Write & Transactional] = {
+  ): DBIOAction[Long, NoStream, Effect.All] = {
     val actions = for {
       deployerId <- deployerInsertIfNot(deployerPk)
       shardId    <- shardInsertIfNot(shardName)
@@ -116,6 +117,31 @@ final case class SlickQuery()(implicit val profile: JdbcProfile) {
                     )
       deployId   <- insertIfNot(sig, deployGetId, newDeploy, deployInsert)
     } yield deployId
+    actions.transactionally
+  }
+
+  /** Delete deploy by unique sig. And clean up dependencies in Deployers and Shards if possible */
+  def deployDeleteAndCleanUp(sig: Array[Byte]): DBIOAction[Int, NoStream, Effect.All] = {
+    def deleteAndClean(deploy: TableDeploys.Deploy) = for {
+      // Delete the deploy
+      r <- qDeploys.filter(_.sig === sig).delete
+
+      // Check if there are no more deploys with this deployerId, and if so, delete the deployer
+      deployerDeploys <- qDeploys.filter(_.deployerId === deploy.deployerId).exists.result
+      _               <- if (!deployerDeploys) { qDeployers.filter(_.id === deploy.deployerId).delete }
+                         else { DBIO.successful(0) }
+
+      // Check if there are no more deploys with this shardId, and if so, delete the shard
+      shardDeploys    <- qDeploys.filter(_.shardId === deploy.shardId).exists.result
+      _               <- if (!shardDeploys) { qShards.filter(_.id === deploy.shardId).delete }
+                         else { DBIO.successful(0) }
+    } yield r
+
+    val actions = for {
+      // Retrieve the deployerId and shardId for the deploy
+      deployOpt <- qDeploys.filter(_.sig === sig).result.headOption
+      r         <- deployOpt.map(deleteAndClean).getOrElse(DBIO.successful(0))
+    } yield r
     actions.transactionally
   }
 

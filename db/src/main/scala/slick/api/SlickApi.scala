@@ -28,29 +28,29 @@ class SlickApi[F[_]: Async: SlickDb] {
 
   def deployerDelete(pK: ByteArray): F[Int] = queries.deployerDelete(pK.bytes).run
 
-  def deployInsert(d: sdk.data.Deploy): F[Unit] =
-    queries
-      .deployInsertIfNot(d.sig.bytes, d.deployerPk.bytes, d.shardName, d.program, d.phloPrice, d.phloLimit, d.nonce)
-      .run
-      .map(_ => ())
+  def deployInsert(d: sdk.data.Deploy): F[Unit] = queries
+    .deployInsertIfNot(d.sig.bytes, d.deployerPk.bytes, d.shardName, d.program, d.phloPrice, d.phloLimit, d.nonce)
+    .run
+    .void
 
   def deployGetAll: F[Seq[ByteArray]] = queries.deployGetAll.run.map(_.map(ByteArray(_)))
 
-  def deployGet(sig: ByteArray): F[Option[sdk.data.Deploy]] =
-    queries
-      .deployGet(sig.bytes)
-      .run
-      .map(
-        _.map { case (deploy, deployerPK, shardName) =>
-          sdk.data.Deploy(
-            sig = ByteArray(deploy.sig),
-            deployerPk = ByteArray(deployerPK),
-            shardName = shardName,
-            program = deploy.program,
-            phloPrice = deploy.phloPrice,
-            phloLimit = deploy.phloLimit,
-            nonce = deploy.nonce,
-          )
-        },
-      )
+  def deployGet(sig: ByteArray): F[Option[sdk.data.Deploy]] = queries
+    .deployGet(sig.bytes)
+    .run
+    .map(
+      _.map { case (deploy, deployerPK, shardName) =>
+        sdk.data.Deploy(
+          sig = ByteArray(deploy.sig),
+          deployerPk = ByteArray(deployerPK),
+          shardName = shardName,
+          program = deploy.program,
+          phloPrice = deploy.phloPrice,
+          phloLimit = deploy.phloLimit,
+          nonce = deploy.nonce,
+        )
+      },
+    )
+
+  def deployDelete(sig: ByteArray): F[Int] = queries.deployDeleteAndCleanUp(sig.bytes).run
 }
