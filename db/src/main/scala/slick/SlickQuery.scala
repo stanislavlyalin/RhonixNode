@@ -4,13 +4,12 @@ import slick.dbio.Effect.{Read, Transactional, Write}
 import slick.jdbc.JdbcProfile
 import slick.sql.SqlAction
 import slick.tables.*
-import slick.tables.TableDeploys.Deploy
 import slick.tables.TableValidators.Validator
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 
-final case class SlickQuery()(implicit val profile: JdbcProfile) {
-  import Helpers.*
+final case class SlickQuery()(implicit val profile: JdbcProfile, implicit val ec: ExecutionContext) {
+  import SlickQuery.*
   import profile.api.*
 
   def validatorGetById(id: Long): SqlAction[Option[Validator], NoStream, Read] =
@@ -72,16 +71,16 @@ final case class SlickQuery()(implicit val profile: JdbcProfile) {
   def deployerDelete(pK: Array[Byte]): SqlAction[Int, NoStream, Write] =
     qDeployers.filter(_.pubKey === pK).delete
 
-  /** Get deploy id by unique sig */
+  /** Get deploy id by unique signature */
   private def deployGetId(sig: Array[Byte]): SqlAction[Option[Long], NoStream, Read] =
     qDeploys.filter(_.sig === sig).map(_.id).result.headOption
 
-  /** Get a list of all deploy sigs */
+  /** Get a list of all deploy signatures */
   def deployGetAll: SqlAction[Seq[Array[Byte]], NoStream, Read] =
     qDeploys.map(_.sig).result
 
-  /** Get deploy by unique sig. Returner (TableDeploys.Deploy, shard.name, deployer.pubKey)*/
-  def deployGet(sig: Array[Byte]): SqlAction[Option[(TableDeploys.Deploy, Array[Byte], String)], NoStream, Read] = {
+  /** Get deploy by unique sig. Returned (TableDeploys.Deploy, shard.name, deployer.pubKey)*/
+  def deployGetData(sig: Array[Byte]): SqlAction[Option[(TableDeploys.Deploy, Array[Byte], String)], NoStream, Read] = {
     val query = for {
       deploy   <- qDeploys if deploy.sig === sig
       shard    <- qShards if shard.id === deploy.shardId
@@ -90,9 +89,11 @@ final case class SlickQuery()(implicit val profile: JdbcProfile) {
     query.result.headOption
   }
 
+  /** Insert a new record in table. Returned id. */
   private def deployInsert(deploy: TableDeploys.Deploy): SqlAction[Long, NoStream, Write] =
     (qDeploys returning qDeploys.map(_.id)) += deploy
 
+  /** Insert a new record in table if there is no such entry. Returned id */
   def deployInsertIfNot(
     sig: Array[Byte],        // deploy signature
     deployerPk: Array[Byte], // deployer public key
@@ -145,21 +146,20 @@ final case class SlickQuery()(implicit val profile: JdbcProfile) {
     actions.transactionally
   }
 
-  object Helpers {
-    def insertIfNot[A, B](
-      unique: A,
-      getIdByUnique: A => SqlAction[Option[Long], NoStream, Read],
-      insertable: B,
-      insert: B => SqlAction[Long, NoStream, Write],
-    ): DBIOAction[Long, NoStream, Read & Write & Transactional] = {
-      val actions = for {
-        idOpt <- getIdByUnique(unique)
-        id    <- idOpt match {
-                   case Some(existingId) => DBIO.successful(existingId)
-                   case None             => insert(insertable)
-                 }
-      } yield id
-      actions.transactionally
-    }
+  /** Auxiliary function. Insert a new record in table if there is no such entry. Returned id */
+  private def insertIfNot[A, B](
+    unique: A,
+    getIdByUnique: A => SqlAction[Option[Long], NoStream, Read],
+    insertable: B,
+    insert: B => SqlAction[Long, NoStream, Write],
+  ): DBIOAction[Long, NoStream, Read & Write & Transactional] = {
+    val actions = for {
+      idOpt <- getIdByUnique(unique)
+      id    <- idOpt match {
+                 case Some(existingId) => DBIO.successful(existingId)
+                 case None             => insert(insertable)
+               }
+    } yield id
+    actions.transactionally
   }
 }

@@ -8,9 +8,12 @@ import slick.syntax.all.*
 import slick.tables.TableValidators.Validator
 import slick.{SlickDb, SlickQuery}
 
+import scala.concurrent.ExecutionContext
+
 class SlickApi[F[_]: Async: SlickDb] {
-  implicit val p: JdbcProfile = SlickDb[F].profile
-  val queries: SlickQuery     = SlickQuery()
+  implicit val p: JdbcProfile       = SlickDb[F].profile
+  implicit val ec: ExecutionContext = ExecutionContext.global
+  val queries: SlickQuery           = SlickQuery()
 
   def validatorInsert(pubKey: Array[Byte]): F[Long] = queries.validatorInsert(pubKey).run
 
@@ -36,7 +39,7 @@ class SlickApi[F[_]: Async: SlickDb] {
   def deployGetAll: F[Seq[ByteArray]] = queries.deployGetAll.run.map(_.map(ByteArray(_)))
 
   def deployGet(sig: ByteArray): F[Option[sdk.data.Deploy]] = queries
-    .deployGet(sig.bytes)
+    .deployGetData(sig.bytes)
     .run
     .map(
       _.map { case (deploy, deployerPK, shardName) =>
