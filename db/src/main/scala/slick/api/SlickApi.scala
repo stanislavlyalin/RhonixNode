@@ -17,19 +17,13 @@ class SlickApi[F[_]: Async: SlickDb] {
 
   def validatorInsert(pubKey: Array[Byte]): F[Long] = queries.validatorInsert(pubKey).run
 
-  def validatorUpdate(validator: Validator): F[Int] = queries.validatorUpdate(validator).run
-
   def validatorGetById(id: Long): F[Option[Validator]] = queries.validatorGetById(id).run
 
   def validatorGetByPK(pubKey: Array[Byte]): F[Option[Validator]] = queries.validatorGetByPK(pubKey).run
 
   def shardGetAll: F[Seq[String]] = queries.shardGetAll.run
 
-  def shardDelete(name: String): F[Int] = queries.shardDelete(name).run
-
   def deployerGetAll: F[Seq[ByteArray]] = queries.deployerGetAll.run.map(_.map(ByteArray(_)))
-
-  def deployerDelete(pK: ByteArray): F[Int] = queries.deployerDelete(pK.bytes).run
 
   def deployInsert(d: sdk.data.Deploy): F[Unit] = queries
     .deployInsertIfNot(d.sig.bytes, d.deployerPk.bytes, d.shardName, d.program, d.phloPrice, d.phloLimit, d.nonce)
