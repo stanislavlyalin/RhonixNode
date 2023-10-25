@@ -132,6 +132,32 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     }
   }
 
+  val nonEmptyDeploySeqGen: Gen[Seq[Deploy]] = for {
+    size    <- Gen.chooseNum(1, 10) // Choose a suitable max value
+    deploys <- Gen.listOfN(size, Arbitrary.arbitrary[Deploy])
+  } yield deploys
+
+  "deploySetInsert() function call" should "add the correct entry to the DeploySets and DeploySetBinds tables" in {
+    forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploys: Seq[Deploy], dSetHash: ByteArray) =>
+      def test(api: SlickApi[IO]) = for {
+        _         <- deploys.traverse(api.deployInsert)
+        deploySigs = deploys.map(_.sig)
+        _         <- api.deploySetInsert(dSetHash, deploySigs)
+
+        dSet     <- api.deploySetGet(dSetHash)
+        dSetList <- api.deploySetGetAll
+      } yield {
+        deploySigs.toSet shouldBe dSet.get.toSet
+        dSetList.toSet shouldBe Seq(dSetHash).toSet
+      }
+
+      EmbeddedH2SlickDb[IO]
+        .map(implicit x => new SlickApi[IO])
+        .use(test)
+        .unsafeRunSync()
+    }
+  }
+
   "Stored and loaded name-value pairs" should "be the same" in {
     forAll { (name: String, value: String) =>
       def test[F[_]: Async](storeF: => F[Int], loadF: => F[Option[String]]): F[Assertion] = for {

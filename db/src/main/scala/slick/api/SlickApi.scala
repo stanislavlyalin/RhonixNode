@@ -50,4 +50,15 @@ class SlickApi[F[_]: Async: SlickDb] {
     )
 
   def deployDelete(sig: ByteArray): F[Int] = queries.deployDeleteAndCleanUp(sig.bytes).run
+
+  def deploySetInsert(deploySetHash: ByteArray, deploySigs: Seq[ByteArray]): F[Unit] =
+    queries.deploySetInsertIfNot(deploySetHash.bytes, deploySigs.map(_.bytes)).run.void
+
+  def deploySetGetAll: F[Seq[ByteArray]] = queries.deploySetGetAll.run.map(_.map(ByteArray(_)))
+
+  def deploySetGet(hash: ByteArray): F[Option[Seq[ByteArray]]] = queries
+    .deploySetGetDeploySigs(hash.bytes)
+    .run
+    .map(_.map(_.map(ByteArray(_))))
+
 }
