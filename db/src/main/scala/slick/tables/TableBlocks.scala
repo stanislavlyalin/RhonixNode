@@ -34,7 +34,7 @@ class TableBlocks(tag: Tag) extends Table[Block](tag, "block") {
   def fk3 = foreignKey("fk_block_justification_set_id", justificationSetId, slick.qBlockSets)(_.id.?)
   def fk4 = foreignKey("fk_block_offences_set_id", offencesSet, slick.qBlockSets)(_.id.?)
 
-  def fk5  = foreignKey("fk_block_bonds_map_id", bondsMapId, slick.qBondSets)(_.id)
+  def fk5  = foreignKey("fk_block_bonds_map_id", bondsMapId, slick.qBondsMaps)(_.id)
   def fk6  = foreignKey("fk_block_final_fringe_id", finalFringe, slick.qBlockSets)(_.id.?)
   def fk7  = foreignKey("fk_block_deploy_set_id", deploySetId, slick.qDeploySets)(_.id.?)
   def fk8  = foreignKey("fk_block_merge_set_id", mergeSetId, slick.qDeploySets)(_.id.?)

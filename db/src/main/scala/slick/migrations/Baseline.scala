@@ -35,24 +35,19 @@ object Baseline {
       .addColumns(_.id, _.hash)
       .addIndexes(_.idx)
 
+    val bondTM = TableMigration(qBonds).create
+      .addColumns(_.bondsMapId, _.validatorId, _.stake)
+      .addPrimaryKeys(_.pk)
+      .addForeignKeys(_.fk1, _.fk2)
+
     val BlockSetBindTM = TableMigration(slick.qBlockSetBinds).create
       .addColumns(_.blockSetId, _.blockId)
       .addPrimaryKeys(_.pk)
       .addForeignKeys(_.fk1, _.fk2)
       .addIndexes(_.idx)
 
-    val bondTM = TableMigration(qBonds).create
-      .addColumns(_.id, _.validatorId, _.stake)
-      .addIndexes(_.idx)
-
-    val bondSetTM = TableMigration(qBondSets).create
+    val bondsMapTM = TableMigration(qBondsMaps).create
       .addColumns(_.id, _.hash)
-      .addIndexes(_.idx)
-
-    val BondSetBindTM = TableMigration(qBondSetBinds).create
-      .addColumns(_.bondSetId, _.bondId)
-      .addPrimaryKeys(_.pk)
-      .addForeignKeys(_.fk1, _.fk2)
       .addIndexes(_.idx)
 
     val DeployTM = TableMigration(slick.qDeploys).create
@@ -87,7 +82,7 @@ object Baseline {
     val configTable = TableMigration(slick.qConfigs).create
       .addColumns(_.name, _.value)
 
-    validatorTM & ShardTM & DeployerTM & DeployTM & DeploySetTM & DeploySetBindTM & bondTM &
-      bondSetTM & BondSetBindTM & BlockSetTM & BlockTM & BlockSetBindTM & configTable
+    validatorTM & ShardTM & DeployerTM & DeployTM & DeploySetTM & DeploySetBindTM & bondsMapTM &
+      bondTM & BlockSetTM & BlockTM & BlockSetBindTM & configTable
   }
 }
