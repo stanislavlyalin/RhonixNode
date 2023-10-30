@@ -361,7 +361,7 @@ final case class SlickQuery()(implicit val profile: JdbcProfile, implicit val ec
                    seqNum = b.seqNum,
                    offencesSetId = offencesSet,
                    bondsMapId = bondsMapId,
-                   finalFringe = finalFringe,
+                   finalFringeId = finalFringe,
                    deploySetId = deploySetId,
                    mergeSetId = mergeSetId,
                    dropSetId = dropSetId,
@@ -382,101 +382,74 @@ final case class SlickQuery()(implicit val profile: JdbcProfile, implicit val ec
   def blockGetData(
     hash: Array[Byte],
   ): DBIOAction[Option[api.data.Block], NoStream, Read] = {
-    val blockQuery = for {
-      block            <- qBlocks if block.hash === hash
-      validator        <- qValidators if validator.id === block.validatorId
-      shard            <- qShards if shard.id === block.shardId
-      justificationSet <- qBlockSets if block.justificationSetId === justificationSet.id.?
-      offencesSet      <- qBlockSets if block.offencesSetId === offencesSet.id.?
-      bondsMap         <- qBondsMaps if block.bondsMapId === bondsMap.id
-      finalFringe      <- qBlockSets if block.offencesSetId === finalFringe.id.?
-      deploySet        <- qDeploySets if block.deploySetId === deploySet.id.?
-      finalFringe      <- qBlockSets if block.offencesSetId === finalFringe.id.?
-      mergeSet         <- qBlockSets if block.mergeSetId === mergeSet.id.?
-      dropSet          <- qBlockSets if block.dropSetId === dropSet.id.?
-      mergeSetFinal    <- qBlockSets if block.mergeSetFinalId === mergeSetFinal.id.?
-      dropSetFinal     <- qBlockSets if block.dropSetFinalId === dropSetFinal.id.?
-    } yield (
-      block,
-      validator.pubKey,
-      shard.name,
-      justificationSet.hash.?,
-      offencesSet.hash.?,
-      bondsMap.hash,
-      finalFringe.hash.?,
-      deploySet.hash.?,
-      mergeSet.hash.?,
-      dropSet.hash.?,
-      mergeSetFinal.hash.?,
-      dropSetFinal.hash.?,
+    def getBlock(hash: Array[Byte])           = qBlocks.filter(_.hash === hash).result.headOption
+    def getValidatorPk(validatorId: Long)     = qValidators.filter(_.id === validatorId).map(_.pubKey).result.head
+    def getShardName(shardId: Long)           = qShards.filter(_.id === shardId).map(_.name).result.head
+    def getBlockSetHash(id: Long)             = qBlockSets.filter(_.id === id).map(_.hash).result.head
+    def getDeploySetHash(id: Long)            = qDeploySets.filter(_.id === id).map(_.hash).result.head
+    def getBondsMapHash(id: Long)             = qBondsMaps.filter(_.id === id).map(_.hash).result.head
+    def getBlockSetData(idOpt: Option[Long])  = idOpt match {
+      case Some(id) =>
+        for {
+          hash <- getBlockSetHash(id)
+          data <- blockSetGetDataById(id)
+        } yield Some(api.data.SetData(hash, data))
+      case None     => DBIO.successful(None)
+    }
+    def getDeploySetData(idOpt: Option[Long]) = idOpt match {
+      case Some(id) =>
+        for {
+          hash <- getDeploySetHash(id)
+          data <- deploySetGetDataById(id)
+        } yield Some(api.data.SetData(hash, data))
+      case None     => DBIO.successful(None)
+    }
+    def getBondsMapData(id: Long)             = for {
+      hash <- getBondsMapHash(id)
+      data <- getBondsMapDataById(id)
+    } yield api.data.BondsMapData(hash, data)
+
+    def getBlockData(b: TableBlocks.Block) = for {
+      validatorPK          <- getValidatorPk(b.validatorId)
+      shardName            <- getShardName(b.shardId)
+      justificationSetData <- getBlockSetData(b.justificationSetId)
+      offencesSetData      <- getBlockSetData(b.offencesSetId)
+      bondsMapData         <- getBondsMapData(b.bondsMapId)
+      finalFringeData      <- getBlockSetData(b.finalFringeId)
+      deploySetData        <- getDeploySetData(b.deploySetId)
+      mergeSetData         <- getBlockSetData(b.mergeSetId)
+      dropSetData          <- getBlockSetData(b.dropSetId)
+      mergeSetFinalData    <- getBlockSetData(b.mergeSetFinalId)
+      dropSetFinalData     <- getBlockSetData(b.dropSetFinalId)
+    } yield Some(
+      api.data.Block(
+        version = b.version,
+        hash = b.hash,
+        sigAlg = b.sigAlg,
+        signature = b.signature,
+        finalStateHash = b.finalStateHash,
+        postStateHash = b.postStateHash,
+        validatorPk = validatorPK,
+        shardName = shardName,
+        justificationSet = justificationSetData,
+        seqNum = b.seqNum,
+        offencesSet = offencesSetData,
+        bondsMap = bondsMapData,
+        finalFringe = finalFringeData,
+        deploySet = deploySetData,
+        mergeSet = mergeSetData,
+        dropSet = dropSetData,
+        mergeSetFinal = mergeSetFinalData,
+        dropSetFinal = dropSetFinalData,
+      ),
     )
 
-    def getBlockSetData(idOpt: Option[Long], hashOpt: Option[Array[Byte]]) = idOpt match {
-      case Some(id) => blockSetGetDataById(id).map(data => Some(api.data.SetData(hashOpt.get, data)))
-      case None     => DBIO.successful(None)
-    }
-
-    def getDeploySetData(idOpt: Option[Long], hashOpt: Option[Array[Byte]]) = idOpt match {
-      case Some(id) => deploySetGetDataById(id).map(data => Some(api.data.SetData(hashOpt.get, data)))
-      case None     => DBIO.successful(None)
-    }
-
-    def getBondsMapData(id: Long, hash: Array[Byte]) =
-      getBondsMapDataById(id).map(data => api.data.BondsMapData(hash, data))
-
     for {
-      blockDataOpt <- blockQuery.result.headOption
-      result       <- blockDataOpt match {
-                        case Some(
-                              (
-                                b,
-                                validatorPK,
-                                shardName,
-                                justificationSetHash,
-                                offencesSetHash,
-                                bondsMapHash,
-                                finalFringeHash,
-                                deploySetHash,
-                                mergeSetHash,
-                                dropSetHash,
-                                mergeSetFinalHash,
-                                dropSetFinalHash,
-                              ),
-                            ) =>
-                          for {
-                            justificationSetData <- getBlockSetData(b.justificationSetId, justificationSetHash)
-                            offencesSetData      <- getBlockSetData(b.offencesSetId, offencesSetHash)
-                            bondsMapData         <- getBondsMapData(b.bondsMapId, bondsMapHash)
-                            finalFringeData      <- getBlockSetData(b.finalFringe, finalFringeHash)
-                            deploySetData        <- getDeploySetData(b.deploySetId, deploySetHash)
-                            mergeSetData         <- getBlockSetData(b.mergeSetId, mergeSetHash)
-                            dropSetData          <- getBlockSetData(b.dropSetId, dropSetHash)
-                            mergeSetFinalData    <- getBlockSetData(b.mergeSetFinalId, mergeSetFinalHash)
-                            dropSetFinalData     <- getBlockSetData(b.dropSetFinalId, dropSetFinalHash)
-                          } yield Some(
-                            api.data.Block(
-                              version = b.version,
-                              hash = b.hash,
-                              sigAlg = b.sigAlg,
-                              signature = b.signature,
-                              finalStateHash = b.finalStateHash,
-                              postStateHash = b.postStateHash,
-                              validatorPk = validatorPK,
-                              shardName = shardName,
-                              justificationSet = justificationSetData,
-                              seqNum = b.seqNum,
-                              offencesSet = offencesSetData,
-                              bondsMap = bondsMapData,
-                              finalFringe = finalFringeData,
-                              deploySet = deploySetData,
-                              mergeSet = mergeSetData,
-                              dropSet = dropSetData,
-                              mergeSetFinal = mergeSetFinalData,
-                              dropSetFinal = dropSetFinalData,
-                            ),
-                          )
-                        case None => DBIO.successful(None)
-                      }
+      blockOpt <- getBlock(hash)
+      result   <- blockOpt match {
+                    case Some(block) => getBlockData(block)
+                    case None        => DBIO.successful(None)
+                  }
     } yield result
   }
 

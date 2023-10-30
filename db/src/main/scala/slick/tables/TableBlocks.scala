@@ -90,7 +90,7 @@ object TableBlocks {
 
     // these are optimisations/data to short circuit validation
     bondsMapId: Long,              // pointer to bonds map
-    finalFringe: Option[Long],     // pointer to final fringe set
+    finalFringeId: Option[Long],   // pointer to final fringe set
     deploySetId: Option[Long],     // pointer to deploy set in the block
     mergeSetId: Option[Long],      // pointer to deploy set merged into pre state
     dropSetId: Option[Long],       // pointer to deploy set rejected from pre state

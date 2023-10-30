@@ -168,37 +168,73 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       Arbitrary.arbitrary[ByteArray],
       nonEmptyBondsMapGen,
       Arbitrary.arbitrary[Block],
-    ) { (dSetHash: ByteArray, deploys: Set[Deploy], bMapHash: ByteArray, bMap: Map[ByteArray, Long], b) =>
+      Arbitrary.arbitrary[Block],
+    ) { (dSetHash, deploys, bMapHash, bMap, b1, b2) =>
       def test(api: SlickApi[IO]) = for {
-        _            <- deploys.toSeq.traverse(api.deployInsert)
-        deploySigs    = deploys.map(_.sig)
-        insertedBlock = sdk.data.Block(
-                          version = b.version,
-                          hash = b.hash,
-                          sigAlg = b.sigAlg,
-                          signature = b.signature,
-                          finalStateHash = b.finalStateHash,
-                          postStateHash = b.postStateHash,
-                          validatorPk = b.validatorPk,
-                          shardName = b.shardName,
-                          justificationSet = Set(),
-                          seqNum = b.seqNum,
-                          offencesSet = Set(),
-                          bondsMap = bMap,
-                          finalFringe = Set(),
-                          deploySet = deploySigs,
-                          mergeSet = Set(),
-                          dropSet = Set(),
-                          mergeSetFinal = Set(),
-                          dropSetFinal = Set(),
-                        )
-        _            <- api.blockInsert(insertedBlock)(None, None, bMapHash, None, Some(dSetHash), None, None, None, None)
+        _             <- deploys.toSeq.traverse(api.deployInsert)
+        deploySigs     = deploys.map(_.sig)
+        insertedBlock1 = sdk.data.Block(
+                           version = b1.version,
+                           hash = b1.hash,
+                           sigAlg = b1.sigAlg,
+                           signature = b1.signature,
+                           finalStateHash = b1.finalStateHash,
+                           postStateHash = b1.postStateHash,
+                           validatorPk = b1.validatorPk,
+                           shardName = b1.shardName,
+                           justificationSet = Set(),
+                           seqNum = b1.seqNum,
+                           offencesSet = Set(),
+                           bondsMap = bMap,
+                           finalFringe = Set(),
+                           deploySet = deploySigs,
+                           mergeSet = Set(),
+                           dropSet = Set(),
+                           mergeSetFinal = Set(),
+                           dropSetFinal = Set(),
+                         )
+        _             <- api.blockInsert(insertedBlock1)(None, None, bMapHash, None, Some(dSetHash), None, None, None, None)
 
-        readBlock <- api.blockGet(b.hash)
-        blockList <- api.blockGetAll
+        insertedBlock2 = sdk.data.Block(
+                           version = b2.version,
+                           hash = b2.hash,
+                           sigAlg = b2.sigAlg,
+                           signature = b2.signature,
+                           finalStateHash = b2.finalStateHash,
+                           postStateHash = b2.postStateHash,
+                           validatorPk = b2.validatorPk,
+                           shardName = b2.shardName,
+                           justificationSet = Set(b1.hash),
+                           seqNum = b2.seqNum,
+                           offencesSet = Set(b1.hash),
+                           bondsMap = bMap,
+                           finalFringe = Set(b1.hash),
+                           deploySet = deploySigs,
+                           mergeSet = Set(b1.hash),
+                           dropSet = Set(b1.hash),
+                           mergeSetFinal = Set(),
+                           dropSetFinal = Set(),
+                         )
+        bSetHash       = Some(ByteArray(dSetHash.bytes.map(x => (255.toByte - x).toByte)))
+        _             <- api.blockInsert(insertedBlock2)(
+                           bSetHash,
+                           bSetHash,
+                           bMapHash,
+                           bSetHash,
+                           Some(dSetHash),
+                           bSetHash,
+                           bSetHash,
+                           None,
+                           None,
+                         )
+
+        readBlock1 <- api.blockGet(b1.hash)
+        readBlock2 <- api.blockGet(b2.hash)
+        blockList  <- api.blockGetAll
       } yield {
-        insertedBlock shouldBe readBlock.get
-        blockList shouldBe Set(b.hash)
+        insertedBlock1 shouldBe readBlock1.get
+        insertedBlock2 shouldBe readBlock2.get
+        blockList shouldBe Set(b1.hash, b2.hash)
       }
 
       EmbeddedH2SlickDb[IO]
