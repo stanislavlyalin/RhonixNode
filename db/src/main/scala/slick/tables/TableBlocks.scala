@@ -19,10 +19,10 @@ class TableBlocks(tag: Tag) extends Table[Block](tag, "block") {
   def shardId: Rep[Long]                    = column[Long]("shard_id")
   def justificationSetId: Rep[Option[Long]] = column[Option[Long]]("justification_set_id")
   def seqNum: Rep[Long]                     = column[Long]("seq_num")
-  def offencesSet: Rep[Option[Long]]        = column[Option[Long]]("offences_set")
+  def offencesSetId: Rep[Option[Long]]      = column[Option[Long]]("offences_set")
 
   def bondsMapId: Rep[Long]              = column[Long]("bonds_map_id")
-  def finalFringe: Rep[Option[Long]]     = column[Option[Long]]("final_fringe")
+  def finalFringeId: Rep[Option[Long]]   = column[Option[Long]]("final_fringe")
   def deploySetId: Rep[Option[Long]]     = column[Option[Long]]("deploy_set_id")
   def mergeSetId: Rep[Option[Long]]      = column[Option[Long]]("merge_set_id")
   def dropSetId: Rep[Option[Long]]       = column[Option[Long]]("drop_set_id")
@@ -32,10 +32,10 @@ class TableBlocks(tag: Tag) extends Table[Block](tag, "block") {
   def fk1 = foreignKey("fk_block_validator_id", validatorId, slick.qValidators)(_.id)
   def fk2 = foreignKey("fk_block_shard_id", shardId, slick.qShards)(_.id)
   def fk3 = foreignKey("fk_block_justification_set_id", justificationSetId, slick.qBlockSets)(_.id.?)
-  def fk4 = foreignKey("fk_block_offences_set_id", offencesSet, slick.qBlockSets)(_.id.?)
+  def fk4 = foreignKey("fk_block_offences_set_id", offencesSetId, slick.qBlockSets)(_.id.?)
 
   def fk5  = foreignKey("fk_block_bonds_map_id", bondsMapId, slick.qBondsMaps)(_.id)
-  def fk6  = foreignKey("fk_block_final_fringe_id", finalFringe, slick.qBlockSets)(_.id.?)
+  def fk6  = foreignKey("fk_block_final_fringe_id", finalFringeId, slick.qBlockSets)(_.id.?)
   def fk7  = foreignKey("fk_block_deploy_set_id", deploySetId, slick.qDeploySets)(_.id.?)
   def fk8  = foreignKey("fk_block_merge_set_id", mergeSetId, slick.qDeploySets)(_.id.?)
   def fk9  = foreignKey("fk_block_drop_set_id", dropSetId, slick.qDeploySets)(_.id.?)
@@ -56,9 +56,9 @@ class TableBlocks(tag: Tag) extends Table[Block](tag, "block") {
     shardId,
     justificationSetId,
     seqNum,
-    offencesSet,
+    offencesSetId,
     bondsMapId,
-    finalFringe,
+    finalFringeId,
     deploySetId,
     mergeSetId,
     dropSetId,
@@ -86,7 +86,7 @@ object TableBlocks {
     shardId: Long,                    // pointer to shard
     justificationSetId: Option[Long], // pointer to justification set
     seqNum: Long,                     // sequence number
-    offencesSet: Option[Long],        // pointer to offences set
+    offencesSetId: Option[Long],      // pointer to offences set
 
     // these are optimisations/data to short circuit validation
     bondsMapId: Long,              // pointer to bonds map

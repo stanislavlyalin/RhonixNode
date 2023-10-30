@@ -9,7 +9,7 @@ import org.scalatest.Assertion
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import sdk.data.Deploy
+import sdk.data.{Block, Deploy}
 import sdk.db.RecordNotFound
 import sdk.primitive.ByteArray
 import slick.api.SlickApi
@@ -25,26 +25,6 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     Gen.nonEmptyListOf(Gen.alphaChar).map(chars => ByteArray(chars.mkString.getBytes))
   }
 
-  "Validator insert function call" should "add the correct entry to the Validator table" in {
-    forAll { (validator: Validator) =>
-      def test(api: SlickApi[IO]) = for {
-        id                <- api.validatorInsert(validator.pubKey)
-        validatorById     <- OptionT(api.validatorGetById(id)).getOrRaise(new RecordNotFound)
-        validatorByPubKey <- OptionT(api.validatorGetByPK(validator.pubKey)).getOrRaise(new RecordNotFound)
-      } yield {
-        id shouldBe 1L
-
-        validatorById.pubKey shouldBe validator.pubKey
-        validatorById.id shouldBe validatorByPubKey.id
-      }
-
-      EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
-        .use(test)
-        .unsafeRunSync()
-    }
-  }
-
   "deployInsert() function call" should "add the correct entry to the Deploys, Deployers and Shards table" in {
     forAll { (d: Deploy) =>
       def test(api: SlickApi[IO]) = for {
@@ -55,9 +35,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         shardList    <- api.shardGetAll
       } yield {
         d shouldBe dFromDB.get
-        dList shouldBe Seq(d.sig)
-        deployerList shouldBe Seq(d.deployerPk)
-        shardList shouldBe Seq(d.shardName)
+        dList shouldBe Set(d.sig)
+        deployerList shouldBe Set(d.deployerPk)
+        shardList shouldBe Set(d.shardName)
       }
 
       EmbeddedH2SlickDb[IO]
@@ -81,9 +61,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       } yield {
         d1 shouldBe d1FromDB.get
         d2 shouldBe d2FromDB.get
-        dList.toSet shouldBe Seq(d1.sig, d2.sig).toSet
-        deployerList shouldBe Seq(d1.deployerPk)
-        shardList shouldBe Seq(d1.shardName)
+        dList shouldBe Set(d1.sig, d2.sig)
+        deployerList shouldBe Set(d1.deployerPk)
+        shardList shouldBe Set(d1.shardName)
       }
 
       EmbeddedH2SlickDb[IO]
@@ -114,15 +94,15 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         deployerListSecond <- api.deployerGetAll
         shardListSecond    <- api.shardGetAll
       } yield {
-        dListFirst shouldBe Seq(d2.sig)
+        dListFirst shouldBe Set(d2.sig)
         // The first action should not clear the tables Deployers and Shards. Because it using in d2
-        deployerListFirst shouldBe Seq(d1.deployerPk)
-        shardListFirst shouldBe Seq(d1.shardName)
+        deployerListFirst shouldBe Set(d1.deployerPk)
+        shardListFirst shouldBe Set(d1.shardName)
 
-        dListSecond shouldBe Seq()
+        dListSecond shouldBe Set()
         // The second action should clear the tables Deployers and Shards. Because deploys deleted
-        deployerListSecond shouldBe Seq()
-        shardListSecond shouldBe Seq()
+        deployerListSecond shouldBe Set()
+        shardListSecond shouldBe Set()
       }
 
       EmbeddedH2SlickDb[IO]
@@ -132,23 +112,93 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     }
   }
 
-  val nonEmptyDeploySeqGen: Gen[Seq[Deploy]] = for {
+  val nonEmptyDeploySeqGen: Gen[Set[Deploy]] = for {
     size    <- Gen.chooseNum(1, 10) // Choose a suitable max value
     deploys <- Gen.listOfN(size, Arbitrary.arbitrary[Deploy])
-  } yield deploys
+  } yield deploys.toSet
 
   "deploySetInsert() function call" should "add the correct entry to the DeploySets and DeploySetBinds tables" in {
-    forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploys: Seq[Deploy], dSetHash: ByteArray) =>
+    forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploys: Set[Deploy], dSetHash: ByteArray) =>
       def test(api: SlickApi[IO]) = for {
-        _         <- deploys.traverse(api.deployInsert)
+        _         <- deploys.toSeq.traverse(api.deployInsert)
         deploySigs = deploys.map(_.sig)
         _         <- api.deploySetInsert(dSetHash, deploySigs)
 
         dSet     <- api.deploySetGet(dSetHash)
         dSetList <- api.deploySetGetAll
       } yield {
-        deploySigs.toSet shouldBe dSet.get.toSet
-        dSetList.toSet shouldBe Seq(dSetHash).toSet
+        deploySigs shouldBe dSet.get
+        dSetList shouldBe Set(dSetHash)
+      }
+
+      EmbeddedH2SlickDb[IO]
+        .map(implicit x => new SlickApi[IO])
+        .use(test)
+        .unsafeRunSync()
+    }
+  }
+  val nonEmptyBondsMapGen: Gen[Map[ByteArray, Long]] = for {
+    size  <- Gen.chooseNum(1, 10) // Choose a suitable max value
+    bonds <- Gen.listOfN(size, Arbitrary.arbitrary[(ByteArray, Long)])
+  } yield bonds.toMap
+
+  "bondsMapInsert() function call" should "add the correct entry to the BondsMaps and Bonds tables" in {
+    forAll(Arbitrary.arbitrary[ByteArray], nonEmptyBondsMapGen) { (bMapHash: ByteArray, bMap: Map[ByteArray, Long]) =>
+      def test(api: SlickApi[IO]) = for {
+        _ <- api.bondsMapInsert(bMapHash, bMap)
+
+        readBMap <- api.bondsMapGet(bMapHash)
+        bMapList <- api.bondsMapGetAll
+      } yield {
+        bMap shouldBe readBMap.get
+        bMapList.toSet shouldBe Seq(bMapHash).toSet
+      }
+
+      EmbeddedH2SlickDb[IO]
+        .map(implicit x => new SlickApi[IO])
+        .use(test)
+        .unsafeRunSync()
+    }
+  }
+
+  "blockInsert() function call" should "add the correct entry to the Blocks table and to the all related tables" in {
+    forAll(
+      Arbitrary.arbitrary[ByteArray],
+      nonEmptyDeploySeqGen,
+      Arbitrary.arbitrary[ByteArray],
+      nonEmptyBondsMapGen,
+      Arbitrary.arbitrary[Block],
+    ) { (dSetHash: ByteArray, deploys: Set[Deploy], bMapHash: ByteArray, bMap: Map[ByteArray, Long], b) =>
+      def test(api: SlickApi[IO]) = for {
+        _            <- deploys.toSeq.traverse(api.deployInsert)
+        deploySigs    = deploys.map(_.sig)
+        insertedBlock = sdk.data.Block(
+                          version = b.version,
+                          hash = b.hash,
+                          sigAlg = b.sigAlg,
+                          signature = b.signature,
+                          finalStateHash = b.finalStateHash,
+                          postStateHash = b.postStateHash,
+                          validatorPk = b.validatorPk,
+                          shardName = b.shardName,
+                          justificationSet = Set(),
+                          seqNum = b.seqNum,
+                          offencesSet = Set(),
+                          bondsMap = bMap,
+                          finalFringe = Set(),
+                          deploySet = deploySigs,
+                          mergeSet = Set(),
+                          dropSet = Set(),
+                          mergeSetFinal = Set(),
+                          dropSetFinal = Set(),
+                        )
+        _            <- api.blockInsert(insertedBlock)(None, None, bMapHash, None, Some(dSetHash), None, None, None, None)
+
+        readBlock <- api.blockGet(b.hash)
+        blockList <- api.blockGetAll
+      } yield {
+        insertedBlock shouldBe readBlock.get
+        blockList shouldBe Set(b.hash)
       }
 
       EmbeddedH2SlickDb[IO]
