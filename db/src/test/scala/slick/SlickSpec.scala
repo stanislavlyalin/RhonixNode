@@ -4,30 +4,24 @@ import cats.data.OptionT
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO}
 import cats.syntax.all.*
+import org.scalacheck.ScalacheckShapeless.derivedArbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sdk.data.{Block, Deploy}
-import sdk.db.RecordNotFound
 import sdk.primitive.ByteArray
+import slick.SlickSpec.*
 import slick.api.SlickApi
 import slick.jdbc.JdbcProfile
 import slick.syntax.all.*
-import slick.tables.TableValidators.Validator
-import org.scalacheck.ScalacheckShapeless.derivedArbitrary
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
-  // Define Arbitrary for ByteArray since it's a custom type and needs specific generation logic
-  implicit val byteArrayArbitrary: Arbitrary[ByteArray] = Arbitrary {
-    Gen.nonEmptyListOf(Gen.alphaChar).map(chars => ByteArray(chars.mkString.getBytes))
-  }
-
   "deployInsert() function call" should "add the correct entry to the Deploys, Deployers and Shards table" in {
     forAll { (d: Deploy) =>
-      def test(api: SlickApi[IO]) = for {
+      def test(api: SlickApi[IO]): IO[Assertion] = for {
         _            <- api.deployInsert(d)
         dFromDB      <- api.deployGet(d.sig)
         dList        <- api.deployGetAll
@@ -49,8 +43,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
   "deployInsert() function call" should "not duplicate records in the Deployers and Shards tables if they are the same" in {
     forAll { (d1: Deploy, d2Sig: ByteArray) =>
-      val d2: Deploy              = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
-      def test(api: SlickApi[IO]) = for {
+      val d2: Deploy                             = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
+      def test(api: SlickApi[IO]): IO[Assertion] = for {
         _            <- api.deployInsert(d1)
         _            <- api.deployInsert(d2)
         d1FromDB     <- api.deployGet(d1.sig)
@@ -77,7 +71,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     forAll { (d1: Deploy, d2Sig: ByteArray) =>
       val d2: Deploy = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
 
-      def test(api: SlickApi[IO]) = for {
+      def test(api: SlickApi[IO]): IO[Assertion] = for {
         // Creating two deploys with the same data but different sig
         _ <- api.deployInsert(d1)
         _ <- api.deployInsert(d2)
@@ -112,14 +106,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     }
   }
 
-  val nonEmptyDeploySeqGen: Gen[Set[Deploy]] = for {
-    size    <- Gen.chooseNum(1, 10) // Choose a suitable max value
-    deploys <- Gen.listOfN(size, Arbitrary.arbitrary[Deploy])
-  } yield deploys.toSet
-
   "deploySetInsert() function call" should "add the correct entry to the DeploySets and DeploySetBinds tables" in {
     forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploys: Set[Deploy], dSetHash: ByteArray) =>
-      def test(api: SlickApi[IO]) = for {
+      def test(api: SlickApi[IO]): IO[Assertion] = for {
         _         <- deploys.toSeq.traverse(api.deployInsert)
         deploySigs = deploys.map(_.sig)
         _         <- api.deploySetInsert(dSetHash, deploySigs)
@@ -137,22 +126,19 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         .unsafeRunSync()
     }
   }
-  val nonEmptyBondsMapGen: Gen[Map[ByteArray, Long]] = for {
-    size  <- Gen.chooseNum(1, 10) // Choose a suitable max value
-    bonds <- Gen.listOfN(size, Arbitrary.arbitrary[(ByteArray, Long)])
-  } yield bonds.toMap
 
   "bondsMapInsert() function call" should "add the correct entry to the BondsMaps and Bonds tables" in {
     forAll(Arbitrary.arbitrary[ByteArray], nonEmptyBondsMapGen) { (bMapHash: ByteArray, bMap: Map[ByteArray, Long]) =>
-      def test(api: SlickApi[IO]) = for {
-        _ <- api.bondsMapInsert(bMapHash, bMap)
+      def test(api: SlickApi[IO]): IO[Assertion] =
+        for {
+          _ <- api.bondsMapInsert(bMapHash, bMap)
 
-        readBMap <- api.bondsMapGet(bMapHash)
-        bMapList <- api.bondsMapGetAll
-      } yield {
-        bMap shouldBe readBMap.get
-        bMapList.toSet shouldBe Seq(bMapHash).toSet
-      }
+          readBMap <- api.bondsMapGet(bMapHash)
+          bMapList <- api.bondsMapGetAll
+        } yield {
+          bMap shouldBe readBMap.get
+          bMapList shouldBe Seq(bMapHash).toSet
+        }
 
       EmbeddedH2SlickDb[IO]
         .map(implicit x => new SlickApi[IO])
@@ -170,7 +156,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       Arbitrary.arbitrary[Block],
       Arbitrary.arbitrary[Block],
     ) { (dSetHash, deploys, bMapHash, bMap, b1, b2) =>
-      def test(api: SlickApi[IO]) = for {
+      def test(api: SlickApi[IO]): IO[Assertion] = for {
         _             <- deploys.toSeq.traverse(api.deployInsert)
         deploySigs     = deploys.map(_.sig)
         insertedBlock1 = sdk.data.Block(
@@ -257,9 +243,27 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
           implicit val async                = Async[IO]
           val queries: SlickQuery           = SlickQuery()
           import queries.*
-          test[IO](storeValue(name, value).run, loadValue(name).run)
+          test[IO](putConfig(name, value).run, getConfig(name).run)
         }
         .unsafeRunSync()
     }
   }
+}
+
+object SlickSpec {
+
+  // Define Arbitrary for ByteArray since it's a custom type and needs specific generation logic
+  implicit val byteArrayArbitrary: Arbitrary[ByteArray] = Arbitrary {
+    Gen.nonEmptyListOf(Gen.alphaChar).map(chars => ByteArray(chars.mkString.getBytes))
+  }
+
+  val nonEmptyDeploySeqGen: Gen[Set[Deploy]] = for {
+    size    <- Gen.chooseNum(1, 10) // Choose a suitable max value
+    deploys <- Gen.listOfN(size, Arbitrary.arbitrary[Deploy])
+  } yield deploys.toSet
+
+  val nonEmptyBondsMapGen: Gen[Map[ByteArray, Long]] = for {
+    size  <- Gen.chooseNum(1, 10) // Choose a suitable max value
+    bonds <- Gen.listOfN(size, Arbitrary.arbitrary[(ByteArray, Long)])
+  } yield bonds.toMap
 }
