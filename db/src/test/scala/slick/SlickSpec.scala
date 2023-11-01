@@ -149,13 +149,16 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
   "blockInsert() function call" should "add the correct entry to the Blocks table and to the all related tables" in {
     forAll(
-      Arbitrary.arbitrary[ByteArray],
+      Gen.listOfN(3, Arbitrary.arbitrary[ByteArray]),
       nonEmptyDeploySeqGen,
-      Arbitrary.arbitrary[ByteArray],
       nonEmptyBondsMapGen,
       Arbitrary.arbitrary[Block],
       Arbitrary.arbitrary[Block],
-    ) { (dSetHash, deploys, bMapHash, bMap, b1, b2) =>
+    ) { (hashes, deploys, bMap, b1, b2) =>
+      val dSetHash = hashes.get(0).get
+      val bMapHash = hashes.get(1).get
+      val bSetHash = hashes.get(2).get
+
       def test(api: SlickApi[IO]): IO[Assertion] = for {
         _             <- deploys.toSeq.traverse(api.deployInsert)
         deploySigs     = deploys.map(_.sig)
@@ -201,15 +204,14 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
                            mergeSetFinal = Set(),
                            dropSetFinal = Set(),
                          )
-        bSetHash       = Some(ByteArray(dSetHash.bytes.map(x => (255.toByte - x).toByte)))
         _             <- api.blockInsert(insertedBlock2)(
-                           bSetHash,
-                           bSetHash,
+                           bSetHash.some,
+                           bSetHash.some,
                            bMapHash,
-                           bSetHash,
-                           Some(dSetHash),
-                           bSetHash,
-                           bSetHash,
+                           bSetHash.some,
+                           dSetHash.some,
+                           bSetHash.some,
+                           bSetHash.some,
                            None,
                            None,
                          )
