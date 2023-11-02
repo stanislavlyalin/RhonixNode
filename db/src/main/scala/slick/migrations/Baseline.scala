@@ -5,7 +5,7 @@ import slick.*
 
 // Initial version of the database
 object Baseline {
-  def apply()(implicit dialect: Dialect[?]): ReversibleMigrationSeq = {
+  def apply(implicit dialect: Dialect[?]): ReversibleMigrationSeq = {
     val BlockTM = TableMigration(qBlocks).create
       .addColumns(
         _.id,
