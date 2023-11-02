@@ -6,8 +6,15 @@ import sdk.primitive.ByteArray
 import slick.syntax.all.*
 import slick.{SlickDb, SlickQuery}
 
-class SlickApi[F[_]: Async: SlickDb] {
-  val queries: SlickQuery = SlickQuery(SlickDb[F].profile)
+import scala.concurrent.ExecutionContext
+
+object SlickApi {
+  def apply[F[_]: Async: SlickDb](): F[SlickApi[F]] =
+    Async[F].executionContext.map(ec => new SlickApi(ec))
+}
+
+class SlickApi[F[_]: Async: SlickDb](ec: ExecutionContext) {
+  val queries: SlickQuery = SlickQuery(SlickDb[F].profile, ec)
 
   def shardGetAll: F[Set[String]] = queries.shardGetAll.run.map(_.toSet)
 

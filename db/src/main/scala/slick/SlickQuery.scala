@@ -6,10 +6,12 @@ import slick.jdbc.JdbcProfile
 import slick.sql.{FixedSqlAction, SqlAction}
 import slick.tables.*
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 
-final case class SlickQuery(profile: JdbcProfile) {
+final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
   import profile.api.*
+
+  implicit val _ec: ExecutionContext = ec
 
   def putConfig(key: String, value: String): DBIOAction[Int, NoStream, Write] =
     qConfigs.insertOrUpdate((key, value))

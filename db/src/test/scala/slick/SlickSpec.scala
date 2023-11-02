@@ -14,7 +14,6 @@ import sdk.data.{Block, Deploy}
 import sdk.primitive.ByteArray
 import slick.SlickSpec.*
 import slick.api.SlickApi
-import slick.jdbc.JdbcProfile
 import slick.syntax.all.*
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -35,7 +34,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
+        .evalMap(implicit x => SlickApi[IO]())
         .use(test)
         .unsafeRunSync()
     }
@@ -61,7 +60,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
+        .evalMap(implicit x => SlickApi[IO]())
         .use(test)
         .unsafeRunSync()
     }
@@ -100,7 +99,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
+        .evalMap(implicit x => SlickApi[IO]())
         .use(test)
         .unsafeRunSync()
     }
@@ -121,7 +120,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
+        .evalMap(implicit x => SlickApi[IO]())
         .use(test)
         .unsafeRunSync()
     }
@@ -141,7 +140,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
+        .evalMap(implicit x => SlickApi[IO]())
         .use(test)
         .unsafeRunSync()
     }
@@ -226,7 +225,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .map(implicit x => new SlickApi[IO])
+        .evalMap(implicit x => SlickApi[IO]())
         .use(test)
         .unsafeRunSync()
     }
@@ -241,10 +240,12 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
       EmbeddedH2SlickDb[IO]
         .use { implicit slickDb =>
-          implicit val async      = Async[IO]
-          val queries: SlickQuery = SlickQuery(SlickDb[IO].profile)
-          import queries.*
-          test[IO](putConfig(name, value).run, getConfig(name).run)
+          implicit val async = Async[IO]
+          async.executionContext.flatMap { ec =>
+            val queries: SlickQuery = SlickQuery(SlickDb[IO].profile, ec)
+            import queries.*
+            test[IO](putConfig(name, value).run, getConfig(name).run)
+          }
         }
         .unsafeRunSync()
     }
