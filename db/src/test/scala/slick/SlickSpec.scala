@@ -34,7 +34,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .evalMap(implicit x => SlickApi[IO]())
+        .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
@@ -60,7 +60,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .evalMap(implicit x => SlickApi[IO]())
+        .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
@@ -99,7 +99,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .evalMap(implicit x => SlickApi[IO]())
+        .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
@@ -120,7 +120,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .evalMap(implicit x => SlickApi[IO]())
+        .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
@@ -140,7 +140,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         }
 
       EmbeddedH2SlickDb[IO]
-        .evalMap(implicit x => SlickApi[IO]())
+        .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
@@ -225,7 +225,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       }
 
       EmbeddedH2SlickDb[IO]
-        .evalMap(implicit x => SlickApi[IO]())
+        .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
     }
@@ -239,12 +239,12 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       } yield extracted shouldBe value
 
       EmbeddedH2SlickDb[IO]
-        .use { implicit slickDb =>
+        .use { implicit db =>
           implicit val async = Async[IO]
           async.executionContext.flatMap { ec =>
-            val queries: SlickQuery = SlickQuery(SlickDb[IO].profile, ec)
-            import queries.*
-            test[IO](putConfig(name, value).run, getConfig(name).run)
+            val queries: SlickQuery = SlickQuery(db.profile, ec)
+
+            test[IO](queries.putConfig(name, value).run, queries.getConfig(name).run)
           }
         }
         .unsafeRunSync()

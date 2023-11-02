@@ -9,12 +9,14 @@ import slick.{SlickDb, SlickQuery}
 import scala.concurrent.ExecutionContext
 
 object SlickApi {
-  def apply[F[_]: Async: SlickDb](): F[SlickApi[F]] =
-    Async[F].executionContext.map(ec => new SlickApi(ec))
+  def apply[F[_]: Async](db: SlickDb): F[SlickApi[F]] =
+    Async[F].executionContext.map(ec => new SlickApi(db, ec))
 }
 
-class SlickApi[F[_]: Async: SlickDb](ec: ExecutionContext) {
-  val queries: SlickQuery = SlickQuery(SlickDb[F].profile, ec)
+class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
+  implicit val slickDb: SlickDb = db
+
+  val queries: SlickQuery = SlickQuery(db.profile, ec)
 
   def shardGetAll: F[Set[String]] = queries.shardGetAll.run.map(_.toSet)
 
