@@ -3,16 +3,11 @@ package slick.api
 import cats.effect.Async
 import cats.implicits.toFunctorOps
 import sdk.primitive.ByteArray
-import slick.jdbc.JdbcProfile
 import slick.syntax.all.*
 import slick.{SlickDb, SlickQuery}
 
-import scala.concurrent.ExecutionContext
-
 class SlickApi[F[_]: Async: SlickDb] {
-  implicit val p: JdbcProfile       = SlickDb[F].profile
-  implicit val ec: ExecutionContext = ExecutionContext.global
-  val queries: SlickQuery           = SlickQuery()
+  val queries: SlickQuery = SlickQuery(SlickDb[F].profile)
 
   def shardGetAll: F[Set[String]] = queries.shardGetAll.run.map(_.toSet)
 

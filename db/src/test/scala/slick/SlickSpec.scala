@@ -241,9 +241,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
       EmbeddedH2SlickDb[IO]
         .use { implicit slickDb =>
-          implicit val profile: JdbcProfile = SlickDb[IO].profile
-          implicit val async                = Async[IO]
-          val queries: SlickQuery           = SlickQuery()
+          implicit val async      = Async[IO]
+          val queries: SlickQuery = SlickQuery(SlickDb[IO].profile)
           import queries.*
           test[IO](putConfig(name, value).run, getConfig(name).run)
         }

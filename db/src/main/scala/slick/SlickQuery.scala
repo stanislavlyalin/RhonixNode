@@ -6,9 +6,9 @@ import slick.jdbc.JdbcProfile
 import slick.sql.{FixedSqlAction, SqlAction}
 import slick.tables.*
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 
-final case class SlickQuery()(implicit val profile: JdbcProfile, implicit val ec: ExecutionContext) {
+final case class SlickQuery(profile: JdbcProfile) {
   import profile.api.*
 
   def putConfig(key: String, value: String): DBIOAction[Int, NoStream, Write] =
@@ -123,23 +123,24 @@ final case class SlickQuery()(implicit val profile: JdbcProfile, implicit val ec
     def deploySetIdByHash(hash: Array[Byte]): Query[Rep[Long], Long, Seq] =
       qDeploySets.filter(_.hash === hash).map(_.id)
 
-    def deploySetInsert(hash: Array[Byte]): DBIOAction[Long, NoStream, Write] =
+    def deploySetInsert(hash: Array[Byte]): FixedSqlAction[Long, NoStream, Write] =
       (qDeploySets.map(_.hash) returning qDeploySets.map(_.id)) += hash
 
-    def getDeployIdsBySigs(sigs: Seq[Array[Byte]]): DBIOAction[Seq[Long], NoStream, Read] =
-      qDeploys.filter(_.sig inSet sigs).map(_.id).result
+    def getDeployIdsBySigs(sigs: Seq[Array[Byte]]): Query[Rep[Long], Long, Seq] =
+      qDeploys.filter(_.sig inSet sigs).map(_.id)
 
-    def insertBinds(deploySetId: Long, deployIds: Seq[Long]): DBIOAction[Option[Int], NoStream, Write] =
+    def insertBinds(deploySetId: Long, deployIds: Seq[Long]): FixedSqlAction[Option[Int], NoStream, Write] =
       qDeploySetBinds ++= deployIds.map(TableDeploySetBinds.DeploySetBind(deploySetId, _))
 
-    def insertAllData(in: (Array[Byte], Seq[Array[Byte]])): DBIOAction[Long, NoStream, Write with Read] = in match {
-      case (hash, deploySigs) =>
-        for {
-          deploySetId <- deploySetInsert(hash)
-          deployIds   <- getDeployIdsBySigs(deploySigs)
-          _           <- insertBinds(deploySetId, deployIds)
-        } yield deploySetId
-    }
+    def insertAllData(in: (Array[Byte], Seq[Array[Byte]])): DBIOAction[Long, NoStream, Write & Read & Transactional] =
+      in match {
+        case (hash, deploySigs) =>
+          (for {
+            deploySetId <- deploySetInsert(hash)
+            deployIds   <- getDeployIdsBySigs(deploySigs).result
+            _           <- insertBinds(deploySetId, deployIds)
+          } yield deploySetId).transactionally
+      }
 
     insertIfNot(hash, deploySetIdByHash, (hash, deploySigs), insertAllData)
   }
