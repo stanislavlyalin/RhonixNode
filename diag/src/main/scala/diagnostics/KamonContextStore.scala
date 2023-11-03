@@ -21,10 +21,7 @@ trait KamonContextStore[F[_]] {
 object KamonContextStore {
   def apply[F[_]](implicit ev: KamonContextStore[F]): KamonContextStore[F] = ev
 
-  def forCatsEffectIOLocal = {
-    import cats.effect.unsafe.implicits.global
-    val ioLocalKamonContext = IOLocal(Kamon.currentContext()).unsafeRunSync()
-
+  def forCatsEffectIOLocal: IO[KamonContextStore[IO]] = IOLocal(Kamon.currentContext()).map { ioLocalKamonContext =>
     new KamonContextStore[IO] {
       override def get: IO[Context]             = ioLocalKamonContext.get
       override def set(span: Context): IO[Unit] = ioLocalKamonContext.set(span)
