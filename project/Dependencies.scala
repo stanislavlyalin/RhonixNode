@@ -18,7 +18,7 @@ object Dependencies {
 
   // LEGACY dependencies of imported projects
   val protobuf           = "com.google.protobuf"         % "protobuf-java"    % "3.22.2"
-  val scalapbRuntimeLib  = "com.thesamet.scalapb"       %% "scalapb-runtime"  % "0.11.13" % "protobuf"
+  val scalapbRuntimeLib  = "com.thesamet.scalapb"       %% "scalapb-runtime"  % "0.11.13"
   val jaxb               = "javax.xml.bind"              % "jaxb-api"         % "2.3.1"
   val scalapbCompiler    = "com.thesamet.scalapb"       %% "compilerplugin"   % "0.11.13"
   val magnolia           = "com.propensive"             %% "magnolia"         % "0.17.0"
@@ -41,7 +41,7 @@ object Dependencies {
   val scalacheck         = "org.scalacheck"             %% "scalacheck"       % "1.14.1"
   val scalaLogging       = "com.typesafe.scala-logging" %% "scala-logging"    % "3.9.4"
   val scallop            = "org.rogach"                 %% "scallop"          % "3.3.2"
-  val catsEffectLawsTest = "org.typelevel"              %% "cats-effect-laws" % "3.5.0"   % "test"
+  val catsEffectLawsTest = "org.typelevel"              %% "cats-effect-laws" % "3.5.0" % "test"
   val apacheCommons      = "org.apache.commons"          % "commons-lang3"    % "3.13.0"
   val legacyLibs         = Seq(
     magnolia,
