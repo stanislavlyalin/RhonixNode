@@ -45,17 +45,18 @@ class KamonTest extends AnyFlatSpec with Matchers {
     // Each trace should contain this number of nested spans.
     val nestingLvl = 9
 
-    implicit val traceContext: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
-
     KamonDiagnostics
       .kamonResource[IO](cfg.some)
       .surround {
-        // list of tasks to run
-        val tasks = (1 to numTasks).map { x =>
-          recWithSpan[IO](nestingLvl, x)
-        }.toList
-        // Run tasks concurrently to check that context is propagated correctly.
-        tasks.parSequence.void
+        KamonContextStore.forCatsEffectIOLocal
+          .flatMap { implicit ioLocalKamonContext: KamonContextStore[IO] =>
+            // list of tasks to run
+            val tasks = (1 to numTasks).map { x =>
+              recWithSpan[IO](nestingLvl, x)
+            }.toList
+            // Run tasks concurrently to check that context is propagated correctly.
+            tasks.parSequence.void
+          }
       }
       .unsafeRunSync() shouldBe ()
   }

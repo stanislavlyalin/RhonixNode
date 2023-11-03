@@ -458,7 +458,7 @@ object NetworkSim extends IOApp {
 
       case List("run") =>
         final case class GorkiConfig(gorki: Config)
-        ConfigSource.default
+        val loadConfig     = ConfigSource.default
           .load[GorkiConfig]
           .map(_.gorki)
           .leftTraverse[IO, Config] { err =>
@@ -466,28 +466,31 @@ object NetworkSim extends IOApp {
               .raiseError[IO, Config]
           }
           .map(_.merge)
-          .flatMap { case Config(network, node, influxDb) =>
-            implicit val kts: KamonContextStore[IO] = KamonContextStore.forCatsEffectIOLocal
-            Random.scalaUtilRandom[IO].flatMap { implicit rndIO =>
-              if (node.persistOnChainState)
-                NetworkSim.sim[IO](network, node, influxDb).compile.drain.as(ExitCode.Success)
-              else {
-                // in memory cannot run forever so restart each minute
-                Stream
-                  .eval(SignallingRef.of[IO, Boolean](false))
-                  .flatMap { sRef =>
-                    val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
-                    NetworkSim.sim[IO](network, node, influxDb).interruptWhen(sRef) concurrently resetStream
-                  }
-                  .repeat
-                  .compile
-                  .drain
-                  .as(ExitCode.Success)
-              }
-            }
-          }
+        val mkContextStore = KamonContextStore.forCatsEffectIOLocal
+        val mkPrng         = Random.scalaUtilRandom[IO]
 
-      case x => IO.println(s"Illegal option '${x.mkString(" ")}': see --help").as(ExitCode.Error)
+        (loadConfig, mkContextStore, mkPrng).flatMapN {
+          case (Config(network, node, influxDb), ioLocalKamonContext, prng) =>
+            implicit val x: KamonContextStore[IO] = ioLocalKamonContext
+            implicit val y: Random[IO]            = prng
+
+            if (node.persistOnChainState)
+              NetworkSim.sim[IO](network, node, influxDb).compile.drain.as(ExitCode.Success)
+            else {
+              // in memory cannot run forever so restart each minute
+              Stream
+                .eval(SignallingRef.of[IO, Boolean](false))
+                .flatMap { sRef =>
+                  val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
+                  NetworkSim.sim[IO](network, node, influxDb).interruptWhen(sRef) concurrently resetStream
+                }
+                .repeat
+                .compile
+                .drain
+                .as(ExitCode.Success)
+            }
+        }
+      case x           => IO.println(s"Illegal option '${x.mkString(" ")}': see --help").as(ExitCode.Error)
     }
   }
 }
