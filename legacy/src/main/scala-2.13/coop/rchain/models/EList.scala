@@ -5,10 +5,6 @@
 
 package coop.rchain.models
 import coop.rchain.models.BitSetBytesMapper.bitSetBytesMapper
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 @SerialVersionUID(0L)
 final case class EList(
@@ -17,24 +13,7 @@ final case class EList(
     connectiveUsed: _root_.scala.Boolean = false,
     remainder: _root_.scala.Option[coop.rchain.models.Var] = _root_.scala.None
     ) extends coop.rchain.models.StacksafeMessage[EList] with scalapb.lenses.Updatable[EList] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.EList].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.EList].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.EList] = {
       
       import cats.effect.Sync

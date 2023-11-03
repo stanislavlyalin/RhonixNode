@@ -4,31 +4,12 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 
 @SerialVersionUID(0L)
 final case class Connective(
     connectiveInstance: coop.rchain.models.Connective.ConnectiveInstance = coop.rchain.models.Connective.ConnectiveInstance.Empty
     ) extends coop.rchain.models.StacksafeMessage[Connective] with scalapb.lenses.Updatable[Connective] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.Connective].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.Connective].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.Connective] = {
       
       import cats.effect.Sync

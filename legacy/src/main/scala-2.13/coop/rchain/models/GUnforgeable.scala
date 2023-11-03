@@ -4,10 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 /** Unforgeable names resulting from `new x { ... }`
   * These should only occur as the program is being evaluated. There is no way in
@@ -17,24 +13,7 @@ import coop.rchain.models.HashMImplicits._
 final case class GUnforgeable(
     unfInstance: coop.rchain.models.GUnforgeable.UnfInstance = coop.rchain.models.GUnforgeable.UnfInstance.Empty
     ) extends coop.rchain.models.StacksafeMessage[GUnforgeable] with scalapb.lenses.Updatable[GUnforgeable] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.GUnforgeable].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.GUnforgeable].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.GUnforgeable] = {
       
       import cats.effect.Sync

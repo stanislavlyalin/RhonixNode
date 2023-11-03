@@ -20,11 +20,8 @@ import scala.collection.immutable.BitSet
 import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
 import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.EqualMImplicits._
 import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.EqualMImplicits._
 import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.HashMImplicits._
 
 class EqualMSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 

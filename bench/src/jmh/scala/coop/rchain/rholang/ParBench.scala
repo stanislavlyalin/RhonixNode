@@ -10,7 +10,6 @@ import scala.annotation.tailrec
 import coop.rchain.models.Expr.ExprInstance.*
 import coop.rchain.models.*
 import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.ParHash
 import coop.rchain.models.serialization.implicits.*
 import coop.rchain.shared.Serialize
 import coop.rchain.models.rholang.implicits.*

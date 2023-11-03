@@ -4,8 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 
 /** *
   * Cost of the performed operations.
@@ -14,24 +12,7 @@ import coop.rchain.models.HashMImplicits.*
 final case class PCost(
     cost: _root_.scala.Long = 0L
     ) extends coop.rchain.models.StacksafeMessage[PCost] with scalapb.lenses.Updatable[PCost] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.PCost].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.PCost].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.PCost] = {
       
       import cats.effect.Sync

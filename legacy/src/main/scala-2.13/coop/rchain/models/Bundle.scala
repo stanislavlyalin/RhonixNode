@@ -4,10 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 /** *
   * Nothing can be received from a (quoted) bundle with `readFlag = false`.
@@ -26,24 +22,7 @@ final case class Bundle(
     writeFlag: _root_.scala.Boolean = false,
     readFlag: _root_.scala.Boolean = false
     ) extends coop.rchain.models.StacksafeMessage[Bundle] with scalapb.lenses.Updatable[Bundle] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.Bundle].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.Bundle].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.Bundle] = {
       
       import cats.effect.Sync

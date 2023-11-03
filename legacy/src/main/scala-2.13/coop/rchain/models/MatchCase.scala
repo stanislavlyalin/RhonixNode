@@ -4,10 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 @SerialVersionUID(0L)
 final case class MatchCase(
@@ -15,24 +11,7 @@ final case class MatchCase(
     source: coop.rchain.models.Par = coop.rchain.models.Par.defaultInstance,
     freeCount: _root_.scala.Int = 0
     ) extends coop.rchain.models.StacksafeMessage[MatchCase] with scalapb.lenses.Updatable[MatchCase] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.MatchCase].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.MatchCase].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.MatchCase] = {
       
       import cats.effect.Sync

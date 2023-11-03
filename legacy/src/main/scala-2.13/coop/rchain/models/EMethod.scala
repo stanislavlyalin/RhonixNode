@@ -5,10 +5,6 @@
 
 package coop.rchain.models
 import coop.rchain.models.BitSetBytesMapper.bitSetBytesMapper
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 /** *
   * `target.method(arguments)`
@@ -21,24 +17,7 @@ final case class EMethod(
     locallyFree: coop.rchain.models.AlwaysEqual[scala.collection.immutable.BitSet] = coop.rchain.models.EMethod._typemapper_locallyFree.toCustom(_root_.com.google.protobuf.ByteString.EMPTY),
     connectiveUsed: _root_.scala.Boolean = false
     ) extends coop.rchain.models.StacksafeMessage[EMethod] with scalapb.lenses.Updatable[EMethod] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.EMethod].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.EMethod].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.EMethod] = {
       
       import cats.effect.Sync

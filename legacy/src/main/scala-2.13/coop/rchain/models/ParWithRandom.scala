@@ -4,8 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 
 /** *
   * Rholang code along with the state of a split random number
@@ -16,24 +14,7 @@ final case class ParWithRandom(
     body: coop.rchain.models.Par = coop.rchain.models.Par.defaultInstance,
     randomState: coop.rchain.crypto.hash.Blake2b512Random = coop.rchain.models.ParWithRandom._typemapper_randomState.toCustom(_root_.com.google.protobuf.ByteString.EMPTY)
     ) extends coop.rchain.models.StacksafeMessage[ParWithRandom] with scalapb.lenses.Updatable[ParWithRandom] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.ParWithRandom].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.ParWithRandom].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.ParWithRandom] = {
       
       import cats.effect.Sync

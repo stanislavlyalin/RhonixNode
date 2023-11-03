@@ -4,34 +4,13 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 @SerialVersionUID(0L)
 final case class EDiv(
     p1: coop.rchain.models.Par = coop.rchain.models.Par.defaultInstance,
     p2: coop.rchain.models.Par = coop.rchain.models.Par.defaultInstance
     ) extends coop.rchain.models.StacksafeMessage[EDiv] with scalapb.lenses.Updatable[EDiv] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.EDiv].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.EDiv].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.EDiv] = {
       
       import cats.effect.Sync

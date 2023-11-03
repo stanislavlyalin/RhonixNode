@@ -4,33 +4,12 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 @SerialVersionUID(0L)
 final case class ListBindPatterns(
     patterns: _root_.scala.Seq[coop.rchain.models.BindPattern] = _root_.scala.Seq.empty
     ) extends coop.rchain.models.StacksafeMessage[ListBindPatterns] with scalapb.lenses.Updatable[ListBindPatterns] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.ListBindPatterns].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.ListBindPatterns].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.ListBindPatterns] = {
       
       import cats.effect.Sync

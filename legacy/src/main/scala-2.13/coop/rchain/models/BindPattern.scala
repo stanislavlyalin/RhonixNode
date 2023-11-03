@@ -4,8 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 
 @SerialVersionUID(0L)
 final case class BindPattern(
@@ -13,23 +11,6 @@ final case class BindPattern(
     remainder: _root_.scala.Option[coop.rchain.models.Var] = _root_.scala.None,
     freeCount: _root_.scala.Int = 0
     ) extends coop.rchain.models.StacksafeMessage[BindPattern] with scalapb.lenses.Updatable[BindPattern] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.BindPattern].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.BindPattern].hash[cats.Eval](this).value
-    
-    }
-    
     
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.BindPattern] = {
       

@@ -4,10 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 /** A variable used as a var should be bound in a process context, not a name
   * context. For example:
@@ -18,24 +14,7 @@ import coop.rchain.models.HashMImplicits._
 final case class EVar(
     v: coop.rchain.models.Var = coop.rchain.models.Var.defaultInstance
     ) extends coop.rchain.models.StacksafeMessage[EVar] with scalapb.lenses.Updatable[EVar] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.EVar].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.EVar].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.EVar] = {
       
       import cats.effect.Sync

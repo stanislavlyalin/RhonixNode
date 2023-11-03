@@ -4,34 +4,13 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 @SerialVersionUID(0L)
 final case class ListParWithRandom(
     pars: _root_.scala.Seq[coop.rchain.models.Par] = _root_.scala.Seq.empty,
     randomState: coop.rchain.crypto.hash.Blake2b512Random = coop.rchain.models.ListParWithRandom._typemapper_randomState.toCustom(_root_.com.google.protobuf.ByteString.EMPTY)
     ) extends coop.rchain.models.StacksafeMessage[ListParWithRandom] with scalapb.lenses.Updatable[ListParWithRandom] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.ListParWithRandom].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.ListParWithRandom].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.ListParWithRandom] = {
       
       import cats.effect.Sync

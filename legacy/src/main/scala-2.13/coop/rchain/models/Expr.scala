@@ -5,8 +5,6 @@
 
 package coop.rchain.models
 import coop.rchain.models.BigIntTypeMapper.bigIntBytesTypeMapper
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 import coop.rchain.models.ParMapTypeMapper.parMapEMapTypeMapper
 import coop.rchain.models.ParSetTypeMapper.parSetESetTypeMapper
 
@@ -17,24 +15,7 @@ import coop.rchain.models.ParSetTypeMapper.parSetESetTypeMapper
 final case class Expr(
     exprInstance: coop.rchain.models.Expr.ExprInstance = coop.rchain.models.Expr.ExprInstance.Empty
     ) extends coop.rchain.models.StacksafeMessage[Expr] with scalapb.lenses.Updatable[Expr] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.Expr].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.Expr].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.Expr] = {
       
       import cats.effect.Sync

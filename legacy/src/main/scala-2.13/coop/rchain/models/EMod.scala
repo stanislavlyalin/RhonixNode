@@ -4,44 +4,23 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMDerivation.eqMGen
-import coop.rchain.models.HashMDerivation.hashMGen
-import coop.rchain.models.EqualMImplicits._
-import coop.rchain.models.HashMImplicits._
 
 @SerialVersionUID(0L)
 final case class EMod(
     p1: coop.rchain.models.Par = coop.rchain.models.Par.defaultInstance,
     p2: coop.rchain.models.Par = coop.rchain.models.Par.defaultInstance
     ) extends coop.rchain.models.StacksafeMessage[EMod] with scalapb.lenses.Updatable[EMod] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.EMod].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.EMod].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.EMod] = {
-      
+
       import cats.effect.Sync
       import cats.syntax.all.*
-      
+
       Sync[F].defer {
         var __p1 = this.p1
         var __p2 = this.p2
         var _done__ = false
-        
+
         Sync[F].whileM_ (Sync[F].delay { !_done__ }) {
           for {
             _tag__ <- Sync[F].delay { _input__.readTag() }
@@ -69,19 +48,19 @@ final case class EMod(
         )}
       }
     }
-    
+
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
     private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
-      
+
       {
         val __value = p1
         if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
-      
+
       {
         val __value = p2
         if (__value.serializedSize != 0) {
@@ -97,11 +76,11 @@ final case class EMod(
         __serializedSizeMemoized = __size
       }
       __size - 1
-      
+
     }
-    
+
     @transient var _serializedSizeM: coop.rchain.models.Memo[Int] = null
-    
+
     def serializedSizeM: coop.rchain.models.Memo[Int] = synchronized {
       if(_serializedSizeM == null) {
         _serializedSizeM = new coop.rchain.models.Memo(coop.rchain.models.ProtoM.serializedSize(this))

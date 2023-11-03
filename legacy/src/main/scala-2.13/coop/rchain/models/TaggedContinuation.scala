@@ -4,8 +4,6 @@
 // Protofile syntax: PROTO3
 
 package coop.rchain.models
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 
 /** *
   * Either rholang code or code built in to the interpreter.
@@ -14,24 +12,7 @@ import coop.rchain.models.HashMImplicits.*
 final case class TaggedContinuation(
     taggedCont: coop.rchain.models.TaggedContinuation.TaggedCont = coop.rchain.models.TaggedContinuation.TaggedCont.Empty
     ) extends coop.rchain.models.StacksafeMessage[TaggedContinuation] with scalapb.lenses.Updatable[TaggedContinuation] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.TaggedContinuation].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.TaggedContinuation].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.TaggedContinuation] = {
       
       import cats.effect.Sync

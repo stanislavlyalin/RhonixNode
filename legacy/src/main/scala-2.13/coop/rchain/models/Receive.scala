@@ -5,8 +5,6 @@
 
 package coop.rchain.models
 import coop.rchain.models.BitSetBytesMapper.bitSetBytesMapper
-import coop.rchain.models.EqualMImplicits.*
-import coop.rchain.models.HashMImplicits.*
 
 /** *
   * A receive is written `for(binds) { body }`
@@ -25,24 +23,7 @@ final case class Receive(
     locallyFree: coop.rchain.models.AlwaysEqual[scala.collection.immutable.BitSet] = coop.rchain.models.Receive._typemapper_locallyFree.toCustom(_root_.com.google.protobuf.ByteString.EMPTY),
     connectiveUsed: _root_.scala.Boolean = false
     ) extends coop.rchain.models.StacksafeMessage[Receive] with scalapb.lenses.Updatable[Receive] {
-    
-    override def equals(x: Any): Boolean = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.EqualM[coop.rchain.models.Receive].equals[cats.Eval](this, x).value
-    
-    }
-    
-    override def hashCode(): Int = {
-    
-      import coop.rchain.catscontrib.effect.implicits.sEval
-    
-     coop.rchain.models.HashM[coop.rchain.models.Receive].hash[cats.Eval](this).value
-    
-    }
-    
-    
+
     def mergeFromM[F[_]: cats.effect.Sync](`_input__`: _root_.com.google.protobuf.CodedInputStream): F[coop.rchain.models.Receive] = {
       
       import cats.effect.Sync
