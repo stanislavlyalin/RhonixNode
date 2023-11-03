@@ -1,18 +1,21 @@
 package slick.tables
 
-import sdk.api.data.Validator
 import slick.jdbc.PostgresProfile.api.*
 import slick.lifted.ProvenShape
+import slick.tables.TableValidators.Validator
 
-class TableValidators(tag: Tag) extends Table[Validator](tag, "Validators") {
+class TableValidators(tag: Tag) extends Table[Validator](tag, "validator") {
+  def id: Rep[Long]            = column[Long]("id", O.PrimaryKey, O.AutoInc)
+  def pubKey: Rep[Array[Byte]] = column[Array[Byte]]("pub_key")
 
-  // Fields
-  def id: Rep[Long]               = column[Long]("id", O.PrimaryKey, O.AutoInc)
-  def publicKey: Rep[Array[Byte]] = column[Array[Byte]]("publicKey", O.Unique)
+  def idx = index("idx_validator", pubKey, unique = true)
 
-  // Projection
-  def * : ProvenShape[Validator] = (id, publicKey).mapTo[Validator]
+  def * : ProvenShape[Validator] = (id, pubKey).mapTo[Validator]
+}
 
-  // Indices
-  def idx = index("idx", publicKey, unique = true)
+object TableValidators {
+  final case class Validator(
+    id: Long,           // primary key
+    pubKey: Array[Byte],// validator public key
+  )
 }
