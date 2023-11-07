@@ -20,7 +20,7 @@ package object balances {
   private def intToArray(x: Int): Array[Byte] =
     ByteBuffer.allocate(java.lang.Integer.BYTES).putInt(x).array()
 
-  private val walletCodec: Codec[Wallet, ByteArray] = new Codec[Wallet, ByteArray] {
+  val walletCodec: Codec[Wallet, ByteArray] = new Codec[Wallet, ByteArray] {
     override def encode(x: Wallet): Try[ByteArray] = Try(ByteArray(intToArray(x)))
     override def decode(x: ByteArray): Try[Wallet] = Try(ByteBuffer.wrap(x.bytes).getInt())
   }
