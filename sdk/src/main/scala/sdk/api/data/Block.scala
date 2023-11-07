@@ -4,21 +4,20 @@ import cats.kernel.Eq
 
 final case class Block(
   hash: Array[Byte],
-  sender: Validator,
+  sender: Array[Byte],
   version: Int,
   shardId: String,
   seqNum: Long,
   number: Long,
-  justificationsHash: Array[Byte], // hash(Set[Justification]),
-  justifications: Set[Validator],
-  bondsHash: Array[Byte],          // hash(Map[Validator, Long]),
+  justifications: Set[Array[Byte]],
   bonds: Set[Bond],
 
   // Rholang (tuple space) state change
+  finStateHash: Array[Byte],  // hash(VM state)
   preStateHash: Array[Byte],  // hash(VM state)
   postStateHash: Array[Byte], // hash(VM state)
-  deploysHash: Array[Byte],   // hash(Set[Deploy])
-  deploys: Set[Deploy],
+
+  deploys: Set[Array[Byte]],
 
   // Block signature
   signatureAlg: String,
@@ -28,7 +27,7 @@ final case class Block(
   status: Int,
 ) {
   override def equals(obj: Any): Boolean = obj match {
-    case that: Block => this.hash.sameElements(that.hash)
+    case that: Block => this.hash sameElements that.hash
     case _           => false
   }
 
