@@ -3,16 +3,16 @@ package sdk.api
 import sdk.api.data.*
 
 trait ExternalApi[F[_]] {
-  // Block API
+  // block given its hash
   def getBlockByHash(hash: Array[Byte]): F[Option[Block]]
-
-  // Deploy API
-  def deploy(deploy: Deploy): F[Long]
-  def getDeployStatus(hash: Array[Byte]): F[Int]
-  def getDeploysByBlockHash(hash: Array[Byte]): F[Seq[Deploy]]
-
-  // Diagnostic
+  // deploy given its hash
+  def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]]
+  // deploy signatures given hash of their signatures
+  def getDeploysByHash(hash: Array[Byte]): F[Option[Seq[Array[Byte]]]]
+  // balance of a vault at particular state
+  def getBalance(state: Array[Byte], wallet: Array[Byte]): F[Option[Long]]
+  // latest messages in the database
+  def getLatestMessages: F[List[Array[Byte]]]
+  // status of the node
   def status: F[Status]
-  def getLatestMessage: F[Block]
-  def visualizeDag[R](depth: Int, showJustificationLines: Boolean): F[Vector[String]]
 }
