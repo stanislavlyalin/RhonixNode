@@ -1,8 +1,9 @@
 package coop.rchain.catscontrib
 
 import cats.effect.Sync
-import cats.syntax.all._
-import coop.rchain.shared.{Log, LogSource}
+import cats.syntax.all.*
+import coop.rchain.shared.Log
+import sdk.log.LogSource
 
 object TaskContrib {
 

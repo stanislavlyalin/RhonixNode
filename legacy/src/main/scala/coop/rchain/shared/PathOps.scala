@@ -2,6 +2,7 @@ package coop.rchain.shared
 
 import cats.effect.Sync
 import cats.syntax.all.*
+import sdk.log.LogSource
 
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes

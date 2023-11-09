@@ -2,10 +2,11 @@ package coop.rchain.store
 
 import cats.effect.{Async, Deferred, Ref, Sync}
 import cats.syntax.all.*
-import coop.rchain.shared.{Log, LogSource}
+import coop.rchain.shared.Log
 import enumeratum.{Enum, EnumEntry}
 import org.lmdbjava.ByteBufferProxy.PROXY_SAFE
 import org.lmdbjava.{DbiFlags, Env, EnvFlags}
+import sdk.log.LogSource
 
 import java.nio.ByteBuffer
 import java.nio.file.{Files, Path}
