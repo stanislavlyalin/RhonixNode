@@ -1,21 +1,21 @@
 package coop.rchain.rspace
 
 import cats.Parallel
-import cats.effect._
-import cats.syntax.all._
+import cats.effect.*
+import cats.syntax.all.*
 import com.typesafe.scalalogging.Logger
-import coop.rchain.catscontrib._
+import coop.rchain.catscontrib.*
 import coop.rchain.metrics.Metrics.Source
-import coop.rchain.metrics.implicits._
+import coop.rchain.metrics.implicits.*
 import coop.rchain.metrics.{Metrics, Span}
-import coop.rchain.rspace.history._
+import coop.rchain.rspace.history.*
 import coop.rchain.rspace.internal.{ConsumeCandidate, Datum, ProduceCandidate, WaitingContinuation}
-import coop.rchain.rspace.trace._
+import coop.rchain.rspace.trace.*
 import coop.rchain.shared.{Log, Serialize}
 import coop.rchain.store.KeyValueStore
+import sdk.log.LogSourceMacroInstance.logSource
 
 import scala.collection.SortedSet
-import scala.concurrent.ExecutionContext
 
 class RSpace[F[_]: Async: Log: Metrics: Span, C, P, A, K](
   historyRepository: HistoryRepository[F, C, P, A, K],
@@ -296,7 +296,7 @@ object RSpace {
     sa: Serialize[A],
     sk: Serialize[K],
   ): F[(HistoryRepository[F, C, P, A, K], HotStore[F, C, P, A, K])] = {
-    import coop.rchain.rspace.history._
+    import coop.rchain.rspace.history.*
 
     for {
       historyRepo   <- HistoryRepositoryInstances.lmdbRepository[F, C, P, A, K](

@@ -1,19 +1,20 @@
 package coop.rchain.rspace
 
-import cats.effect._
-import cats.syntax.all._
+import cats.effect.*
+import cats.syntax.all.*
 import com.google.common.collect.Multiset
 import com.typesafe.scalalogging.Logger
-import coop.rchain.metrics.implicits._
+import coop.rchain.metrics.implicits.*
 import coop.rchain.metrics.{Metrics, Span}
 import coop.rchain.rspace.history.HistoryRepository
-import coop.rchain.rspace.internal._
-import coop.rchain.rspace.trace._
-import coop.rchain.shared.syntax._
+import coop.rchain.rspace.internal.*
+import coop.rchain.rspace.trace.*
+import coop.rchain.shared.syntax.*
 import coop.rchain.shared.{Log, Serialize}
+import sdk.log.LogSourceMacroInstance.logSource
 
 import scala.collection.SortedSet
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 class ReplayRSpace[F[_]: Async: Log: Metrics: Span, C, P, A, K](
   historyRepository: HistoryRepository[F, C, P, A, K],

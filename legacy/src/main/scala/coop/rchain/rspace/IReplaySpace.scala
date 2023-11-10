@@ -1,12 +1,13 @@
 package coop.rchain.rspace
 
 import cats.effect.Sync
-import cats.syntax.all._
+import cats.syntax.all.*
 import coop.rchain.rspace.hashing.Blake2b256Hash
-import coop.rchain.rspace.internal._
-import coop.rchain.rspace.trace._
+import coop.rchain.rspace.internal.*
+import coop.rchain.rspace.trace.*
 import coop.rchain.rspace.util.ReplayException
 import coop.rchain.shared.Log
+import sdk.log.LogSourceMacroInstance.logSource
 
 trait IReplaySpace[F[_], C, P, A, K] extends ISpace[F, C, P, A, K] {
 

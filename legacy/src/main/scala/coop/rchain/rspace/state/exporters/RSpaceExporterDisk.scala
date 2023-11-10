@@ -2,15 +2,16 @@ package coop.rchain.rspace.state.exporters
 
 import cats.Monad
 import cats.effect.Async
-import cats.syntax.all._
+import cats.syntax.all.*
 import coop.rchain.rspace.hashing.Blake2b256Hash
 import coop.rchain.rspace.state.{RSpaceExporter, RSpaceImporter}
-import coop.rchain.rspace.syntax._
+import coop.rchain.rspace.syntax.*
 import coop.rchain.shared.ByteVectorOps.RichByteVector
 import coop.rchain.shared.{Log, Serialize, Stopwatch}
 import coop.rchain.store.{KeyValueStore, LmdbStoreManager}
 import fs2.Stream
 import scodec.bits.ByteVector
+import sdk.log.LogSourceMacroInstance.logSource
 
 import java.nio.file.Path
 
