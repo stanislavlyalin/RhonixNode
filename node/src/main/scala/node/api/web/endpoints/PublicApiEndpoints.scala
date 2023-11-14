@@ -2,42 +2,46 @@ package node.api.web.endpoints
 
 import cats.syntax.all.*
 import endpoints4s.algebra
-import node.api.web.json.JsonSchemasPretty
+import node.api.web.json.ExternalApiJsonSchemas
+import sdk.api.data.{Balance, Block, Deploy, Status}
 
-trait PublicApiEndpoints extends algebra.Endpoints with algebra.JsonEntitiesFromSchemas with JsonSchemasPretty {
+/** Public JSON API endpoints. */
+trait PublicApiEndpoints extends algebra.Endpoints with algebra.JsonEntitiesFromSchemas with ExternalApiJsonSchemas {
 
-  lazy val deployId: Path[String]  = segment[String](name = "id", docs = "id of a deploy".some)
-  lazy val blockId: Path[String]   = segment[String](name = "id", docs = "id of a block".some)
-  lazy val stateHash: Path[String] = segment[String](name = "hash", docs = "hash of a state".some)
-  lazy val walletId: Path[String]  = segment[String](name = "id", docs = "wallet id".some)
+  private lazy val deployId: Path[String]  = segment[String](name = "id", docs = "id of a deploy".some)
+  private lazy val blockId: Path[String]   = segment[String](name = "id", docs = "id of a block".some)
+  private lazy val stateHash: Path[String] = segment[String](name = "hash", docs = "hash of a state".some)
+  private lazy val walletId: Path[String]  = segment[String](name = "id", docs = "wallet id".some)
 
-  def block[A](implicit r: ResponseEntity[A]): Endpoint[String, A] = endpoint(
+  private val notFoundDocumentation: Option[String] = "Not found".some
+
+  def getBlock: Endpoint[String, Option[Block]] = endpoint(
     get(path / "block" / blockId),
-    ok(r),
+    ok(jsonResponse[Block]).orNotFound(notFoundDocumentation),
     docs = EndpointDocs().withDescription("Get block my id".some),
   )
 
-  def deploy[A](implicit r: ResponseEntity[A]): Endpoint[String, A] = endpoint(
+  def getDeploy: Endpoint[String, Option[Deploy]] = endpoint(
     get(path / "deploy" / deployId),
-    ok(r),
+    ok(jsonResponse[Deploy]).orNotFound(notFoundDocumentation),
     docs = EndpointDocs().withDescription("Get deploy by id".some),
   )
 
-  def latest[A](implicit r: ResponseEntity[A]): Endpoint[Unit, A] = endpoint(
+  def getLatest: Endpoint[Unit, List[Array[Byte]]] = endpoint(
     get(path / "latest"),
-    ok(r),
+    ok(jsonResponse[List[Array[Byte]]]),
     docs = EndpointDocs().withDescription("Latest messages".some),
   )
 
-  def balance[A](implicit r: ResponseEntity[A]): Endpoint[(String, String), A] = endpoint(
+  def getBalance: Endpoint[(String, String), Option[Balance]] = endpoint(
     get(path / "balance" / stateHash / walletId),
-    ok(r),
+    ok(jsonResponse[Balance]).orNotFound(notFoundDocumentation),
     docs = EndpointDocs().withDescription("Balance of a wallet at the state specified".some),
   )
 
-  def status[A](implicit r: ResponseEntity[A]): Endpoint[Unit, A] = endpoint(
+  def getStatus: Endpoint[Unit, Status] = endpoint(
     get(path / "status"),
-    ok(r),
+    ok(jsonResponse[Status]),
     docs = EndpointDocs().withDescription("Status".some),
   )
 }

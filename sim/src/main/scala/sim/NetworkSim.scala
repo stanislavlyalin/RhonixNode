@@ -10,20 +10,21 @@ import diagnostics.metrics.{Config as InfluxDbConfig, InfluxDbBatchedMetrics}
 import dproc.data.Block
 import fs2.concurrent.SignallingRef
 import fs2.{Pipe, Stream}
-import io.circe.Encoder
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
 import node.hashing.Blake2b
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
-import org.http4s.EntityEncoder
 import pureconfig.generic.ProductHint
-import sdk.codecs.Base16
+import sdk.api
+import sdk.api.data.{Bond, Deploy, Status}
+import sdk.api.{data, ExternalApi}
 import sdk.diag.{Metrics, SystemReporter}
 import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
+import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
 import sdk.store.*
 import sdk.syntax.all.*
@@ -38,7 +39,6 @@ import weaver.data.*
 
 import java.nio.file.Files
 import scala.concurrent.duration.{Duration, DurationInt}
-import scala.util.Try
 
 object NetworkSim extends IOApp {
 
@@ -129,16 +129,17 @@ object NetworkSim extends IOApp {
 
     /// Shared block store across simulation
     // TODO replace with pgSql
-    val blockStore: Ref[F, Map[M, Block[M, S, T]]] = Ref.unsafe(Map.empty[M, Block[M, S, T]])
+    val blockStore: Ref[F, Map[String, dproc.data.Block[M, S, T]]] =
+      Ref.unsafe(Map.empty[String, dproc.data.Block[M, S, T]])
 
-    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
+    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id.getBytes().mkString, b.m))
 
-    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id))
+    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id.getBytes().mkString))
 
     // Shared transactions store
-    val txStore: Ref[F, Map[String, BalancesState]]  = Ref.unsafe(Map.empty[String, BalancesState])
-    def saveTx(tx: BalancesDeploy): F[Unit]          = txStore.update(_.updated(tx.id, tx.state))
-    def readTx(id: String): F[Option[BalancesState]] = txStore.get.map(_.get(id))
+    val txStore: Ref[F, Map[Array[Byte], BalancesState]]  = Ref.unsafe(Map.empty[Array[Byte], BalancesState])
+    def saveTx(tx: BalancesDeploy): F[Unit]               = txStore.update(_.updated(tx.id.getBytes(), tx.state))
+    def readTx(id: Array[Byte]): F[Option[BalancesState]] = txStore.get.map(_.get(id))
 
     def broadcast(
       peers: List[Node[F, M, S, T]],
@@ -290,7 +291,7 @@ object NetworkSim extends IOApp {
           case NetNode(
                 self,
                 Node(weaverStRef, _, _, _, dProc),
-                getBalance,
+                readBalance,
                 getData,
               ) -> idx =>
             val bootstrap = {
@@ -308,30 +309,9 @@ object NetworkSim extends IOApp {
             }
 
             val apiServerStream: Stream[F, ExitCode] = {
-              import io.circe.generic.auto.*
-              import org.http4s.circe.*
-
-              implicit val c: String => Try[Int]         = (x: String) => Try(x.toInt)
-              implicit val d: String => Try[String]      = (x: String) => Try(x)
-              implicit val e: String => Try[ByteArray32] =
-                (x: String) => Base16.decode(x).flatMap(ByteArray32.convert)
-              implicit val encoder: Encoder[Array[Byte]] =
-                Encoder[String].imap(s => Base16.decode(s).getUnsafe)(x => Base16.encode(x))
-
-              implicit val a: EntityEncoder[F, Long]         = jsonEncoderOf[F, Long]
-              implicit val x: EntityEncoder[F, Int]          = jsonEncoderOf[F, Int]
-              implicit val f: EntityEncoder[F, String]       = jsonEncoderOf[F, String]
-              implicit val g: EntityEncoder[F, Array[Byte]]  = jsonEncoderOf[F, Array[Byte]]
-              implicit val h1: EntityEncoder[F, Set[String]] = jsonEncoderOf[F, Set[String]]
-
-              implicit val h: EntityEncoder[F, Block[String, String, String]] =
-                jsonEncoderOf[F, Block[String, String, String]]
-
-              implicit val bs: EntityEncoder[F, BalancesState] = jsonEncoderOf[F, BalancesState]
-
-              def blockByHash(x: M): F[Option[Block[M, S, String]]] =
+              def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
                 blockStore.get
-                  .map(_.get(x))
+                  .map(_.get(x.mkString))
                   .map(
                     _.map { x =>
                       x.copy(
@@ -341,26 +321,67 @@ object NetworkSim extends IOApp {
                           ConflictResolution(accepted.map(_.id), rejected.map(_.id))
                         },
                       )
+                    }.map {
+                      case Block(
+                            sender,
+                            minGenJs,
+                            offences,
+                            txs,
+                            finalFringe,
+                            finalized,
+                            merge,
+                            bonds,
+                            lazTol,
+                            expThresh,
+                            finalStateHash,
+                            postStateHash,
+                          ) =>
+                        data.Block(
+                          x,
+                          sender.getBytes,
+                          1,
+                          "root",
+                          -1,
+                          -1,
+                          minGenJs.map(_.getBytes()),
+                          bonds.bonds.map { case (k, v) => Bond(k.getBytes, v) }.toSet,
+                          finalStateHash,
+                          preStateHash = postStateHash,
+                          postStateHash = postStateHash,
+                          deploys = txs.map(_.getBytes()).toSet,
+                          signatureAlg = "-",
+                          signature = Array.empty[Byte],
+                          status = 0,
+                        )
                     },
                   )
 
               def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
 
-              val routes = PublicApiJson[F, Block[M, S, String], BalancesState](
-                blockByHash(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
-                readTx(_).flatMap(_.liftTo(new Exception(s"Not Found"))),
-                (h: String, w: String) => {
-                  val blakeH = Base16.decode(h).flatMap(ByteArray32.convert)
-                  val longW  = Try(w.toInt)
+              val extApiImpl = new ExternalApi[F] {
+                override def getBlockByHash(hash: Array[Byte]): F[Option[api.data.Block]] = blockByHash(hash)
+
+                override def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]] =
+                  readTx(hash).map(
+                    _.map(x => Deploy(Array.empty[Byte], Array.empty[Byte], "root", s"${x.diffs}", 0L, 0L, 0L, 0L, 0L)),
+                  )
+
+                override def getDeploysByHash(hash: Array[Byte]): F[Option[Seq[Array[Byte]]]]        = ???
+                override def getBalance(state: Array[Byte], wallet: Array[Byte]): F[Option[Balance]] = {
+                  val blakeH = ByteArray32.convert(state)
+                  val longW  = walletCodec.decode(ByteArray(wallet))
                   (blakeH, longW)
                     .traverseN { case (hash, wallet) =>
-                      getBalance(hash, wallet).flatMap(_.liftTo(new Exception(s"Not Found")))
+                      readBalance(hash.bytes.bytes, wallet)
                     }
                     .flatMap(_.liftTo[F])
-                },
-                latestBlocks,
-                getData.map(_.show),
-              ).routes
+                }
+
+                override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.getBytes()))
+                override def status: F[Status]                       = Status("0.1.1").pure
+              }
+
+              val routes = PublicApiJson[F](extApiImpl).routes
 
               val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
 
