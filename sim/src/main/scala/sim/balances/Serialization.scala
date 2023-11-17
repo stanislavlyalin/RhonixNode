@@ -8,6 +8,7 @@ import sdk.primitive.ByteArray
 import sim.balances.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sim.NetworkSim.*
 import weaver.data.ConflictResolution
+import weaver.data.Bonds
 
 object Serialization {
 
@@ -61,6 +62,27 @@ object Serialization {
         } yield BalancesDeploy(ByteArray(id), body)
     }
 
+  implicit def bondsMapSerialize[F[_]: Monad]: Serialize[F, Bonds[S]] =
+    new Serialize[F, Bonds[S]] {
+      override def write(x: Bonds[S]): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
+        x match {
+          case Bonds(bonds) =>
+            w.write(bonds.size) *>
+              bonds.toList.sorted.traverse_ { case (k, v) => w.write(k.bytes) *> w.write(v) }
+        }
+
+      override def read: PrimitiveReader[F] => F[Bonds[S]] = (r: PrimitiveReader[F]) =>
+        for {
+          size  <- r.readInt
+          bonds <- (0 until size).toList.traverse { _ =>
+                     for {
+                       k <- r.readBytes.map(ByteArray(_))
+                       v <- r.readLong
+                     } yield k -> v
+                   }
+        } yield Bonds(bonds.toMap)
+    }
+
   implicit def blockSerialize[F[_]: Monad]: Serialize[F, Block[M, S, T]] =
     new Serialize[F, Block[M, S, T]] {
       override def write(x: Block[M, S, T]): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
@@ -89,7 +111,7 @@ object Serialization {
                   rejected.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w))
               } *>
               merge.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
-              bonds.bonds.toList.sorted.traverse_ { case (k, v) => w.write(k.bytes) *> w.write(v) } *>
+              bondsMapSerialize.write(bonds)(w) *>
               w.write(lazTol) *>
               w.write(expThresh) *>
               w.write(finalStateHash) *>
