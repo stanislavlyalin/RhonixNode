@@ -21,13 +21,13 @@ final case class Block(
   seqNum: Long,                     // sequence number
   offencesSet: Set[ByteArray],      // offences set
 
-  bondsMap: Map[ByteArray, Long], // bonds map
-  finalFringe: Set[ByteArray],    // final fringe set
-  deploySet: Set[ByteArray],      // deploy set in the block
-  mergeSet: Set[ByteArray],       // deploy set merged into pre state
-  dropSet: Set[ByteArray],        // deploy set rejected from pre state
-  mergeSetFinal: Set[ByteArray],  // deploy set finally accepted
-  dropSetFinal: Set[ByteArray],   // deploy set finally rejected
+  bondsMap: Map[ByteArray, Long],      // bonds map
+  finalFringe: Set[ByteArray],         // final fringe set
+  execDeploySet: Set[ByteArray],       // deploy set executed in the block
+  mergeDeploySet: Set[ByteArray],      // deploy set merged into pre state
+  dropDeploySet: Set[ByteArray],       // deploy set rejected from pre state
+  mergeDeploySetFinal: Set[ByteArray], // deploy set finally accepted
+  dropDeploySetFinal: Set[ByteArray],  // deploy set finally rejected
 ) {
   override def equals(obj: Any): Boolean = obj match {
     case that: Block => this.hash == that.hash

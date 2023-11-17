@@ -319,12 +319,12 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       offencesSet        <- insertBlockSet(b.offencesSet)
       bondsMapId         <- bondsMapInsertIfNot(b.bondsMap.hash, b.bondsMap.data)
       finalFringe        <- insertBlockSet(b.finalFringe)
-      deploySetId        <- insertDeploySet(b.deploySet)
+      deploySetId        <- insertDeploySet(b.execDeploySet)
 
-      mergeSetId      <- insertBlockSet(b.mergeSet)
-      dropSetId       <- insertBlockSet(b.dropSet)
-      mergeSetFinalId <- insertBlockSet(b.mergeSetFinal)
-      dropSetFinalId  <- insertBlockSet(b.dropSetFinal)
+      mergeSetId      <- insertDeploySet(b.mergeDeploySet)
+      dropSetId       <- insertDeploySet(b.dropDeploySet)
+      mergeSetFinalId <- insertDeploySet(b.mergeDeploySetFinal)
+      dropSetFinalId  <- insertDeploySet(b.dropDeploySetFinal)
 
       newBlock = TableBlocks.Block(
                    id = 0L,
@@ -341,11 +341,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
                    offencesSetId = offencesSet,
                    bondsMapId = bondsMapId,
                    finalFringeId = finalFringe,
-                   deploySetId = deploySetId,
-                   mergeSetId = mergeSetId,
-                   dropSetId = dropSetId,
-                   mergeSetFinalId = mergeSetFinalId,
-                   dropSetFinalId = dropSetFinalId,
+                   execDeploySetId = deploySetId,
+                   mergeDeploySetId = mergeSetId,
+                   dropDeploySetId = dropSetId,
+                   mergeDeploySetFinalId = mergeSetFinalId,
+                   dropDeploySetFinalId = dropSetFinalId,
                  )
 
       blockId <- insertIfNot(b.hash, blockIdByHash, newBlock, blockInsert)
@@ -396,11 +396,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       offencesSetData      <- getBlockSetData(b.offencesSetId)
       bondsMapData         <- getBondsMapData(b.bondsMapId)
       finalFringeData      <- getBlockSetData(b.finalFringeId)
-      deploySetData        <- getDeploySetData(b.deploySetId)
-      mergeSetData         <- getBlockSetData(b.mergeSetId)
-      dropSetData          <- getBlockSetData(b.dropSetId)
-      mergeSetFinalData    <- getBlockSetData(b.mergeSetFinalId)
-      dropSetFinalData     <- getBlockSetData(b.dropSetFinalId)
+      deploySetData        <- getDeploySetData(b.execDeploySetId)
+      mergeSetData         <- getDeploySetData(b.mergeDeploySetId)
+      dropSetData          <- getDeploySetData(b.dropDeploySetId)
+      mergeSetFinalData    <- getDeploySetData(b.mergeDeploySetFinalId)
+      dropSetFinalData     <- getDeploySetData(b.dropDeploySetFinalId)
     } yield api.data.Block(
       version = b.version,
       hash = b.hash,
@@ -415,11 +415,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       offencesSet = offencesSetData,
       bondsMap = bondsMapData,
       finalFringe = finalFringeData,
-      deploySet = deploySetData,
-      mergeSet = mergeSetData,
-      dropSet = dropSetData,
-      mergeSetFinal = mergeSetFinalData,
-      dropSetFinal = dropSetFinalData,
+      execDeploySet = deploySetData,
+      mergeDeploySet = mergeSetData,
+      dropDeploySet = dropSetData,
+      mergeDeploySetFinal = mergeSetFinalData,
+      dropDeploySetFinal = dropSetFinalData,
     )
 
     getBlock(hash).flatMap {
