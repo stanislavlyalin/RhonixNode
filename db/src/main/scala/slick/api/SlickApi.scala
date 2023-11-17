@@ -88,11 +88,11 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
     offencesSetHash: Option[ByteArray],
     bondsMapHash: ByteArray,
     finalFringeHash: Option[ByteArray],
-    deploySetHash: Option[ByteArray],
-    mergeSetHash: Option[ByteArray],
-    dropSetHash: Option[ByteArray],
-    mergeSetFinalHash: Option[ByteArray],
-    dropSetFinalHash: Option[ByteArray],
+    execDeploySetHash: Option[ByteArray],
+    mergeDeploySetHash: Option[ByteArray],
+    dropDeploySetHash: Option[ByteArray],
+    mergeDeploySetFinalHash: Option[ByteArray],
+    dropDeploySetFinalHash: Option[ByteArray],
   ): F[Unit] = queries
     .blockInsertIfNot(
       data.Block(
@@ -109,11 +109,13 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
         offencesSet = offencesSetHash.map(h => data.SetData(h.bytes, b.offencesSet.toSeq.map(_.bytes))),
         bondsMap = data.BondsMapData(bondsMapHash.bytes, b.bondsMap.toSeq.map(x => (x._1.bytes, x._2))),
         finalFringe = finalFringeHash.map(h => data.SetData(h.bytes, b.finalFringe.toSeq.map(_.bytes))),
-        deploySet = deploySetHash.map(h => data.SetData(h.bytes, b.deploySet.toSeq.map(_.bytes))),
-        mergeSet = mergeSetHash.map(h => data.SetData(h.bytes, b.mergeSet.toSeq.map(_.bytes))),
-        dropSet = dropSetHash.map(h => data.SetData(h.bytes, b.dropSet.toSeq.map(_.bytes))),
-        mergeSetFinal = mergeSetFinalHash.map(h => data.SetData(h.bytes, b.mergeSetFinal.toSeq.map(_.bytes))),
-        dropSetFinal = dropSetFinalHash.map(h => data.SetData(h.bytes, b.dropSetFinal.toSeq.map(_.bytes))),
+        execDeploySet = execDeploySetHash.map(h => data.SetData(h.bytes, b.execDeploySet.toSeq.map(_.bytes))),
+        mergeDeploySet = mergeDeploySetHash.map(h => data.SetData(h.bytes, b.mergeDeploySet.toSeq.map(_.bytes))),
+        dropDeploySet = dropDeploySetHash.map(h => data.SetData(h.bytes, b.dropDeploySet.toSeq.map(_.bytes))),
+        mergeDeploySetFinal =
+          mergeDeploySetFinalHash.map(h => data.SetData(h.bytes, b.mergeDeploySetFinal.toSeq.map(_.bytes))),
+        dropDeploySetFinal =
+          dropDeploySetFinalHash.map(h => data.SetData(h.bytes, b.dropDeploySetFinal.toSeq.map(_.bytes))),
       ),
     )
     .run
@@ -140,11 +142,11 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
           offencesSet = b.offencesSet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
           bondsMap = b.bondsMap.data.map(x => (ByteArray(x._1), x._2)).toMap,
           finalFringe = b.finalFringe.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
-          deploySet = b.deploySet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
-          mergeSet = b.mergeSet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
-          dropSet = b.dropSet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
-          mergeSetFinal = b.mergeSetFinal.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
-          dropSetFinal = b.dropSetFinal.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
+          execDeploySet = b.execDeploySet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
+          mergeDeploySet = b.mergeDeploySet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
+          dropDeploySet = b.dropDeploySet.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
+          mergeDeploySetFinal = b.mergeDeploySetFinal.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
+          dropDeploySetFinal = b.dropDeploySetFinal.map(_.data.map(ByteArray(_)).toSet).getOrElse(Set()),
         ),
       ),
     )

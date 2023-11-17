@@ -27,7 +27,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         deployerList <- api.deployerGetAll
         shardList    <- api.shardGetAll
       } yield {
-        d shouldBe dFromDB.get
+        fullDeployEquals(d, dFromDB.get) shouldBe true
         dList shouldBe Set(d.sig)
         deployerList shouldBe Set(d.deployerPk)
         shardList shouldBe Set(d.shardName)
@@ -52,8 +52,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         deployerList <- api.deployerGetAll
         shardList    <- api.shardGetAll
       } yield {
-        d1 shouldBe d1FromDB.get
-        d2 shouldBe d2FromDB.get
+        fullDeployEquals(d1, d1FromDB.get) shouldBe true
+        fullDeployEquals(d2, d2FromDB.get) shouldBe true
         dList shouldBe Set(d1.sig, d2.sig)
         deployerList shouldBe Set(d1.deployerPk)
         shardList shouldBe Set(d1.shardName)
@@ -160,7 +160,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
       def test(api: SlickApi[IO]): IO[Assertion] = for {
         _             <- deploys.toSeq.traverse(api.deployInsert)
-        deploySigs     = deploys.map(_.sig)
+        dSetSigs       = deploys.map(_.sig)
         insertedBlock1 = sdk.data.Block(
                            version = b1.version,
                            hash = b1.hash,
@@ -175,13 +175,23 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
                            offencesSet = Set(),
                            bondsMap = bMap,
                            finalFringe = Set(),
-                           deploySet = deploySigs,
-                           mergeSet = Set(),
-                           dropSet = Set(),
-                           mergeSetFinal = Set(),
-                           dropSetFinal = Set(),
+                           execDeploySet = dSetSigs,
+                           mergeDeploySet = dSetSigs,
+                           dropDeploySet = Set(),
+                           mergeDeploySetFinal = Set(),
+                           dropDeploySetFinal = Set(),
                          )
-        _             <- api.blockInsert(insertedBlock1)(None, None, bMapHash, None, Some(dSetHash), None, None, None, None)
+        _             <- api.blockInsert(insertedBlock1)(
+                           None,
+                           None,
+                           bMapHash,
+                           None,
+                           Some(dSetHash),
+                           Some(dSetHash),
+                           None,
+                           None,
+                           None,
+                         )
 
         insertedBlock2 = sdk.data.Block(
                            version = b2.version,
@@ -197,30 +207,30 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
                            offencesSet = Set(b1.hash),
                            bondsMap = bMap,
                            finalFringe = Set(b1.hash),
-                           deploySet = deploySigs,
-                           mergeSet = Set(b1.hash),
-                           dropSet = Set(b1.hash),
-                           mergeSetFinal = Set(),
-                           dropSetFinal = Set(),
+                           execDeploySet = Set(),
+                           mergeDeploySet = Set(),
+                           dropDeploySet = dSetSigs,
+                           mergeDeploySetFinal = dSetSigs,
+                           dropDeploySetFinal = dSetSigs,
                          )
         _             <- api.blockInsert(insertedBlock2)(
-                           bSetHash.some,
-                           bSetHash.some,
+                           Some(bSetHash),
+                           Some(bSetHash),
                            bMapHash,
-                           bSetHash.some,
-                           dSetHash.some,
-                           bSetHash.some,
-                           bSetHash.some,
+                           Some(bSetHash),
                            None,
                            None,
+                           Some(dSetHash),
+                           Some(dSetHash),
+                           Some(dSetHash),
                          )
 
         readBlock1 <- api.blockGet(b1.hash)
         readBlock2 <- api.blockGet(b2.hash)
         blockList  <- api.blockGetAll
       } yield {
-        insertedBlock1 shouldBe readBlock1.get
-        insertedBlock2 shouldBe readBlock2.get
+        fullBlockEquals(insertedBlock1, readBlock1.get) shouldBe true
+        fullBlockEquals(insertedBlock2, readBlock2.get) shouldBe true
         blockList shouldBe Set(b1.hash, b2.hash)
       }
 
@@ -268,4 +278,34 @@ object SlickSpec {
     size  <- Gen.chooseNum(1, 10) // Choose a suitable max value
     bonds <- Gen.listOfN(size, Arbitrary.arbitrary[(ByteArray, Long)])
   } yield bonds.toMap
+
+  def fullDeployEquals(d1: Deploy, d2: Deploy): Boolean =
+    d1.sig == d2.sig &&
+      d1.deployerPk == d2.deployerPk &&
+      d1.shardName == d2.shardName &&
+      d1.program == d2.program &&
+      d1.phloPrice == d2.phloPrice &&
+      d1.phloLimit == d2.phloLimit &&
+      d1.nonce == d2.nonce
+
+  def fullBlockEquals(b1: sdk.data.Block, b2: sdk.data.Block): Boolean =
+    b1.version == b2.version &&
+      b1.hash == b2.hash &&
+      b1.sigAlg == b2.sigAlg &&
+      b1.signature == b2.signature &&
+      b1.finalStateHash == b2.finalStateHash &&
+      b1.postStateHash == b2.postStateHash &&
+      b1.validatorPk == b2.validatorPk &&
+      b1.shardName == b2.shardName &&
+      b1.justificationSet == b2.justificationSet &&
+      b1.seqNum == b2.seqNum &&
+      b1.offencesSet == b2.offencesSet &&
+      b1.bondsMap == b2.bondsMap &&
+      b1.finalFringe == b2.finalFringe &&
+      b1.execDeploySet == b2.execDeploySet &&
+      b1.mergeDeploySet == b2.mergeDeploySet &&
+      b1.dropDeploySet == b2.dropDeploySet &&
+      b1.mergeDeploySetFinal == b2.mergeDeploySetFinal &&
+      b1.dropDeploySetFinal == b2.dropDeploySetFinal
+
 }
