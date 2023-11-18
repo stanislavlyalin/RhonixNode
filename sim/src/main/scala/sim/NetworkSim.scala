@@ -385,7 +385,7 @@ object NetworkSim extends IOApp {
 
               val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
 
-              web.server(allRoutes, 8080 + idx, "localhost")
+              web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
             }
 
             (run concurrently bootstrap concurrently apiServerStream) -> getData

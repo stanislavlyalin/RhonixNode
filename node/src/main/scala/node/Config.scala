@@ -10,6 +10,8 @@ final case class Config(
   processingConcurrency: Int = 4,
   @Description("Enable streaming of metrics to InfluxDb")
   enableInfluxDb: Boolean = false,
+  @Description("Enable dev mode. WARNING: This mode is not secure and should not be used in production.")
+  devMode: Boolean = false,
 )
 
 object Config {
