@@ -20,6 +20,7 @@ import pureconfig.generic.ProductHint
 import sdk.api
 import sdk.api.data.{Bond, Deploy, Status}
 import sdk.api.{data, ExternalApi}
+import sdk.codecs.{Digest, JavaSerialization}
 import sdk.diag.{Metrics, SystemReporter}
 import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
@@ -44,13 +45,19 @@ object NetworkSim extends IOApp {
 
   implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.convert(Blake2b.hash256(x)).getUnsafe
 
+  implicit val javaSerializeWithBlakeDigest: Digest[(BalancesState, Balance)] =
+    new sdk.codecs.Digest[(BalancesState, Long)] {
+      override def digest(x: (BalancesState, Long)): ByteArray = {
+        val (state, nonce) = x
+        val bytes          = JavaSerialization.serialize((state.diffs, nonce).asInstanceOf[Serializable])
+        ByteArray(Blake2b.hash256(bytes))
+      }
+    }
+
   // Dummy types for message id, sender id and transaction
-  type M = String
-  type S = String
+  type M = ByteArray
+  type S = ByteArray
   type T = BalancesDeploy
-  implicit val ordS = new Ordering[String] {
-    override def compare(x: S, y: S): Int = x compareTo y
-  }
 
   final private case class Config(
     sim: SimConfig,
@@ -81,7 +88,7 @@ object NetworkSim extends IOApp {
 
     (mkHistory, mkValuesStore).flatMapN { case history -> valueStore =>
       val genesisState  = new BalancesState(users.map(_ -> Long.MaxValue / 2).toMap)
-      val genesisDeploy = BalancesDeploy("genesis", genesisState)
+      val genesisDeploy = BalancesDeploy(genesisState, 0)
       BalancesStateBuilderWithReader(history, valueStore)
         .buildState(
           baseState = EmptyRootHash,
@@ -89,23 +96,23 @@ object NetworkSim extends IOApp {
           toMerge = genesisState,
         )
         .map { case _ -> postState =>
-          Block.WithId(
-            s"genesis",
-            Block[M, S, T](
-              sender,
-              Set(),
-              Set(),
-              txs = List(genesisDeploy),
-              Set(),
-              None,
-              Set(),
-              genesisExec.bonds,
-              genesisExec.lazinessTolerance,
-              genesisExec.expirationThreshold,
-              finalStateHash = EmptyRootHash.bytes.bytes,
-              postStateHash = postState.bytes.bytes,
-            ),
+          val block = Block[M, S, T](
+            sender,
+            Set(),
+            Set(),
+            txs = List(genesisDeploy),
+            Set(),
+            None,
+            Set(),
+            genesisExec.bonds,
+            genesisExec.lazinessTolerance,
+            genesisExec.expirationThreshold,
+            finalStateHash = EmptyRootHash.bytes.bytes,
+            postStateHash = postState.bytes.bytes,
           )
+
+          val digest = ByteArray(Blake2b.hash256(JavaSerialization.serialize(block)))
+          Block.WithId(digest, block)
         }
     }
   }
@@ -121,25 +128,25 @@ object NetworkSim extends IOApp {
 
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
-    val senders           = Iterator.range(0, netCfg.size).map(n => s"s$n").toList
+    val senders           = Iterator.range(0, netCfg.size).map(n => ByteArray(s"s$n".getBytes)).toList
     // Create lfs message, it has no parents, sees no offences and final fringe is empty set
     val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
-    val lfs               = MessageData[M, S]("s0", Set(), Set(), FringeData(Set()), genesisExec)
+    val lfs               = MessageData[M, S](ByteArray("s0".getBytes), Set(), Set(), FringeData(Set()), genesisExec)
 
     /// Shared block store across simulation
     // TODO replace with pgSql
-    val blockStore: Ref[F, Map[String, dproc.data.Block[M, S, T]]] =
-      Ref.unsafe(Map.empty[String, dproc.data.Block[M, S, T]])
+    val blockStore: Ref[F, Map[ByteArray, dproc.data.Block[M, S, T]]] =
+      Ref.unsafe(Map.empty[ByteArray, dproc.data.Block[M, S, T]])
 
-    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id.getBytes().mkString, b.m))
+    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
 
-    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id.getBytes().mkString))
+    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id))
 
     // Shared transactions store
-    val txStore: Ref[F, Map[Array[Byte], BalancesState]]  = Ref.unsafe(Map.empty[Array[Byte], BalancesState])
-    def saveTx(tx: BalancesDeploy): F[Unit]               = txStore.update(_.updated(tx.id.getBytes(), tx.state))
-    def readTx(id: Array[Byte]): F[Option[BalancesState]] = txStore.get.map(_.get(id))
+    val txStore: Ref[F, Map[ByteArray, BalancesState]]  = Ref.unsafe(Map.empty[ByteArray, BalancesState])
+    def saveTx(tx: BalancesDeploy): F[Unit]             = txStore.update(_.updated(tx.id, tx.state))
+    def readTx(id: ByteArray): F[Option[BalancesState]] = txStore.get.map(_.get(id))
 
     def broadcast(
       peers: List[Node[F, M, S, T]],
@@ -173,7 +180,7 @@ object NetworkSim extends IOApp {
         if (nodeCfg.persistOnChainState) LmdbStoreManager(dataPath)
         else Sync[F].delay(InMemoryKeyValueStoreManager[F]())
       val metrics      =
-        if (nodeCfg.enableInfluxDb) InfluxDbBatchedMetrics[F](ifxDbCfg, vId)
+        if (nodeCfg.enableInfluxDb) InfluxDbBatchedMetrics[F](ifxDbCfg, vId.toHex)
         else Resource.eval(Metrics.unit.pure[F])
 
       (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics).flatMapN {
@@ -181,12 +188,15 @@ object NetworkSim extends IOApp {
           implicit val x: Metrics[F] = metrics
 
           val blockSeqNumRef = Ref.unsafe(0)
-          val assignBlockId  = (_: Any) => blockSeqNumRef.updateAndGet(_ + 1).map(idx => s"$vId-$idx")
+          val assignBlockId  = (b: Block[M, S, T]) =>
+            blockSeqNumRef.updateAndGet(_ + 1).map { seqNum =>
+              ByteArray(Blake2b.hash256(JavaSerialization.serialize((b, seqNum).asInstanceOf[Serializable])))
+            }
 
           val txSeqNumRef = Ref.unsafe(0)
           val nextTxs     = txSeqNumRef
             .updateAndGet(_ + 1)
-            .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(s"$vId-tx-$idx", st)))
+            .flatMap(idx => random(users).map(st => balances.data.BalancesDeploy(st, idx.longValue)))
             .replicateA(netCfg.txPerBlock)
             .flatTap(_.traverse(saveTx))
             .map(_.toSet)
@@ -311,7 +321,7 @@ object NetworkSim extends IOApp {
             val apiServerStream: Stream[F, ExitCode] = {
               def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
                 blockStore.get
-                  .map(_.get(x.mkString))
+                  .map(_.get(ByteArray(x)))
                   .map(
                     _.map { x =>
                       x.copy(
@@ -338,17 +348,17 @@ object NetworkSim extends IOApp {
                           ) =>
                         data.Block(
                           x,
-                          sender.getBytes,
+                          sender.bytes,
                           1,
                           "root",
                           -1,
                           -1,
-                          minGenJs.map(_.getBytes()),
-                          bonds.bonds.map { case (k, v) => Bond(k.getBytes, v) }.toSet,
+                          minGenJs.map(_.bytes),
+                          bonds.bonds.map { case (k, v) => Bond(k.bytes, v) }.toSet,
                           finalStateHash,
                           preStateHash = postStateHash,
                           postStateHash = postStateHash,
-                          deploys = txs.map(_.getBytes()).toSet,
+                          deploys = txs.map(_.bytes).toSet,
                           signatureAlg = "-",
                           signature = Array.empty[Byte],
                           status = 0,
@@ -362,7 +372,7 @@ object NetworkSim extends IOApp {
                 override def getBlockByHash(hash: Array[Byte]): F[Option[api.data.Block]] = blockByHash(hash)
 
                 override def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]] =
-                  readTx(hash).map(
+                  readTx(ByteArray(hash)).map(
                     _.map(x => Deploy(Array.empty[Byte], Array.empty[Byte], "root", s"${x.diffs}", 0L, 0L, 0L, 0L, 0L)),
                   )
 
@@ -377,7 +387,7 @@ object NetworkSim extends IOApp {
                     .flatMap(_.liftTo[F])
                 }
 
-                override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.getBytes()))
+                override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
                 override def status: F[Status]                       = Status("0.1.1").pure
               }
 

@@ -5,7 +5,7 @@ import sdk.syntax.all.*
 import java.nio.ByteBuffer
 import java.util
 
-sealed class ByteArray private (underlying: Array[Byte]) {
+sealed class ByteArray private (underlying: Array[Byte]) extends Serializable {
 
   /**
    * Array of bytes underlying for this ByteArray.
