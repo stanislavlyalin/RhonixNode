@@ -3,8 +3,9 @@ package sim.balances
 import cats.syntax.all.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sdk.primitive.ByteArray
 import sim.balances.MergeLogicForPayments.*
-import sim.balances.data.{BalancesDeploy, BalancesState}
+import sim.balances.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 
 class MergeLogicForPaymentsSpec extends AnyFlatSpec with Matchers {
 
@@ -16,7 +17,7 @@ class MergeLogicForPaymentsSpec extends AnyFlatSpec with Matchers {
     val reference    = Map(1 -> 3L, 2 -> 1L)
 
     val b   = new BalancesState(initBalances)
-    val neg = BalancesDeploy("0", new BalancesState(change))
+    val neg = BalancesDeploy(ByteArray(List()), BalancesDeployBody(new BalancesState(change), 0))
     attemptCombine(b, neg).map(_.diffs) shouldBe new BalancesState(reference).diffs.some
   }
 
@@ -25,7 +26,7 @@ class MergeLogicForPaymentsSpec extends AnyFlatSpec with Matchers {
     val zero         = Map(1 -> -1L)
 
     val b        = new BalancesState(initBalances)
-    val zeroCase = BalancesDeploy("0", new BalancesState(zero))
+    val zeroCase = BalancesDeploy(ByteArray(List()), BalancesDeployBody(new BalancesState(zero), 0))
     attemptCombine(b, zeroCase).map(_.diffs).isDefined shouldBe true
   }
 
@@ -34,7 +35,7 @@ class MergeLogicForPaymentsSpec extends AnyFlatSpec with Matchers {
     val changeNeg    = Map(1 -> -2L)
 
     val b   = new BalancesState(initBalances)
-    val neg = BalancesDeploy("0", new BalancesState(changeNeg))
+    val neg = BalancesDeploy(ByteArray(List()), new BalancesDeployBody(BalancesState(changeNeg), 0))
     attemptCombine(b, neg) shouldBe None
   }
 
@@ -43,7 +44,7 @@ class MergeLogicForPaymentsSpec extends AnyFlatSpec with Matchers {
     val changeNeg    = Map(1 -> 1L)
 
     val b   = new BalancesState(initBalances)
-    val neg = BalancesDeploy("0", new BalancesState(changeNeg))
+    val neg = BalancesDeploy(ByteArray(List()), new BalancesDeployBody(BalancesState(changeNeg), 0))
     intercept[Exception](attemptCombine(b, neg))
   }
 
