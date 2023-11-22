@@ -46,6 +46,9 @@ object PMatchNormalizer {
                                                  caseBody,
                                                  ProcVisitInputs(NilN, caseEnv, acc._2),
                                                )
+
+                             // TODO: is this assert always true?? and we can get rid of `countNoWildcards`
+                             // _ = assert(boundCount == patternResult.freeMap.levelBindings.size)
                            } yield (
                              MatchCaseN(
                                patternResult.par,
