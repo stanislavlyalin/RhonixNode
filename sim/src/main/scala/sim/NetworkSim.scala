@@ -13,7 +13,7 @@ import fs2.{Pipe, Stream}
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
-import node.hashing.Blake2b
+import sdk.hashing.Blake2b
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint

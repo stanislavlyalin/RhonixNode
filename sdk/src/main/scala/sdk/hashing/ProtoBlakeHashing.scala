@@ -12,7 +12,7 @@ import sdk.syntax.all.*
 object ProtoBlakeHashing {
 
   /** Main hash function, using Blake2Hash */
-  def hash(x: Array[Byte]): Array[Byte] = Blake2Hash.hash(x)
+  def hash(x: Array[Byte]): Array[Byte] = Blake2b.hash256(x)
 
   /* Hash functions of primitive types. */
 

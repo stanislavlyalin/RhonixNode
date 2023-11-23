@@ -3,7 +3,7 @@ package sim.balances
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import node.hashing.Blake2b
+import sdk.hashing.Blake2b
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.diag.Metrics

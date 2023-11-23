@@ -2,7 +2,7 @@ package sim.balances
 
 import cats.Eval
 import dproc.data.Block
-import node.hashing.Blake2b
+import sdk.hashing.Blake2b
 import sdk.codecs.Digest
 import sdk.codecs.protobuf.ProtoPrimitiveWriter
 import sdk.primitive.ByteArray
