@@ -13,7 +13,6 @@ import fs2.{Pipe, Stream}
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
-import sdk.hashing.Blake2b
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint
@@ -21,6 +20,7 @@ import sdk.api
 import sdk.api.data.{Bond, Deploy, Status}
 import sdk.api.{data, ExternalApi}
 import sdk.diag.{Metrics, SystemReporter}
+import sdk.hashing.Blake2b
 import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
@@ -30,11 +30,12 @@ import sdk.store.*
 import sdk.syntax.all.*
 import sim.Config as SimConfig
 import sim.NetworkSnapshot.{reportSnapshot, NodeSnapshot}
-import sim.balances.*
 import sim.balances.Hashing.*
 import sim.balances.MergeLogicForPayments.mergeRejectNegativeOverflow
 import sim.balances.data.BalancesState.Default
 import sim.balances.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
+import sim.balances.*
+import slick.SlickDb
 import weaver.WeaverState
 import weaver.data.*
 
@@ -61,6 +62,7 @@ object NetworkSim extends IOApp {
     node: Node[F, M, S, T],
     balanceApi: (ByteArray32, Wallet) => F[Option[Long]],
     getData: F[NodeSnapshot[M, S, T]],
+    dbApi: dbApiImpl[F],
   )
 
   def genesisBlock[F[_]: Async: Parallel: Metrics](
@@ -126,20 +128,6 @@ object NetworkSim extends IOApp {
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
     val lfs               = MessageData[M, S](ByteArray("s0".getBytes), Set(), Set(), FringeData(Set()), genesisExec)
 
-    /// Shared block store across simulation
-    // TODO replace with pgSql
-    val blockStore: Ref[F, Map[M, dproc.data.Block[M, S, T]]] =
-      Ref.unsafe(Map.empty[M, dproc.data.Block[M, S, T]])
-
-    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
-
-    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id))
-
-    // Shared transactions store
-    val txStore: Ref[F, Map[ByteArray, BalancesState]]  = Ref.unsafe(Map.empty[ByteArray, BalancesState])
-    def saveTx(tx: BalancesDeploy): F[Unit]             = txStore.update(_.updated(tx.id, tx.body.state))
-    def readTx(id: ByteArray): F[Option[BalancesState]] = txStore.get.map(_.get(id))
-
     def broadcast(
       peers: List[Node[F, M, S, T]],
       time: Duration,
@@ -166,7 +154,7 @@ object NetworkSim extends IOApp {
         }
       }
 
-    def mkNode(vId: S): Resource[F, NetNode[F]] = {
+    def mkNode(vId: S, db: SlickDb): Resource[F, NetNode[F]] = {
       val dataPath     = Files.createTempDirectory(s"gorki-sim-node-$vId")
       val storeManager =
         if (nodeCfg.persistOnChainState) LmdbStoreManager(dataPath)
@@ -175,8 +163,8 @@ object NetworkSim extends IOApp {
         if (nodeCfg.enableInfluxDb) InfluxDbBatchedMetrics[F](ifxDbCfg, vId.toHex)
         else Resource.eval(Metrics.unit.pure[F])
 
-      (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics).flatMapN {
-        case ((history, valueStore), metrics) =>
+      (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics, Resource.eval(dbApiImpl(db)))
+        .flatMapN { case ((history, valueStore), metrics, dbApi) =>
           implicit val x: Metrics[F] = metrics
 
           val blockSeqNumRef = Ref.unsafe(0)
@@ -192,7 +180,7 @@ object NetworkSim extends IOApp {
               random(users).map(st => balances.data.BalancesDeploy(BalancesDeployBody(st, idx.longValue)))
             }
             .replicateA(netCfg.txPerBlock)
-            .flatTap(_.traverse(saveTx))
+            .flatTap(_.traverse(dbApi.saveBalancesDeploy))
             .map(_.toSet)
 
           val balancesEngine   = BalancesStateBuilderWithReader(history, valueStore)
@@ -219,14 +207,16 @@ object NetworkSim extends IOApp {
               _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
             } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
 
+          def unsaveReadBlock(id: ByteArray) = dbApi.readBlock(id).map(_.get)
+
           val netNode = Node[F, M, S, T](
             vId,
             WeaverState.empty[M, S, T](lfs.state),
             assignBlockId,
             nextTxs,
             buildState,
-            saveBlock,
-            readBlock,
+            dbApi.saveBlock,
+            unsaveReadBlock,
           ).map { node =>
             val tpsRef    = Ref.unsafe[F, Double](0f)
             val tpsUpdate = node.dProc.finStream
@@ -277,143 +267,153 @@ object NetworkSim extends IOApp {
               ),
               balancesEngine.readBalance(_: ByteArray32, _: Wallet),
               getData,
+              dbApi,
             )
           }
           Resource.liftK(netNode)
-      }
+        }
     }
 
     /** Make the computer, init all peers with lfs. */
-    def mkNet(lfs: MessageData[M, S]): Resource[F, List[NetNode[F]]] =
-      lfs.state.bonds.activeSet.toList.traverse(mkNode)
+    def mkNet(lfs: MessageData[M, S], db: SlickDb): Resource[F, List[NetNode[F]]] =
+      lfs.state.bonds.activeSet.toList.traverse(mkNode(_, db))
 
     Stream
-      .resource(mkNet(lfs))
-      .map(_.zipWithIndex)
-      .map { net =>
-        net.map {
-          case NetNode(
-                self,
-                Node(weaverStRef, _, _, _, dProc),
-                readBalance,
-                getData,
-              ) -> idx =>
-            val bootstrap = {
-              implicit val m: Metrics[F] = Metrics.unit
-              Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
-                val genesis = genesisM.m.txs.head
-                saveBlock(genesisM) *> saveTx(genesis) *> dProc.acceptMsg(genesisM.id) *>
-                  Console[F].println(s"Bootstrap done for ${self}")
-              })
-            }
-            val notSelf   = net.collect { case NetNode(id, node, _, _) -> _ if id != self => node }
+      .resource(slick.EmbeddedH2SlickDb[F])
+      .flatMap { db =>
+        Stream
+          .resource(mkNet(lfs, db))
+          .map(_.zipWithIndex)
+          .map { net =>
+            net.map {
+              case NetNode(
+                    self,
+                    Node(weaverStRef, _, _, _, dProc),
+                    readBalance,
+                    getData,
+                    dbApi,
+                  ) -> idx =>
+                val bootstrap = {
+                  implicit val m: Metrics[F] = Metrics.unit
+                  Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
+                    val genesis = genesisM.m.txs.head
+                    dbApi.saveBlock(genesisM) *> dbApi.saveBalancesDeploy(genesis) *> dProc.acceptMsg(genesisM.id) *>
+                      Console[F].println(s"Bootstrap done for ${self}")
+                  })
+                }
+                val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
 
-            val run = dProc.dProcStream concurrently {
-              dProc.output.through(broadcast(notSelf, netCfg.propDelay))
-            }
-
-            val apiServerStream: Stream[F, ExitCode] = {
-              def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
-                blockStore.get
-                  .map(_.get(ByteArray(x)))
-                  .map(
-                    _.map { x =>
-                      x.copy(
-                        merge = x.merge.map(_.id),
-                        txs = x.txs.map(_.id),
-                        finalized = x.finalized.map { case ConflictResolution(accepted, rejected) =>
-                          ConflictResolution(accepted.map(_.id), rejected.map(_.id))
-                        },
-                      )
-                    }.map {
-                      case Block(
-                            sender,
-                            minGenJs,
-                            offences,
-                            txs,
-                            finalFringe,
-                            finalized,
-                            merge,
-                            bonds,
-                            lazTol,
-                            expThresh,
-                            finalStateHash,
-                            postStateHash,
-                          ) =>
-                        data.Block(
-                          x,
-                          sender.bytes,
-                          1,
-                          "root",
-                          -1,
-                          -1,
-                          minGenJs.map(_.bytes),
-                          bonds.bonds.map { case (k, v) => Bond(k.bytes, v) }.toSet,
-                          finalStateHash,
-                          preStateHash = postStateHash,
-                          postStateHash = postStateHash,
-                          deploys = txs.map(_.bytes).toSet,
-                          signatureAlg = "-",
-                          signature = Array.empty[Byte],
-                          status = 0,
-                        )
-                    },
-                  )
-
-              def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
-
-              val extApiImpl = new ExternalApi[F] {
-                override def getBlockByHash(hash: Array[Byte]): F[Option[api.data.Block]] = blockByHash(hash)
-
-                override def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]] =
-                  readTx(ByteArray(hash)).map(
-                    _.map(x =>
-                      Deploy(
-                        Array.empty[Byte],
-                        Array.empty[Byte],
-                        "root",
-                        s"${x.diffs.map { case k -> v => k.toHex -> v }}",
-                        0L,
-                        0L,
-                        0L,
-                        0L,
-                        0L,
-                      ),
-                    ),
-                  )
-
-                override def getDeploysByHash(hash: Array[Byte]): F[Option[Seq[Array[Byte]]]]        = ???
-                override def getBalance(state: Array[Byte], wallet: Array[Byte]): F[Option[Balance]] = {
-                  val blakeH = ByteArray32.convert(state)
-                  val longW  = walletCodec.decode(ByteArray(wallet))
-                  (blakeH, longW).traverseN(readBalance).flatMap(_.liftTo[F])
+                val run = dProc.dProcStream concurrently {
+                  dProc.output.through(broadcast(notSelf, netCfg.propDelay))
                 }
 
-                override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
-                override def status: F[Status]                       = Status("0.1.1").pure
-              }
+                val apiServerStream: Stream[F, ExitCode] = {
+                  def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
+                    dbApi
+                      .readBlock(ByteArray(x))
+                      .map(
+                        _.map { x =>
+                          x.copy(
+                            merge = x.merge.map(_.id),
+                            txs = x.txs.map(_.id),
+                            finalized = x.finalized.map { case ConflictResolution(accepted, rejected) =>
+                              ConflictResolution(accepted.map(_.id), rejected.map(_.id))
+                            },
+                          )
+                        }.map {
+                          case Block(
+                                sender,
+                                minGenJs,
+                                offences,
+                                txs,
+                                finalFringe,
+                                finalized,
+                                merge,
+                                bonds,
+                                lazTol,
+                                expThresh,
+                                finalStateHash,
+                                postStateHash,
+                              ) =>
+                            data.Block(
+                              x,
+                              sender.bytes,
+                              1,
+                              "root",
+                              -1,
+                              -1,
+                              minGenJs.map(_.bytes),
+                              bonds.bonds.map { case (k, v) => Bond(k.bytes, v) }.toSet,
+                              finalStateHash,
+                              preStateHash = postStateHash,
+                              postStateHash = postStateHash,
+                              deploys = txs.map(_.bytes).toSet,
+                              signatureAlg = "-",
+                              signature = Array.empty[Byte],
+                              status = 0,
+                            )
+                        },
+                      )
 
-              val routes = PublicApiJson[F](extApiImpl).routes
+                  def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
 
-              val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
+                  val extApiImpl = new ExternalApi[F] {
+                    override def getBlockByHash(hash: Array[Byte]): F[Option[api.data.Block]] = blockByHash(hash)
 
-              web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
+                    override def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]] =
+                      dbApi
+                        .readBalancesDeploy(ByteArray(hash))
+                        .map(
+                          _.map(x =>
+                            Deploy(
+                              Array.empty[Byte],
+                              Array.empty[Byte],
+                              "root",
+                              s"${x.body.state.diffs.map { case k -> v => k.toHex -> v }}",
+                              0L,
+                              0L,
+                              0L,
+                              0L,
+                              0L,
+                            ),
+                          ),
+                        )
+
+                    override def getDeploysByHash(hash: Array[Byte]): F[Option[Seq[Array[Byte]]]] = ???
+
+                    override def getBalance(state: Array[Byte], wallet: Array[Byte]): F[Option[Balance]] = {
+                      val blakeH = ByteArray32.convert(state)
+                      val longW  = walletCodec.decode(ByteArray(wallet))
+                      (blakeH, longW).traverseN(readBalance).flatMap(_.liftTo[F])
+                    }
+
+                    override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
+
+                    override def status: F[Status] = Status("0.1.1").pure
+                  }
+
+                  val routes = PublicApiJson[F](extApiImpl).routes
+
+                  val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
+
+                  web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
+                }
+
+                (run concurrently bootstrap concurrently apiServerStream) -> getData
+            }
+          }
+          .map(_.unzip)
+          .flatMap { case (streams, diags) =>
+            val simStream = Stream.emits(streams).parJoin(streams.size)
+
+            val logDiag = {
+              val getNetworkState = diags.sequence
+              import NetworkSnapshot.*
+              getNetworkState.showAnimated(samplingTime = 150.milli)
             }
 
-            (run concurrently bootstrap concurrently apiServerStream) -> getData
-        }
-      }
-      .map(_.unzip)
-      .flatMap { case (streams, diags) =>
-        val simStream = Stream.emits(streams).parJoin(streams.size)
-
-        val logDiag = {
-          val getNetworkState = diags.sequence
-          import NetworkSnapshot.*
-          getNetworkState.showAnimated(samplingTime = 150.milli)
-        }
-
-        simStream concurrently logDiag
+            simStream concurrently logDiag
+          }
       }
   }
 
