@@ -2,13 +2,15 @@ package node.api.web.json
 
 import sdk.api.data.*
 import sdk.codecs.Base16
+import sdk.syntax.all.*
 
 /**
  * Json encoding for API types
  */
 trait ExternalApiJsonSchemas extends JsonSchemasPretty {
   implicit val byteArrayJsonSchema: JsonSchema[Array[Byte]] =
-    stringJsonSchema(None).xmap(s => Base16.decode(s).getOrElse(Array.empty[Byte]))(ba => Base16.encode(ba))
+    // TODO how to respond with 400 if decoding throws error?
+    stringJsonSchema(None).xmap(s => Base16.decode(s).getUnsafe)(ba => Base16.encode(ba))
 
   implicit val balanceJson: JsonSchema[Balance]                          = genericRecord[Balance]
   implicit val deployJson: JsonSchema[Deploy]                            = genericRecord[Deploy]
