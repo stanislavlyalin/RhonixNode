@@ -1,6 +1,7 @@
 package sim
 
 import cats.Parallel
+import cats.data.{Validated, ValidatedNel}
 import cats.effect.*
 import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.{Console, Random}
@@ -13,14 +14,14 @@ import fs2.{Pipe, Stream}
 import node.api.web
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
-import sdk.hashing.Blake2b
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint
 import sdk.api
-import sdk.api.data.{Bond, Deploy, Status}
-import sdk.api.{data, ExternalApi}
+import sdk.api.data.{Bond, Deploy, Status, TokenTransferRequest}
+import sdk.api.{data, ApiErr, ExternalApi, Validation}
 import sdk.diag.{Metrics, SystemReporter}
+import sdk.hashing.Blake2b
 import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.history.instances.RadixHistory
@@ -391,6 +392,23 @@ object NetworkSim extends IOApp {
 
                 override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
                 override def status: F[Status]                       = Status("0.1.1").pure
+
+                override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
+                  Validation
+                    .validateTokenTransferRequest(tx)
+                    .traverse { _ =>
+                      txStore.update(
+                        _.updated(
+                          ByteArray(tx.digest),
+                          BalancesState(
+                            Map(
+                              ByteArray(tx.body.from) -> -tx.body.value,
+                              ByteArray(tx.body.to)   -> tx.body.value,
+                            ),
+                          ),
+                        ),
+                      )
+                    }
               }
 
               val routes = PublicApiJson[F](extApiImpl).routes
