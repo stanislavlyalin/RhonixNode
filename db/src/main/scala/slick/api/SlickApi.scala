@@ -22,12 +22,13 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
 
   def deployerGetAll: F[Set[ByteArray]] = queries.deployerGetAll.run.map(_.map(ByteArray(_)).toSet)
 
-  def deployInsert(d: sdk.data.Deploy): F[Unit] = queries
-    .deployInsertIfNot(
-      data.Deploy(d.sig.bytes, d.deployerPk.bytes, d.shardName, d.program, d.phloPrice, d.phloLimit, d.nonce),
-    )
-    .run
-    .void
+  def deployInsert(d: sdk.data.Deploy): F[Unit] =
+    queries
+      .deployInsertIfNot(
+        data.Deploy(d.sig.bytes, d.deployerPk.bytes, d.shardName, d.program, d.phloPrice, d.phloLimit, d.nonce),
+      )
+      .run
+      .void
 
   def deployGetAll: F[Set[ByteArray]] = queries.deployGetAll.run.map(_.map(ByteArray(_)).toSet)
 

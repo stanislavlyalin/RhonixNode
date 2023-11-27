@@ -2,7 +2,7 @@ package slick
 
 import cats.syntax.all.*
 import slick.dbio.Effect.*
-import slick.jdbc.JdbcProfile
+import slick.jdbc.{JdbcProfile, TransactionIsolation}
 import slick.sql.{FixedSqlAction, SqlAction}
 import slick.tables.*
 
