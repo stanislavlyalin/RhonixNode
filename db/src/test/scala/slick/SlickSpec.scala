@@ -67,27 +67,30 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   }
 
   "Concurrent deployInsert() function calls" should "correctly handle concurrency" in {
-    val numOfDeploys = 10 // Number of concurrent deploys
-    forAll(Arbitrary.arbitrary[Deploy], Gen.listOfN(numOfDeploys, Arbitrary.arbitrary[ByteArray])) {
-      (d: Deploy, sigs: Seq[ByteArray]) =>
-        val deploys = sigs.map(sig => d.copy(sig = sig))
+    val d       = Arbitrary.arbitrary[Deploy].sample.get
+    val sigs    = Gen.listOfN(100, Arbitrary.arbitrary[ByteArray]).sample.get
+    val deploys = sigs.map(s => d.copy(sig = s))
 
-        def test(api: SlickApi[IO]): IO[Assertion] = {
-          // Run all inserts concurrently and capture any exceptions
-          val race = deploys.map(api.deployInsert).parSequence.attempt.map {
-            case Left(e)  => fail(s"An error occurred: $e")
-            case Right(_) => succeed
-          }
+    // Try to insert the same deploy 100 times in parallel.
+    // During insertion all nested fields are first saved if not present (e.g. deploy id, shard id)
+    //
+    // What is expected is that all 100 deploy are inserted since they have different signatures.
+    //
+    // But what is observed that concurrent queries all attempt to inset inner fields
+    // and fail with unique constraint violation.
+    //
+    // org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation:
+    // "PUBLIC.idx_deployer ON PUBLIC.deployer(pub_key NULLS FIRST) VALUES ( /* 1 */ X'4d467379736f59' )";
+    // SQL statement: insert into "deployer" ("pub_key") values (?) [23505-214]
+    //
+    // This is despite the fact that api.deployInsert is transactional
+    def test(api: SlickApi[IO]): IO[Assertion] =
+      deploys.parTraverse_(api.deployInsert).map(_ shouldBe an[Unit])
 
-          // Repeat the test multiple times
-          List.fill(10)(race).sequence.map(_ => succeed)
-        }
-
-        EmbeddedH2SlickDb[IO]
-          .evalMap(SlickApi[IO])
-          .use(test)
-          .unsafeRunSync()
-    }
+    EmbeddedH2SlickDb[IO]
+      .evalMap(SlickApi[IO])
+      .use(test)
+      .unsafeRunSync()
   }
 
   "deployDelete() function call" should "remove deploy and clean up dependencies in Deployers and Shards tables if possible" in {
