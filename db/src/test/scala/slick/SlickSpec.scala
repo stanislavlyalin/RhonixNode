@@ -66,6 +66,30 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     }
   }
 
+  "Concurrent deployInsert() function calls" should "correctly handle concurrency" in {
+    val numOfDeploys = 10 // Number of concurrent deploys
+    forAll(Arbitrary.arbitrary[Deploy], Gen.listOfN(numOfDeploys, Arbitrary.arbitrary[ByteArray])) {
+      (d: Deploy, sigs: Seq[ByteArray]) =>
+        val deploys = sigs.map(sig => d.copy(sig = sig))
+
+        def test(api: SlickApi[IO]): IO[Assertion] = {
+          // Run all inserts concurrently and capture any exceptions
+          val race = deploys.map(api.deployInsert).parSequence.attempt.map {
+            case Left(e)  => fail(s"An error occurred: $e")
+            case Right(_) => succeed
+          }
+
+          // Repeat the test multiple times
+          List.fill(10)(race).sequence.map(_ => succeed)
+        }
+
+        EmbeddedH2SlickDb[IO]
+          .evalMap(SlickApi[IO])
+          .use(test)
+          .unsafeRunSync()
+    }
+  }
+
   "deployDelete() function call" should "remove deploy and clean up dependencies in Deployers and Shards tables if possible" in {
     forAll { (d1: Deploy, d2Sig: ByteArray) =>
       val d2: Deploy = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
