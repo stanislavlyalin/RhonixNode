@@ -159,3 +159,7 @@ lazy val macros = (project in file("macros"))
   .settings(settingsScala2*)
   .settings(libraryDependencies += scalaReflect(scala2Version))
   .dependsOn(sdk)
+
+lazy val secp256k1 = (project in file("secp256k1"))
+  .settings(settingsScala2*)
+  .settings(libraryDependencies ++= common :: log)
