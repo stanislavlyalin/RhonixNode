@@ -1,5 +1,6 @@
 import Dependencies.*
 import BNFC.*
+import Secp256k1.*
 
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
@@ -162,4 +163,17 @@ lazy val macros = (project in file("macros"))
 
 lazy val secp256k1 = (project in file("secp256k1"))
   .settings(settingsScala2*)
-  .settings(libraryDependencies ++= common :: log)
+  .settings(
+    libraryDependencies ++= common ++ log :+ bcprov,
+    pullNative := {
+      val pullCached = FileFunction.cached(
+        streams.value.cacheDirectory / "secp256k1-native",
+        inStyle = FilesInfo.hash,
+        outStyle = FilesInfo.exists,
+      ) { (in: Set[File]) =>
+        pullSecp256k1(in.head)
+      }
+      pullCached(Set((Compile / resourceManaged).value)).toSeq
+    },
+    Compile / sourceGenerators += pullNative.taskValue,
+  )
