@@ -20,10 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import static java.io.File.createTempFile;
 import static java.lang.System.getProperty;
@@ -61,11 +58,11 @@ public class Secp256k1Context {
                 libToLoad = extract("secp256k1-native-linux-x86_64.so");
             } else if (arch64 && osx) {
                 libToLoad = extract("secp256k1-native-osx-x86_64.dylib");
-            }  else if (arch64 && windows) {
+            } else if (arch64 && windows) {
                 libToLoad = extract("secp256k1-native-windows-x86_64.dll");
             } else if (osx_arm) {
                 libToLoad = extract("secp256k1-native-osx-aarch64.dylib");
-            } else  {
+            } else {
                 throw new RuntimeException("No secp256k1-native library to extract");
             }
             System.load(libToLoad);
@@ -73,7 +70,7 @@ public class Secp256k1Context {
         } catch (UnsatisfiedLinkError e) {
             System.out.println("UnsatisfiedLinkError: " + e.toString());
             isEnabled = false;
-        } catch (IOException e){
+        } catch (IOException e) {
             System.out.println("IOException: " + e.toString());
             isEnabled = false;
         } catch (NullPointerException e) {
@@ -112,7 +109,7 @@ public class Secp256k1Context {
     }
 
     public static long getContext() {
-        if(!enabled) return -1; //sanity check
+        if (!enabled) return -1; //sanity check
         return context;
     }
 

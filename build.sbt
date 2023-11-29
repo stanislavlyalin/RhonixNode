@@ -40,7 +40,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
 
 lazy val all = (project in file("."))
   .settings(commonSettings*)
-  .aggregate(sdk, weaver, dproc, db, node, rholang, legacy, sim, diag, macros)
+  .aggregate(sdk, weaver, dproc, db, node, rholang, legacy, sim, diag, macros, secp256k1)
 
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
@@ -86,7 +86,7 @@ lazy val node = (project in file("node"))
       Resolver.sonatypeOssRepos("releases") ++
         Resolver.sonatypeOssRepos("snapshots"),
   )
-  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db)
+  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db, secp256k1)
 
 // Diagnostics
 lazy val diag = (project in file("diag"))
@@ -177,3 +177,4 @@ lazy val secp256k1 = (project in file("secp256k1"))
     },
     Compile / sourceGenerators += pullNative.taskValue,
   )
+  .dependsOn(sdk)
