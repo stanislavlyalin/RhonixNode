@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-package org.crypto;
+package org.bitcoin;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Assertion utilities for {@link NativeSecp256k1}
- *
- * @deprecated See https://github.com/bitcoinj/bitcoinj/issues/2267
  */
-@Deprecated
 public class NativeSecp256k1Util {
 
     private static final Logger log = LoggerFactory.getLogger(NativeSecp256k1Util.class);
