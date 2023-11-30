@@ -44,24 +44,27 @@ public class Secp256k1Context {
         final String libToLoad;
 
         final String arch = getProperty("os.arch");
-        final boolean arch64 = "x64".equals(arch) || "amd64".equals(arch)
-                || "x86_64".equals(arch);
+        final boolean x64 = "x64".equals(arch) || "amd64".equals(arch) || "x86_64".equals(arch);
+        final boolean aarch64 = "aarch64".equals(arch);
 
         final String os = getProperty("os.name");
         final boolean linux = os.toLowerCase(ENGLISH).startsWith("linux");
         final boolean osx = os.startsWith("Mac OS X");
-        final boolean osx_arm = "aarch64".equals(arch);
         final boolean windows = os.startsWith("Windows");
 
+        System.out.println("Platform detected: " + os + " " + arch);
+
         try {
-            if (arch64 && linux) {
+            if (x64 && linux) {
                 libToLoad = extract("secp256k1-native-linux-x86_64.so");
-            } else if (arch64 && osx) {
+            } else if (aarch64 && linux) {
+                libToLoad = extract("secp256k1-native-linux-aarch64.so");
+            } else if (x64 && osx) {
                 libToLoad = extract("secp256k1-native-osx-x86_64.dylib");
-            } else if (arch64 && windows) {
-                libToLoad = extract("secp256k1-native-windows-x86_64.dll");
-            } else if (osx_arm) {
+            } else if (aarch64 && osx) {
                 libToLoad = extract("secp256k1-native-osx-aarch64.dylib");
+            } else if (x64 && windows) {
+                libToLoad = extract("secp256k1-native-windows-x86_64.dll");
             } else {
                 throw new RuntimeException("No secp256k1-native library to extract");
             }
@@ -89,7 +92,7 @@ public class Secp256k1Context {
             file = createTempFile("secp256k1-native-library-", suffix);
             file.deleteOnExit();
             final ClassLoader cl = currentThread().getContextClassLoader();
-            requireNonNull(cl.getResource(name), "Classpath resource not found");
+            requireNonNull(cl.getResource(name), "Classpath resource " + name + " not found");
             try (InputStream in = cl.getResourceAsStream(name);
                  OutputStream out = Files.newOutputStream(file.toPath())) {
                 int bytes;

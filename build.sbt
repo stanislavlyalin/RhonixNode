@@ -165,16 +165,24 @@ lazy val secp256k1 = (project in file("secp256k1"))
   .settings(settingsScala2*)
   .settings(
     libraryDependencies ++= common ++ log :+ bcprov,
+    // this is quite hacky way to pull native libraries
     pullNative := {
+      val log        = streams.value.log
       val pullCached = FileFunction.cached(
-        streams.value.cacheDirectory / "secp256k1-native",
+        // this string does not matter, just has to some folder that is supposed to be created and
+        // looked up to see if cache exists
+        streams.value.cacheDirectory / "qXr7LbNp",
         inStyle = FilesInfo.hash,
         outStyle = FilesInfo.exists,
       ) { (in: Set[File]) =>
+        log.info("Missing Secp256k1 native library, downloading...")
+        // This is the main function that does download native libs into managed resource
         pullSecp256k1(in.head)
-      }
-      pullCached(Set((Compile / resourceManaged).value)).toSeq
+      }(Set((Compile / resourceManaged).value))
+      // Returning generated files paths is important so they are copied by sbt to classes folder
+      pullCached.toSeq
     },
-    Compile / sourceGenerators += pullNative.taskValue,
+    // NOTE: this is not called on `compile` but when tests are called or on assembly
+    Compile / resourceGenerators += pullNative.taskValue,
   )
   .dependsOn(sdk)
