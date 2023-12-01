@@ -185,4 +185,4 @@ lazy val secp256k1 = (project in file("secp256k1"))
     // NOTE: this is not called on `compile` but when tests are called or on assembly
     Compile / resourceGenerators += pullNative.taskValue,
   )
-  .dependsOn(sdk)
+  .dependsOn(sdk % "compile->compile;test->test")
