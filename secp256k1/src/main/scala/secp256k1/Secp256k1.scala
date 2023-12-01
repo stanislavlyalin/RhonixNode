@@ -25,6 +25,34 @@ object Secp256k1 {
   private val secKeyLength      = 32
   private val curveName: String = "secp256k1"
 
+  // This is a copy of
+  // https://github.com/bitcoinj/bitcoinj/blob/master/core/src/main/java/org/bitcoinj/base/internal/ByteUtils.java#L83-L94
+  private def bigIntegerToBytes(b: BigInteger, numBytes: Int): Array[Byte] = {
+    assert(b.signum() >= 0, () -> s"b must be positive or zero: $b")
+    assert(numBytes > 0, ()    -> s"numBytes must be positive: $numBytes")
+    val src                    = b.toByteArray
+    val dest                   = new Array[Byte](numBytes)
+    val isFirstByteOnlyForSign = src(0) == 0
+    val length                 = if (isFirstByteOnlyForSign) src.length - 1 else src.length
+    assert(length <= numBytes, () -> s"The given number does not fit in $numBytes")
+    val srcPos  = if (isFirstByteOnlyForSign) 1 else 0;
+    val destPos = numBytes - length
+    System.arraycopy(src, srcPos, dest, destPos, length)
+    dest
+  }
+
+  private val CURVE_PARAMS: X9ECParameters = CustomNamedCurves.getByName(curveName)
+  private val CURVE: ECDomainParameters    =
+    new ECDomainParameters(CURVE_PARAMS.getCurve, CURVE_PARAMS.getG, CURVE_PARAMS.getN, CURVE_PARAMS.getH)
+  private val secureRandom: SecureRandom   = SecureRandom.getInstanceStrong;
+  private val generator                    = new ECKeyPairGenerator()
+  private val keygenParams                 = new ECKeyGenerationParameters(CURVE, secureRandom)
+
+  locally {
+    val _ = FixedPointUtil.precompute(CURVE_PARAMS.getG)
+    val _ = generator.init(keygenParams)
+  }
+
   def apply: ECDSA = new ECDSA {
     override val dataSize: Int = 32
 
@@ -45,36 +73,9 @@ object Secp256k1 {
       NativeSecp256k1.verify(data, signature.value, publicKey.value)
     }
 
-    // This is a copy of
-    // https://github.com/bitcoinj/bitcoinj/blob/master/core/src/main/java/org/bitcoinj/base/internal/ByteUtils.java#L83-L94
-    private def bigIntegerToBytes(b: BigInteger, numBytes: Int): Array[Byte] = {
-      assert(b.signum() >= 0, () -> s"b must be positive or zero: $b")
-      assert(numBytes > 0, ()    -> s"numBytes must be positive: $numBytes")
-      val src                    = b.toByteArray
-      val dest                   = new Array[Byte](numBytes)
-      val isFirstByteOnlyForSign = src(0) == 0
-      val length                 = if (isFirstByteOnlyForSign) src.length - 1 else src.length
-      assert(length <= numBytes, () -> s"The given number does not fit in $numBytes")
-      val srcPos  = if (isFirstByteOnlyForSign) 1 else 0;
-      val destPos = numBytes - length
-      System.arraycopy(src, srcPos, dest, destPos, length)
-      dest
-    }
-
-    private val CURVE_PARAMS: X9ECParameters = CustomNamedCurves.getByName(curveName)
-    private val CURVE: ECDomainParameters    =
-      new ECDomainParameters(CURVE_PARAMS.getCurve, CURVE_PARAMS.getG, CURVE_PARAMS.getN, CURVE_PARAMS.getH)
-    private val secureRandom: SecureRandom   = SecureRandom.getInstanceStrong;
-    locally {
-      val _ = FixedPointUtil.precompute(CURVE_PARAMS.getG)
-    }
-
-    // This is a copy of
+    // This is a copied (along with initialization above in the Secp256k1 object scope) from
     // https://github.com/bitcoinj/bitcoinj/blob/master/core/src/main/java/org/bitcoinj/crypto/ECKey.java#L173-L183
     override def newKeyPair: (SecKey, PubKey) = {
-      val generator                          = new ECKeyPairGenerator()
-      val keygenParams                       = new ECKeyGenerationParameters(CURVE, secureRandom)
-      val _                                  = generator.init(keygenParams)
       val keypair                            = generator.generateKeyPair
       val privParams: ECPrivateKeyParameters = keypair.getPrivate.asInstanceOf[ECPrivateKeyParameters]
       val pubParams: ECPublicKeyParameters   = keypair.getPublic.asInstanceOf[ECPublicKeyParameters]
