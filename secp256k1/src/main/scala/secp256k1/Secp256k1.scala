@@ -80,7 +80,7 @@ object Secp256k1 {
       val pubParams: ECPublicKeyParameters   = keypair.getPublic.asInstanceOf[ECPublicKeyParameters]
 
       new SecKey(bigIntegerToBytes(privParams.getD, secKeyLength)) ->
-        new PubKey(pubParams.getQ.getEncoded(true))
+        new PubKey(pubParams.getQ.getEncoded(false))
     }
   }
 }
