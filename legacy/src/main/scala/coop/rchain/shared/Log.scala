@@ -5,9 +5,9 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import com.typesafe.scalalogging.Logger
 import coop.rchain.catscontrib.effect.implicits.*
+import sdk.log.LogSource
 
 import scala.language.experimental.macros
-import scala.reflect.macros.blackbox
 
 trait Log[F[_]] {
   def isTraceEnabled(implicit ev: LogSource): F[Boolean]

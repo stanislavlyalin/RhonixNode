@@ -157,10 +157,5 @@ lazy val legacy = (project in file("legacy"))
 // https://stackoverflow.com/questions/75847326/macro-implementation-not-found-scala-2-13-3
 lazy val macros = (project in file("macros"))
   .settings(settingsScala2*)
-  .settings(
-    libraryDependencies ++= common ++ legacyLibs,
-    resolvers ++=
-      // for kalium
-      Resolver.sonatypeOssRepos("releases") ++
-        Resolver.sonatypeOssRepos("snapshots") :+ ("jitpack" at "https://jitpack.io"),
-  )
+  .settings(libraryDependencies += scalaReflect(scala2Version))
+  .dependsOn(sdk)

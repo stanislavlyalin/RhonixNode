@@ -2,20 +2,19 @@ package coop.rchain.rspace
 
 import cats.Applicative
 import cats.effect.{Async, Ref, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.typesafe.scalalogging.Logger
-import coop.rchain.metrics.implicits._
+import coop.rchain.metrics.implicits.*
 import coop.rchain.metrics.{Metrics, Span}
 import coop.rchain.rspace.concurrent.ConcurrentTwoStepLockF
 import coop.rchain.rspace.hashing.{Blake2b256Hash, StableHashProvider}
-import coop.rchain.rspace.history._
-import coop.rchain.rspace.internal._
-import coop.rchain.rspace.trace.{COMM, Consume, Log => EventLog, Produce}
+import coop.rchain.rspace.history.*
+import coop.rchain.rspace.internal.*
+import coop.rchain.rspace.trace.{COMM, Consume, Log as EventLog, Produce}
 import coop.rchain.shared.{Log, Serialize}
+import sdk.log.LogSourceMacroInstance.logSource
 
-import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.SortedSet
-import scala.concurrent.ExecutionContext
 import scala.util.Random
 
 abstract class RSpaceOps[F[_]: Async: Log: Metrics: Span, C, P, A, K](

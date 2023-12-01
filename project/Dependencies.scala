@@ -90,6 +90,9 @@ object Dependencies {
   val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
   val slf4j          = "org.slf4j"      % "slf4j-api"       % "2.0.5"
 
+  // Reflection
+  def scalaReflect(scalaVersion: String): ModuleID = "org.scala-lang" % "scala-reflect" % scalaVersion
+
   // Config
   val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.4"
 
