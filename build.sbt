@@ -1,5 +1,6 @@
 import Dependencies.*
 import BNFC.*
+import Secp256k1.*
 
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
@@ -39,7 +40,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
 
 lazy val all = (project in file("."))
   .settings(commonSettings*)
-  .aggregate(sdk, weaver, dproc, db, node, rholang, legacy, sim, diag, macros)
+  .aggregate(sdk, weaver, dproc, db, node, rholang, legacy, sim, diag, macros, secp256k1)
 
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
@@ -85,7 +86,7 @@ lazy val node = (project in file("node"))
       Resolver.sonatypeOssRepos("releases") ++
         Resolver.sonatypeOssRepos("snapshots"),
   )
-  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db)
+  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db, secp256k1)
 
 // Diagnostics
 lazy val diag = (project in file("diag"))
@@ -159,3 +160,29 @@ lazy val macros = (project in file("macros"))
   .settings(settingsScala2*)
   .settings(libraryDependencies += scalaReflect(scala2Version))
   .dependsOn(sdk)
+
+lazy val secp256k1 = (project in file("secp256k1"))
+  .settings(settingsScala2*)
+  .settings(
+    libraryDependencies ++= common ++ log :+ bcprov,
+    // this is quite hacky way to pull native libraries
+    pullNative := {
+      val log        = streams.value.log
+      val pullCached = FileFunction.cached(
+        // this string does not matter, just has to some folder that is supposed to be created and
+        // looked up to see if cache exists
+        streams.value.cacheDirectory / "qXr7LbNp",
+        inStyle = FilesInfo.hash,
+        outStyle = FilesInfo.exists,
+      ) { (in: Set[File]) =>
+        log.info("Missing Secp256k1 native library, downloading...")
+        // This is the main function that does download native libs into managed resource
+        pullSecp256k1(in.head)
+      }(Set((Compile / resourceManaged).value))
+      // Returning generated files paths is important so they are copied by sbt to classes folder
+      pullCached.toSeq
+    },
+    // NOTE: this is not called on `compile` but when tests are called or on assembly
+    Compile / resourceGenerators += pullNative.taskValue,
+  )
+  .dependsOn(sdk % "compile->compile;test->test")
