@@ -21,12 +21,12 @@ class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
     witSut { bb =>
       val toFinalize = new BalancesState(
         Map(
-          ByteArray(Array(1.byteValue)) -> 10,
-          ByteArray(Array(2.byteValue)) -> 10,
-          ByteArray(Array(3.byteValue)) -> 10,
+          ByteArray(1.byteValue) -> 10,
+          ByteArray(2.byteValue) -> 10,
+          ByteArray(3.byteValue) -> 10,
         ),
       )
-      val toMerge    = new BalancesState(Map(ByteArray(Array(1.byteValue)) -> 1L, ByteArray(Array(2.byteValue)) -> 3L))
+      val toMerge    = new BalancesState(Map(ByteArray(1.byteValue) -> 1L, ByteArray(2.byteValue) -> 3L))
 
       for {
         h1      <- bb.buildState(EmptyRootHash, toFinalize, toMerge)
@@ -43,7 +43,7 @@ class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
 
   "Attempt to commit negative balance" should "raise an error" in {
     val r = witSut { bb =>
-      val toFinalize = new BalancesState(Map(ByteArray(Array(1.byteValue)) -> -1))
+      val toFinalize = new BalancesState(Map(ByteArray(1.byteValue) -> -1))
       bb.buildState(EmptyRootHash, toFinalize, BalancesState.Default).attempt
     }
     r.swap.toOption.isDefined shouldBe true

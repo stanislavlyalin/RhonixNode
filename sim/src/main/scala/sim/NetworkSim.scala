@@ -128,8 +128,8 @@ object NetworkSim extends IOApp {
 
     /// Shared block store across simulation
     // TODO replace with pgSql
-    val blockStore: Ref[F, Map[ByteArray, dproc.data.Block[M, S, T]]] =
-      Ref.unsafe(Map.empty[ByteArray, dproc.data.Block[M, S, T]])
+    val blockStore: Ref[F, Map[M, dproc.data.Block[M, S, T]]] =
+      Ref.unsafe(Map.empty[M, dproc.data.Block[M, S, T]])
 
     def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
 
