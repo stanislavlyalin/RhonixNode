@@ -147,6 +147,4 @@ object Dependencies {
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck)
 
   val dbLibs = Seq(h2db, postgresql, junitJupiter) ++ slick
-
-  val cryptoLibs = Seq(bcprov)
 }

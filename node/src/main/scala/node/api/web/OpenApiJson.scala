@@ -19,7 +19,16 @@ private object OpenApiJsonPublic
 
   private val endpoints: Seq[DocumentedEndpoint] = Seq(getBlock, getDeploy, getStatus, getBalance, getLatest)
 
-  val openApi: OpenApi = openApi(Info(title = sdk.api.Title, version = sdk.api.Version))(endpoints*)
+  // Prefix endpoints so openApi scheme is generated correctly
+  private val endpointsPrefixed = endpoints.map(e =>
+    e.copy(request = e.request.copy(url = e.request.url.copy(path = e.request.url.path match {
+      case h :: tail => (h +: sdk.api.RootPath.map(Left(_)).toList) ++ tail
+      case List(h)   => h +: sdk.api.RootPath.map(Left(_)).toList
+      case Nil       => sdk.api.RootPath.map(Left(_)).toList
+    }))),
+  )
+
+  val openApi: OpenApi = openApi(Info(title = sdk.api.Title, version = sdk.api.Version))(endpointsPrefixed*)
 }
 
 /**
