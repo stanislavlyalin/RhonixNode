@@ -8,11 +8,11 @@ object Secp256k1 {
   lazy val pullNative = taskKey[Seq[File]]("Pull native libs from remote repository")
 
   // TODO pull from https://github.com/gorki-network/secp256k1-native after CD if complete
-  lazy val linux_x86_x64_remote =
+  private lazy val linux_x86_x64_remote =
     "https://github.com/nzpr/secp256k1-native/raw/aarch64/libs/secp256k1-native-linux-x86_64.so"
-  lazy val osx_x86_x64_remote   =
+  private lazy val osx_x86_x64_remote   =
     "https://github.com/nzpr/secp256k1-native/raw/aarch64/libs/secp256k1-native-osx-x86_64.dylib"
-  lazy val osx_aarch64_remote   =
+  private lazy val osx_aarch64_remote   =
     "https://github.com/nzpr/secp256k1-native/raw/aarch64/libs/secp256k1-native-osx-aarch64.dylib"
 
   lazy val pullNativeLibs =
