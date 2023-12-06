@@ -430,8 +430,8 @@ object NetworkSim extends IOApp {
       with the argument. Transactions are generated randomly.
 
     Usage:
-      Run simulation:           java -jar sim.jar -Dconfig.file <path to config file> run
-      Dump default config file: java -jar sim.jar --print-default-config <path>
+      Run simulation:           java -Dconfig.file=<path to config file> -jar sim.jar run
+      Dump default config file: java -jar sim.jar --print-default-config > <path>
 
     Output: console animation of the diagnostics data read from nodes. One line per node, sorted by the node index.
 
