@@ -1,7 +1,7 @@
 package sim
 
 import cats.Parallel
-import cats.data.{Validated, ValidatedNel}
+import cats.data.ValidatedNel
 import cats.effect.*
 import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.{Console, Random}
@@ -20,6 +20,7 @@ import pureconfig.generic.ProductHint
 import sdk.api
 import sdk.api.data.{Bond, Deploy, Status, TokenTransferRequest}
 import sdk.api.{data, ApiErr, ExternalApi, Validation}
+import sdk.codecs.Digest
 import sdk.diag.{Metrics, SystemReporter}
 import sdk.hashing.Blake2b
 import sdk.history.ByteArray32
@@ -29,6 +30,7 @@ import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
 import sdk.store.*
 import sdk.syntax.all.*
+import secp256k1.Secp256k1
 import sim.Config as SimConfig
 import sim.NetworkSnapshot.{reportSnapshot, NodeSnapshot}
 import sim.balances.*
@@ -395,7 +397,7 @@ object NetworkSim extends IOApp {
 
                 override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
                   Validation
-                    .validateTokenTransferRequest(tx)
+                    .validateTokenTransferRequest(tx)(Secp256k1.apply, implicitly[Digest[TokenTransferRequest.Body]])
                     .traverse { _ =>
                       txStore.update(
                         _.updated(
