@@ -16,6 +16,7 @@ on:
       - main
       - 'feature/**'
       - 'release/**'
+  merge_group:
 
 env:
   # This is read by every new JVM. Every JVM thinks it can use up to 80% of
