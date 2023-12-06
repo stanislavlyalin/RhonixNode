@@ -86,7 +86,7 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       deployId   <- insertIfNot(d.sig, deployIdBySig, newDeploy, deployInsert)
     } yield deployId
 
-    actions.transactionally
+    actions.transactionally.withTransactionIsolation(TransactionIsolation.Serializable)
   }
 
   /** Delete deploy by unique sig. And clean up dependencies in Deployers and Shards if possible.
