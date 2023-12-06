@@ -51,3 +51,10 @@ jobs:
         run: |
           export SBT_OPTS="$SBT_OPTS -Dsbt.task.timings=true -Xmx2500m -Xss2m"
           sbt test
+
+      - name: Publish postgres log
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: embedPgSql.log
+          path: /tmp/embedPgSql.log
