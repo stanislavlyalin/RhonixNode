@@ -13,15 +13,13 @@ import io.rhonix.rholang.ast.rholang.Absyn.{PVar, ProcVarVar, ProcVarWildcard}
 import io.rhonix.rholang.{BoundVarN, FreeVarN, VarN, WildcardN}
 
 object VarNormalizer {
-  def normalizeVar[F[_]: Sync](
-    p: PVar,
-  )(implicit brEnv: BoundVarReader[VarSort], frEnv: FreeVarReader[VarSort], fwEnv: FreeVarWriter[VarSort]): F[VarN] =
+  def normalizeVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](p: PVar): F[VarN] =
     Sync[F].defer {
       p.procvar_ match {
         case pvv: ProcVarVar =>
           val pos = SourcePosition(pvv.line_num, pvv.col_num)
 
-          brEnv.getBoundVar(pvv.var_) match {
+          BoundVarReader[T].getBoundVar(pvv.var_) match {
             case Some(BoundContext(level, ProcSort, _)) =>
               (BoundVarN(level): VarN).pure[F]
 
@@ -29,9 +27,9 @@ object VarNormalizer {
               UnexpectedProcContext(pvv.var_, sourcePosition, pos).raiseError
 
             case None =>
-              frEnv.getFreeVar(pvv.var_) match {
+              FreeVarReader[T].getFreeVar(pvv.var_) match {
                 case None =>
-                  val index = fwEnv.putFreeVar(pvv.var_, ProcSort, pos)
+                  val index = FreeVarWriter[T].putFreeVar(pvv.var_, ProcSort, pos)
                   (FreeVarN(index): VarN).pure[F]
 
                 case Some(FreeContext(_, _, firstSourcePosition)) =>
@@ -42,8 +40,8 @@ object VarNormalizer {
         case _: ProcVarWildcard =>
           val pos = SourcePosition(p.line_num, p.col_num)
 
-          if (!frEnv.topLevel) {
-            fwEnv.putWildcard(pos)
+          if (!FreeVarReader[T].topLevel) {
+            FreeVarWriter[T].putWildcard(pos)
 
             (WildcardN: VarN).pure[F]
           } else {
