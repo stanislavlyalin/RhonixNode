@@ -54,8 +54,7 @@ object Secp256k1 {
   }
 
   def apply: ECDSA = new ECDSA {
-    override val dataSize: Int         = 32
-    override val algorithmName: String = Secp256k1.curveName
+    override val dataSize: Int = 32
 
     override def sign(data: Array[Byte], privateKey: SecKey): Try[Sig] = Try {
       assert(

@@ -395,9 +395,10 @@ object NetworkSim extends IOApp {
                 override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
                 override def status: F[Status]                       = Status("0.1.1").pure
 
-                override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
+                override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] = {
+                  val signAlgs = Map("secp256k1" -> Secp256k1.apply)
                   Validation
-                    .validateTokenTransferRequest(tx)(Secp256k1.apply, implicitly[Digest[TokenTransferRequest.Body]])
+                    .validateTokenTransferRequest(tx)(signAlgs, implicitly[Digest[TokenTransferRequest.Body]])
                     .traverse { _ =>
                       txStore.update(
                         _.updated(
@@ -411,6 +412,7 @@ object NetworkSim extends IOApp {
                         ),
                       )
                     }
+                }
               }
 
               val routes = PublicApiJson[F](extApiImpl).routes

@@ -1,5 +1,6 @@
 package sdk.api
 
+import cats.data.Validated.Valid
 import cats.data.ValidatedNel
 import cats.syntax.all.*
 import sdk.api.data.TokenTransferRequest
@@ -8,7 +9,7 @@ import sdk.crypto.{ECDSA, PubKey, Sig}
 import sdk.syntax.all.sdkSyntaxTry
 
 object Validation {
-  private type ValidationResult[+A] = ValidatedNel[ApiErr, A]
+  type ValidationResult[+A] = ValidatedNel[ApiErr, A]
 
   // Just a random byte array indicating incorrect base16 string decoding from request's JSON data
   val InvalidBase16String: Array[Byte] =
@@ -16,41 +17,56 @@ object Validation {
 
   def validateTokenTransferRequest(
     x: TokenTransferRequest,
-  )(implicit ecdsa: ECDSA, bodyDigest: Digest[TokenTransferRequest.Body]): ValidationResult[TokenTransferRequest] = (
-    validateBase16Encoding(x.pubKey, "pubKey"),
-    validateBase16Encoding(x.digest, "digest"),
-    validateBase16Encoding(x.signature, "signature"),
-    validateBodyDigest(x.body, x.digest),
-    validateSignature(x.signatureAlg, x.digest, x.signature, x.pubKey),
-    validateTransferValue(x.body.value),
-  ).mapN { case (_, _, _, _, _, _) => x }
+  )(implicit
+    signAlgs: Map[String, ECDSA],
+    bodyDigest: Digest[TokenTransferRequest.Body],
+  ): ValidationResult[TokenTransferRequest] =
+    (validateBase16Encoding(x.pubKey, "pubKey") *>
+      validateBase16Encoding(x.digest, "digest") *>
+      validateBase16Encoding(x.signature, "signature") *>
+      validateBodyDigest(x.body, x.digest) *>
+      (for {
+        // Checking length and signature only makes sense if sign algorithm has been validated
+        signAlg <- validateSignatureAlg(x.signatureAlg).toEither
+        _       <- validateSignatureLength(x.signature, signAlg).toEither
+        _       <- validateSignature(x.signatureAlg, x.digest, x.signature, x.pubKey, signAlg).toEither
+      } yield ()).toValidated *>
+      validateTransferValue(x.body.value))
+      .as(x)
 
-  private def validateBase16Encoding(data: Array[Byte], fieldName: String): ValidationResult[Array[Byte]] =
+  private def validateBase16Encoding(data: Array[Byte], fieldName: String): ValidationResult[Unit] =
     (!data.sameElements(InvalidBase16String))
       .guard[Option]
-      .as(data)
       .toValidNel(Base16DecodingFailed(fieldName))
 
   private def validateBodyDigest(body: TokenTransferRequest.Body, digest: Array[Byte])(implicit
     bodyDigest: Digest[TokenTransferRequest.Body],
-  ): ValidationResult[Array[Byte]] =
-    bodyDigest.digest(body).bytes.sameElements(digest).guard[Option].as(digest).toValidNel(BodyDigestIsInvalid)
+  ): ValidationResult[Unit] =
+    bodyDigest.digest(body).bytes.sameElements(digest).guard[Option].toValidNel(BodyDigestIsInvalid)
+
+  private def validateSignatureAlg(signatureAlg: String)(implicit
+    signAlgs: Map[String, ECDSA],
+  ): ValidationResult[ECDSA] =
+    signAlgs.get(signatureAlg).toValidNel(UnknownSignatureAlgorithm(signatureAlg))
+
+  private def validateSignatureLength(sig: Array[Byte], signAlg: ECDSA): ValidationResult[Unit] =
+    // (sig.length == signAlg.dataSize).guard[Option].toValidNel(SignatureLengthIsInvalid(sig.length, signAlg.dataSize))
+    // TODO: Add correct implementation for signature length validation
+    Valid(())
 
   private def validateSignature(
     signatureAlg: String,
     data: Array[Byte],
     sig: Array[Byte],
     pubKey: Array[Byte],
-  )(implicit ecdsa: ECDSA): ValidationResult[Unit] = {
-    val signLenCorrectOpt     = (sig.length == ecdsa.dataSize).guard[Option]
-    val signAlgNameCorrectOpt = (signatureAlg == ecdsa.algorithmName).guard[Option]
-    val signatureCorrectOpt   = ecdsa.verify(data, new Sig(sig), new PubKey(pubKey)).toOption.flatMap(_.guard[Option])
-
-    ((signLenCorrectOpt ++ signAlgNameCorrectOpt ++ signatureCorrectOpt).toSeq.length == 3)
-      .guard[Option]
+    signAlg: ECDSA,
+  ): ValidationResult[Unit] =
+    signAlg
+      .verify(data, new Sig(sig), new PubKey(pubKey))
+      .toOption
+      .flatMap(_.guard[Option])
       .toValidNel(SignatureIsInvalid(sig, data, pubKey, signatureAlg))
-  }
 
-  private def validateTransferValue(value: Long): ValidationResult[Long] =
-    (value > 0).guard[Option].as(value).toValidNel(TransferValueIsInvalid)
+  private def validateTransferValue(value: Long): ValidationResult[Unit] =
+    (value > 0).guard[Option].toValidNel(TransferValueIsInvalid)
 }

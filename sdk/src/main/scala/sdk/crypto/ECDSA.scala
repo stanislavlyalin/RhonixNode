@@ -4,6 +4,4 @@ package sdk.crypto
 trait ECDSA extends KeyGen with Signer with Verifier {
   // Size of data for signing / signature verification
   val dataSize: Int
-  // Name of signing algorithm
-  val algorithmName: String
 }
