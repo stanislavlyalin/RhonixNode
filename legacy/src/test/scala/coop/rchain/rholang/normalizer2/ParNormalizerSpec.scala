@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import io.rhonix.rholang.ast.rholang.Absyn.{GroundInt, PGround, PPar, Proc}
+import io.rhonix.rholang.ast.rholang.Absyn.{GroundInt, Name, PGround, PPar, Proc}
 import io.rhonix.rholang.{NilN, ParN}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -31,6 +31,9 @@ class ParNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
           args.append(proc)
           NilN.pure[IO]
         }
+
+        // TODO: Check calls to normalize Name also.
+        override def normalize(proc: Name): IO[ParN] = ???
       }
 
       // Run Par normalizer
