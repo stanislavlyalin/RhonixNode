@@ -1,6 +1,5 @@
 package sdk.api
 
-import cats.data.Validated.Valid
 import cats.data.ValidatedNel
 import cats.syntax.all.*
 import sdk.api.data.TokenTransferRequest
@@ -25,12 +24,7 @@ object Validation {
       validateBase16Encoding(x.digest, "digest") *>
       validateBase16Encoding(x.signature, "signature") *>
       validateBodyDigest(x.body, x.digest) *>
-      (for {
-        // Checking length and signature only makes sense if sign algorithm has been validated
-        signAlg <- validateSignatureAlg(x.signatureAlg).toEither
-        _       <- validateSignatureLength(x.signature, signAlg).toEither
-        _       <- validateSignature(x.signatureAlg, x.digest, x.signature, x.pubKey, signAlg).toEither
-      } yield ()).toValidated *>
+      validateSignature(x) *>
       validateTransferValue(x.body.value))
       .as(x)
 
@@ -44,17 +38,20 @@ object Validation {
   ): ValidationResult[Unit] =
     bodyDigest.digest(body).bytes.sameElements(digest).guard[Option].toValidNel(BodyDigestIsInvalid)
 
+  private def validateSignature(
+    x: TokenTransferRequest,
+  )(implicit signAlgs: Map[String, ECDSA]): ValidationResult[Unit] = (for {
+    // Checking length and signature only makes sense if sign algorithm has been validated
+    signAlg <- validateSignatureAlg(x.signatureAlg).toEither
+    _       <- verifySignature(x.signatureAlg, x.digest, x.signature, x.pubKey, signAlg).toEither
+  } yield ()).toValidated
+
   private def validateSignatureAlg(signatureAlg: String)(implicit
     signAlgs: Map[String, ECDSA],
   ): ValidationResult[ECDSA] =
     signAlgs.get(signatureAlg).toValidNel(UnknownSignatureAlgorithm(signatureAlg))
 
-  private def validateSignatureLength(sig: Array[Byte], signAlg: ECDSA): ValidationResult[Unit] =
-    // (sig.length == signAlg.dataSize).guard[Option].toValidNel(SignatureLengthIsInvalid(sig.length, signAlg.dataSize))
-    // TODO: Add correct implementation for signature length validation
-    Valid(())
-
-  private def validateSignature(
+  private def verifySignature(
     signatureAlg: String,
     data: Array[Byte],
     sig: Array[Byte],
