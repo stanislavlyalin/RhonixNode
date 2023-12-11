@@ -19,8 +19,9 @@ object MatchNormalizer {
     }
 
     for {
-      targetResult <- BoundVarWriter[T].withCopyBoundVarScope(() => NormalizerRec[F].normalize(p.proc_))
-      cases        <- p.listcase_.asScala.toList.traverse(liftCase)
+      targetResult <- NormalizerRec[F].normalize(p.proc_)
+
+      cases <- p.listcase_.asScala.toList.traverse(liftCase)
 
       initAcc      = Vector[MatchCaseN]()
       casesResult <- cases.foldM(initAcc) { case (acc, (pattern, caseBody)) =>
