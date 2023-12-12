@@ -11,9 +11,6 @@ trait FreeVarReader[T] {
   /** Gets free variable */
   def getFreeVar(name: String): Option[FreeContext[T]]
 
-  /** Returns count of free variables without wildcards */
-  def countNoWildcards: Int;
-
   // Scope operations
 
   /** Flag if free variable scope is on top level, meaning not within the pattern */

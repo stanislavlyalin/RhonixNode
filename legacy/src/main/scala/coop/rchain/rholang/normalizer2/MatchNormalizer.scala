@@ -31,15 +31,14 @@ object MatchNormalizer {
                          patternTuple <- BoundVarWriter[T].withNewBoundVarScope(() =>
                                            FreeVarWriter[T].withNewFreeVarScope(() =>
                                              for {
-                                               pattern     <- NormalizerRec[F].normalize(pattern)
+                                               pattern <- NormalizerRec[F].normalize(pattern)
                                                // Get free variables from the pattern
-                                               freeVars     = FreeVarReader[T].getFreeVars
-                                               freeVarCount = FreeVarReader[T].countNoWildcards
-                                             } yield (pattern, freeVars, freeVarCount),
+                                               freeVars = FreeVarReader[T].getFreeVars
+                                             } yield (pattern, freeVars),
                                            ),
                                          )
 
-                         (patternResult, freeVars, freeVarCount) = patternTuple
+                         (patternResult, freeVars) = patternTuple
 
                          caseBodyResult <- BoundVarWriter[T].withCopyBoundVarScope { () =>
                                              // Bound free variables in the current scope
@@ -48,7 +47,7 @@ object MatchNormalizer {
                                              // Normalize body in the current bound and free variables scope
                                              NormalizerRec[F].normalize(caseBody)
                                            }
-                       } yield MatchCaseN(patternResult, caseBodyResult, freeVarCount) +: acc
+                       } yield MatchCaseN(patternResult, caseBodyResult, freeVars.length) +: acc
                      }
     } yield MatchN(targetResult, casesResult.reverse)
   }
