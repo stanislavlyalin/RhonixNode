@@ -41,11 +41,13 @@ object MatchNormalizer {
 
                          (patternResult, freeVars, freeVarCount) = patternTuple
 
-                         // Bound free variables in the current scope
-                         _ = BoundVarWriter[T].absorbFree(freeVars)
+                         caseBodyResult <- BoundVarWriter[T].withCopyBoundVarScope { () =>
+                                             // Bound free variables in the current scope
+                                             BoundVarWriter[T].absorbFree(freeVars)
 
-                         // Normalize body in the current bound and free variables scope
-                         caseBodyResult <- NormalizerRec[F].normalize(caseBody)
+                                             // Normalize body in the current bound and free variables scope
+                                             NormalizerRec[F].normalize(caseBody)
+                                           }
                        } yield MatchCaseN(patternResult, caseBodyResult, freeVarCount) +: acc
                      }
     } yield MatchN(targetResult, casesResult.reverse)
