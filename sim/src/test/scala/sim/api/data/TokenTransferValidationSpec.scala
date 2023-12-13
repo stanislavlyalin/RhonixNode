@@ -1,6 +1,7 @@
 package sim.api.data
 
 import cats.data.Validated.Valid
+import node.Node
 import node.api.web.Validation
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
@@ -9,6 +10,7 @@ import sdk.api.*
 import sdk.api.data.TokenTransferRequest
 import sdk.codecs.Digest
 import sdk.crypto.ECDSA
+import secp256k1.Secp256k1
 import sim.balances.Hashing.*
 
 class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {
@@ -56,9 +58,11 @@ class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {
   private def makeRequestData: TokenTransferRequest = {
     val body       = TokenTransferRequest.Body(Array.empty[Byte], Array.empty[Byte], 0L, 1L, 0L)
     val digest     = implicitly[Digest[TokenTransferRequest.Body]].digest(body).bytes
-    val (sec, pub) = secp256k1Inst.newKeyPair
-    val signature  = secp256k1Inst.sign(digest, sec).map(_.value).getOrElse(Array.empty[Byte])
-    TokenTransferRequest(pub.value, digest, signature, signAlgs.keys.head, body)
+    val sigAlgName = Node.SupportedECDSA.head._1
+    val sigAlg     = Node.SupportedECDSA.head._2
+    val (sec, pub) = sigAlg.newKeyPair
+    val signature  = sigAlg.sign(digest, sec).map(_.value).getOrElse(Array.empty[Byte])
+    TokenTransferRequest(pub.value, digest, signature, sigAlgName, body)
   }
 
   private def checkErrorCount[E <: ApiErr](
@@ -67,7 +71,4 @@ class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {
     count: Int,
   ): Assertion =
     validationResult.fold(_.toList.count(checkErrorType), _ => 0) shouldBe count
-
-  implicit private def secp256k1Inst: ECDSA         = secp256k1.Secp256k1.apply
-  implicit private def signAlgs: Map[String, ECDSA] = Map("secp256k1" -> secp256k1Inst)
 }
