@@ -12,14 +12,14 @@ import dproc.data.Block
 import fs2.concurrent.SignallingRef
 import fs2.{Pipe, Stream}
 import node.api.web
-import node.api.web.PublicApiJson
+import node.api.web.{PublicApiJson, Validation}
 import node.api.web.https4s.RouterFix
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint
 import sdk.api
 import sdk.api.data.{Bond, Deploy, Status, TokenTransferRequest}
-import sdk.api.{data, ApiErr, ExternalApi, Validation}
+import sdk.api.{data, ApiErr, ExternalApi}
 import sdk.codecs.Digest
 import sdk.diag.{Metrics, SystemReporter}
 import sdk.hashing.Blake2b
@@ -395,10 +395,9 @@ object NetworkSim extends IOApp {
                 override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
                 override def status: F[Status]                       = Status("0.1.1").pure
 
-                override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] = {
-                  val signAlgs = Map("secp256k1" -> Secp256k1.apply)
+                override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
                   Validation
-                    .validateTokenTransferRequest(tx)(signAlgs, implicitly[Digest[TokenTransferRequest.Body]])
+                    .validateTokenTransferRequest(tx)(implicitly[Digest[TokenTransferRequest.Body]])
                     .traverse { _ =>
                       txStore.update(
                         _.updated(
@@ -412,7 +411,6 @@ object NetworkSim extends IOApp {
                         ),
                       )
                     }
-                }
               }
 
               val routes = PublicApiJson[F](extApiImpl).routes

@@ -1,6 +1,7 @@
 package sim.api.data
 
 import cats.data.Validated.Valid
+import node.api.web.Validation
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -19,9 +20,9 @@ class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {
 
   "Incorrect base16 strings" should "produce Base16DecodingFailed error" in {
     val tx               = makeRequestData.copy(
-      pubKey = Validation.InvalidBase16String,
-      digest = Validation.InvalidBase16String,
-      signature = Validation.InvalidBase16String,
+      pubKey = Validation.InvalidBase16DecodeResult,
+      digest = Validation.InvalidBase16DecodeResult,
+      signature = Validation.InvalidBase16DecodeResult,
     )
     val validationResult = Validation.validateTokenTransferRequest(tx)
     checkErrorCount(validationResult, _.isInstanceOf[Base16DecodingFailed], 3)

@@ -1,6 +1,6 @@
 package node.api.web.json
 
-import sdk.api.Validation
+import node.api.web.Validation
 import sdk.api.data.*
 import sdk.codecs.Base16
 
@@ -10,7 +10,7 @@ import sdk.codecs.Base16
 trait ExternalApiJsonSchemas extends JsonSchemasPretty {
   implicit val byteArrayJsonSchema: JsonSchema[Array[Byte]] =
     stringJsonSchema(None).xmap { s =>
-      Base16.decode(s).getOrElse(Validation.InvalidBase16String)
+      Base16.decode(s).getOrElse(Validation.InvalidBase16DecodeResult)
     } { ba =>
       Base16.encode(ba)
     }
