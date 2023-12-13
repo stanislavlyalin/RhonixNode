@@ -85,7 +85,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
     //
     // This is despite the fact that api.deployInsert is transactional
     def test(api: SlickApi[IO]): IO[Assertion] =
-      deploys.parTraverse_(api.deployInsert).map(_ shouldBe an[Unit])
+      deploys.parTraverse_(api.deployInsert).map(_ shouldBe an[Unit]) >>
+        sigs.traverse(api.deployGet).map(_.count(_.isDefined)).map(_ shouldBe sigs.length)
 
     EmbeddedPgSqlSlickDb[IO]
       .evalMap(SlickApi[IO])
