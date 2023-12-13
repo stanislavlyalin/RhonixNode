@@ -19,19 +19,21 @@ final case class GardState[M, T](
     GardState(newFi, newMbf)
   }
 
-  /** Check whether transaction is a double spend. */
-  def isDoubleSpend(tx: T, fringe: Set[M], expT: Int): Boolean =
-    fringeBasedGuard(
-      tx,
-      fringeIndices.getOrElse(fringe, 0),
-      expT,
-      _.flatMap(txsByFringe.getOrElse(_, Set())),
-    )
+  /** Check whether transaction is a double spend (transaction replay). */
+  def isDoubleSpend(tx: T, fringe: Set[M], expT: Int): Boolean = {
+    val curFringeIdx = fringeIndices.getOrElse(fringe, 0)
+    // For each fringe index between current and current - expT check whether tx appears in a
+    // set of transactions proposed on top of this fringe.
+    Iterator
+      .range(Math.max(curFringeIdx - expT, 0), curFringeIdx)
+      .map(txsByFringe.getOrElse(_, Set()))
+      .exists(_.contains(tx))
+  }
 }
 
 object GardState {
 
-  def empty[M, T] = GardState(Map.empty[Set[M], Int], SortedMap.empty[Int, Set[T]])
+  def empty[M, T]: GardState[M, T] = GardState(Map.empty[Set[M], Int], SortedMap.empty[Int, Set[T]])
 
   /**
    * Data required for the protocol.
@@ -40,12 +42,4 @@ object GardState {
    * @param fringe fringe computed by the message that transaction is part of
    */
   final case class GardM[M, T](txs: Set[T], fringe: Set[M])
-
-  def fringeBasedGuard[T](
-    tx: T,
-    N: Int,
-    expT: Int,
-    allTxsMatching: Set[Int] => Set[T],
-  ): Boolean =
-    allTxsMatching((N - expT to N).toSet).contains(tx)
 }
