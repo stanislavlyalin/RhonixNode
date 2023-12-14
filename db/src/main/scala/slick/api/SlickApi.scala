@@ -27,7 +27,7 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
       .deployInsertIfNot(
         data.Deploy(d.sig.bytes, d.deployerPk.bytes, d.shardName, d.program, d.phloPrice, d.phloLimit, d.nonce),
       )
-      .runOrDefault(0L)
+      .run
       .void
 
   def deployGetAll: F[Set[ByteArray]] = queries.deployGetAll.run.map(_.map(ByteArray(_)).toSet)
