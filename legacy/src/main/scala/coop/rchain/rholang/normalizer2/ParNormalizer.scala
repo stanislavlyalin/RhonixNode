@@ -7,8 +7,5 @@ import io.rhonix.rholang.ast.rholang.Absyn.PPar
 
 object ParNormalizer {
   def normalizePar[F[_]: Apply: NormalizerRec](p: PPar): F[ParN] =
-    NormalizerRec[F]
-      .normalize(p.proc_1)
-      .product(NormalizerRec[F].normalize(p.proc_2))
-      .map((ParN.combine _).tupled)
+    (NormalizerRec[F].normalize(p.proc_1), NormalizerRec[F].normalize(p.proc_2)).mapN(ParN.combine)
 }
