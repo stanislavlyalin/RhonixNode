@@ -2,7 +2,7 @@ package slick
 
 import cats.syntax.all.*
 import slick.dbio.Effect.*
-import slick.jdbc.{JdbcProfile, TransactionIsolation}
+import slick.jdbc.JdbcProfile
 import slick.sql.{FixedSqlAction, SqlAction}
 import slick.tables.*
 
@@ -86,7 +86,7 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       deployId   <- insertIfNot(d.sig, deployIdBySig, newDeploy, deployInsert)
     } yield deployId
 
-    actions.transactionally.withTransactionIsolation(TransactionIsolation.Serializable)
+    actions.transactionally
   }
 
   /** Delete deploy by unique sig. And clean up dependencies in Deployers and Shards if possible.
