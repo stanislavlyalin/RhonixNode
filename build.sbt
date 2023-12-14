@@ -38,7 +38,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
   Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2,
 )
 
-lazy val all = (project in file("."))
+lazy val gorkiNode = (project in file("."))
   .settings(commonSettings*)
   .aggregate(sdk, weaver, dproc, db, node, rholang, legacy, sim, diag, macros, secp256k1)
 
