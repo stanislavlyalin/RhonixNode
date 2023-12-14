@@ -3,7 +3,7 @@ package node.api.web.endpoints
 import cats.syntax.all.*
 import endpoints4s.algebra
 import node.api.web.json.ExternalApiJsonSchemas
-import sdk.api.data.{Balance, Block, Deploy, Status}
+import sdk.api.data.*
 
 /** Public JSON API endpoints. */
 trait PublicApiEndpoints extends algebra.Endpoints with algebra.JsonEntitiesFromSchemas with ExternalApiJsonSchemas {
@@ -43,5 +43,11 @@ trait PublicApiEndpoints extends algebra.Endpoints with algebra.JsonEntitiesFrom
     get(path / "status"),
     ok(jsonResponse[Status]),
     docs = EndpointDocs().withDescription("Status".some),
+  )
+
+  def transferToken: Endpoint[TokenTransferRequest, Either[ClientErrors, String]] = endpoint(
+    post(path / "transfer", jsonRequest[TokenTransferRequest]),
+    badRequest().orElse(ok(jsonResponse[String])),
+    docs = EndpointDocs().withDescription("Transfer token".some),
   )
 }

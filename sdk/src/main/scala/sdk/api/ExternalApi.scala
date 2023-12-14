@@ -1,5 +1,6 @@
 package sdk.api
 
+import cats.data.ValidatedNel
 import sdk.api.data.*
 
 trait ExternalApi[F[_]] {
@@ -15,4 +16,6 @@ trait ExternalApi[F[_]] {
   def getLatestMessages: F[List[Array[Byte]]]
   // status of the node
   def status: F[Status]
+  // submit transaction
+  def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]]
 }

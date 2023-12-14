@@ -7,9 +7,11 @@ import dproc.DProc
 import dproc.DProc.ExeEngine
 import dproc.data.Block
 import sdk.DagCausalQueue
+import sdk.crypto.ECDSA
 import sdk.diag.Metrics
 import sdk.merging.Relation
 import sdk.node.{Processor, Proposer}
+import secp256k1.Secp256k1
 import weaver.WeaverState
 import weaver.data.FinalData
 
@@ -24,6 +26,8 @@ final case class Node[F[_], M, S, T](
 )
 
 object Node {
+
+  val SupportedECDSA: Map[String, ECDSA] = Map("secp256k1" -> Secp256k1.apply)
 
   /** Make instance of a process - peer or the network.
    * Init with last finalized state (lfs as the simplest). */

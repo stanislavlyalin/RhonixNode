@@ -17,7 +17,8 @@ private object OpenApiJsonPublic
     with openapi.Endpoints
     with openapi.JsonEntitiesFromSchemas {
 
-  private val endpoints: Seq[DocumentedEndpoint] = Seq(getBlock, getDeploy, getStatus, getBalance, getLatest)
+  private val endpoints: Seq[DocumentedEndpoint] =
+    Seq(getBlock, getDeploy, getStatus, getBalance, getLatest, transferToken)
 
   // Prefix endpoints so openApi scheme is generated correctly
   private val endpointsPrefixed = endpoints.map(e =>

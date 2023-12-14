@@ -1,5 +1,7 @@
 package sdk.primitive
 
+import sdk.syntax.all.sdkSyntaxByteArray
+
 import java.nio.ByteBuffer
 
 trait ArrayByteSyntax {
@@ -14,4 +16,5 @@ final class ArrayByteOps(private val x: Array[Byte]) extends AnyVal {
    * Wrap the copy of array with the ByteBuffer.
    * */
   def toByteBuffer: ByteBuffer = ByteBuffer.wrap(x.clone())
+  def toHex: String            = ByteArray(x).toHex
 }
