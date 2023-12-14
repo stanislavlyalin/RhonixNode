@@ -8,9 +8,6 @@ trait FreeVarWriter[T] {
   /** Puts free variables to the context */
   def putFreeVar(binding: IdContext[T]): Int
 
-  /** Puts wildcard to the context */
-  def putWildcard(source_position: SourcePosition): Unit
-
   // Scope operations
 
   /** Runs functions in an empty free variables scope (preserving history) */
