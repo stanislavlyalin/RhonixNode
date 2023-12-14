@@ -11,7 +11,7 @@ trait FreeVarWriter[T] {
   // Scope operations
 
   /** Runs functions in an empty free variables scope (preserving history) */
-  def withNewFreeVarScope[R](scopeFn: () => R): R
+  def withNewFreeVarScope[R](scopeFn: () => R, insideReceive: Boolean = false): R
 }
 
 object FreeVarWriter {
