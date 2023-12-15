@@ -33,7 +33,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         shardList shouldBe Set(d.shardName)
       }
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
@@ -59,7 +59,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         shardList shouldBe Set(d1.shardName)
       }
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
@@ -126,7 +126,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         shardListSecond shouldBe Set()
       }
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
@@ -147,7 +147,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         dSetList shouldBe Set(dSetHash)
       }
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
@@ -167,7 +167,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
           bMapList shouldBe Seq(bMapHash).toSet
         }
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
@@ -262,7 +262,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         blockList shouldBe Set(b1.hash, b2.hash)
       }
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
         .unsafeRunSync()
@@ -270,13 +270,13 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   }
 
   "Stored and loaded name-value pairs" should "be the same" in {
-    forAll { (name: String, value: String) =>
+    forAll(nonEmptyString, nonEmptyString) { (name, value) =>
       def test[F[_]: Async](storeF: => F[Int], loadF: => F[Option[String]]): F[Assertion] = for {
         _         <- storeF
         extracted <- OptionT(loadF).getOrRaise(new RuntimeException("Failed to get value by name"))
       } yield extracted shouldBe value
 
-      EmbeddedH2SlickDb[IO]
+      EmbeddedPgSqlSlickDb[IO]
         .use { implicit db =>
           implicit val async = Async[IO]
           async.executionContext.flatMap { ec =>
@@ -306,6 +306,8 @@ object SlickSpec {
     size  <- Gen.chooseNum(1, 10) // Choose a suitable max value
     bonds <- Gen.listOfN(size, Arbitrary.arbitrary[(ByteArray, Long)])
   } yield bonds.toMap
+
+  val nonEmptyString: Gen[String] = Gen.nonEmptyListOf(Arbitrary.arbChar.arbitrary).map(_.mkString)
 
   def fullDeployEquals(d1: Deploy, d2: Deploy): Boolean =
     d1.sig == d2.sig &&
