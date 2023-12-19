@@ -36,9 +36,9 @@ class ParNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
         override def normalize(proc: Name): IO[ParN] = ???
 
-        override def normalize(proc: ProcRemainder): IO[ParN] = ???
+        override def normalize(proc: ProcRemainder) = ???
 
-        override def normalize(proc: NameRemainder): IO[ParN] = ???
+        override def normalize(proc: NameRemainder) = ???
       }
 
       // Run Par normalizer

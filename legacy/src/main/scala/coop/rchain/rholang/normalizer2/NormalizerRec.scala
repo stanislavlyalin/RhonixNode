@@ -1,6 +1,6 @@
 package coop.rchain.rholang.normalizer2
 
-import io.rhonix.rholang.ParN
+import io.rhonix.rholang.{ParN, VarN}
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 
 trait NormalizerRec[F[_]] {
@@ -10,9 +10,9 @@ trait NormalizerRec[F[_]] {
 
   // TODO: Remove when reminder will be replaced with more general spread operator.
 
-  def normalize(proc: ProcRemainder): F[ParN]
+  def normalize(proc: ProcRemainder): F[Option[VarN]]
 
-  def normalize(proc: NameRemainder): F[ParN]
+  def normalize(proc: NameRemainder): F[Option[VarN]]
 }
 
 object NormalizerRec {
