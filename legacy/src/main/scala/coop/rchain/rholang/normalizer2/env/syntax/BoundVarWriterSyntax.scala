@@ -8,7 +8,7 @@ trait BoundVarWriterSyntax {
     new BoundVarWriterOps[T](writer)
 }
 
-final case class BoundVarWriterOps[T](writer: BoundVarWriter[T]) {
+final class BoundVarWriterOps[T](val writer: BoundVarWriter[T]) extends AnyVal {
 
   /** Bound free variables in the current scope.
    * Free variables are sorted by levels and then added with indexes:
