@@ -67,7 +67,7 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       qDeploys.filter(_.sig === sig).map(_.id)
 
     /** Insert a new record in table. Returned id. */
-    def deployInsert(deploy: TableDeploys.Deploy): FixedSqlAction[Long, NoStream, Write] =
+    def deployInsert(deploy: TableDeploys.Deploy): DBIOAction[Long, NoStream, Write] =
       (qDeploys returning qDeploys.map(_.id)) += deploy
 
     val actions = for {
@@ -251,11 +251,13 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       in: (Array[Byte], Seq[(Array[Byte], Long)]),
     ): DBIOAction[Long, NoStream, All] =
       in match {
-        case (hash, bMap) =>
+        case (hash, bMapSeq) =>
           for {
-            bondsMapId   <- bondsMapInsert(hash)
-            validatorIds <- validatorsInsertIfNot(bMap.map(_._1))
-            _            <- bondsInsert(bondsMapId, validatorIds.zip(bMap.map(_._2)))
+            bondsMapId            <- bondsMapInsert(hash)
+            validatorsIdWithStake <- DBIO.sequence(bMapSeq.map { case (validatorPk, stake) =>
+                                       validatorInsertIfNot(validatorPk).map(validatorId => (validatorId, stake))
+                                     })
+            _                     <- bondsInsert(bondsMapId, validatorsIdWithStake)
           } yield bondsMapId
       }
 
@@ -267,16 +269,17 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
     qBondsMaps.map(_.hash).result
 
   private def getBondsMapDataById(bondsMapId: Long): DBIOAction[Seq[(Array[Byte], Long)], NoStream, Read] = {
-    def getBondIds(bondsMapId: Long)         =
+    def getBondIds(bondsMapId: Long)                                                  =
       qBonds.filter(_.bondsMapId === bondsMapId).map(b => (b.validatorId, b.stake)).result
-    def getValidatorPKsByIds(ids: Seq[Long]) =
-      qValidators.filter(_.id inSet ids).map(_.pubKey).result
+    def getValidatorPKById(id: Long): DBIOAction[Option[Array[Byte]], NoStream, Read] =
+      qValidators.filter(_.id === id).map(_.pubKey).result.headOption
 
     for {
       bondMapIds            <- getBondIds(bondsMapId)
-      (validatorIds, stakes) = bondMapIds.unzip
-      validatorPks          <- getValidatorPKsByIds(validatorIds)
-    } yield validatorPks zip stakes
+      validatorsPkWithStake <- DBIO.sequence(bondMapIds.map { case (validatorId, stake) =>
+                                 getValidatorPKById(validatorId).map(validatorPk => (validatorPk, stake))
+                               })
+    } yield validatorsPkWithStake.collect { case (Some(pk), stake) => (pk, stake) }
   }
 
   /** Get a bonds map data by map hash. If there isn't such set - return None */
@@ -425,7 +428,7 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
     getBlock(hash).flatMap {
       case Some(block) => getBlockData(block).map(_.some)
       case None        => DBIO.successful(None)
-    }
+    }.transactionally
   }
 
   private def validatorInsertIfNot(pK: Array[Byte]): DBIOAction[Long, NoStream, All] = {

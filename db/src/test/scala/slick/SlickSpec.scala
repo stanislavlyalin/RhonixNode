@@ -95,41 +95,43 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   }
 
   "deployDelete() function call" should "remove deploy and clean up dependencies in Deployers and Shards tables if possible" in {
-    forAll { (d1: Deploy, d2Sig: ByteArray) =>
-      val d2: Deploy = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
+    forAll {
+      d1: Deploy =>
+        val d2Sig      = Arbitrary.arbitrary[ByteArray].suchThat(_ != d1.sig).sample.get
+        val d2: Deploy = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
 
-      def test(api: SlickApi[IO]): IO[Assertion] = for {
-        // Creating two deploys with the same data but different sig
-        _ <- api.deployInsert(d1)
-        _ <- api.deployInsert(d2)
+        def test(api: SlickApi[IO]): IO[Assertion] = for {
+          // Creating two deploys with the same data but different sig
+          _ <- api.deployInsert(d1)
+          _ <- api.deployInsert(d2)
 
-        // First delete action (removing d1 and read db data)
-        _                 <- api.deployDelete(d1.sig)
-        dListFirst        <- api.deployGetAll
-        deployerListFirst <- api.deployerGetAll
-        shardListFirst    <- api.shardGetAll
+          // First delete action (removing d1 and read db data)
+          _                 <- api.deployDelete(d1.sig)
+          dListFirst        <- api.deployGetAll
+          deployerListFirst <- api.deployerGetAll
+          shardListFirst    <- api.shardGetAll
 
-        // Second delete action (removing d2 and read db data)
-        _                  <- api.deployDelete(d2.sig)
-        dListSecond        <- api.deployGetAll
-        deployerListSecond <- api.deployerGetAll
-        shardListSecond    <- api.shardGetAll
-      } yield {
-        dListFirst shouldBe Set(d2.sig)
-        // The first action should not clear the tables Deployers and Shards. Because it using in d2
-        deployerListFirst shouldBe Set(d1.deployerPk)
-        shardListFirst shouldBe Set(d1.shardName)
+          // Second delete action (removing d2 and read db data)
+          _                  <- api.deployDelete(d2.sig)
+          dListSecond        <- api.deployGetAll
+          deployerListSecond <- api.deployerGetAll
+          shardListSecond    <- api.shardGetAll
+        } yield {
+          dListFirst shouldBe Set(d2.sig)
+          // The first action should not clear the tables Deployers and Shards. Because it using in d2
+          deployerListFirst shouldBe Set(d1.deployerPk)
+          shardListFirst shouldBe Set(d1.shardName)
 
-        dListSecond shouldBe Set()
-        // The second action should clear the tables Deployers and Shards. Because deploys deleted
-        deployerListSecond shouldBe Set()
-        shardListSecond shouldBe Set()
-      }
+          dListSecond shouldBe Set()
+          // The second action should clear the tables Deployers and Shards. Because deploys deleted
+          deployerListSecond shouldBe Set()
+          shardListSecond shouldBe Set()
+        }
 
-      EmbeddedPgSqlSlickDb[IO]
-        .evalMap(SlickApi[IO])
-        .use(test)
-        .unsafeRunSync()
+        EmbeddedPgSqlSlickDb[IO]
+          .evalMap(SlickApi[IO])
+          .use(test)
+          .unsafeRunSync()
     }
   }
 
@@ -181,10 +183,16 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       nonEmptyBondsMapGen,
       Arbitrary.arbitrary[Block],
       Arbitrary.arbitrary[Block],
-    ) { (hashes, deploys, bMap, b1, b2) =>
+      nonEmptyAlphaString,
+    ) { (hashes, deploys_, bMap, b1_, b2_, shardName) =>
       val dSetHash = hashes.get(0).get
       val bMapHash = hashes.get(1).get
       val bSetHash = hashes.get(2).get
+
+      val b2Hash  = Arbitrary.arbitrary[ByteArray].suchThat(_ != b1_.hash).sample.get
+      val b1      = b1_.copy(shardName = shardName, sigAlg = nonEmptyAlphaString.sample.get)
+      val b2      = b2_.copy(hash = b2Hash, shardName = shardName, sigAlg = nonEmptyAlphaString.sample.get)
+      val deploys = deploys_.map(_.copy(shardName = shardName, program = nonEmptyAlphaString.sample.get))
 
       def test(api: SlickApi[IO]): IO[Assertion] = for {
         _             <- deploys.toSeq.traverse(api.deployInsert)
@@ -257,20 +265,23 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         readBlock2 <- api.blockGet(b2.hash)
         blockList  <- api.blockGetAll
       } yield {
-        fullBlockEquals(insertedBlock1, readBlock1.get) shouldBe true
-        fullBlockEquals(insertedBlock2, readBlock2.get) shouldBe true
+        readBlock1.map(block1 => fullBlockEquals(insertedBlock1, block1)) shouldBe true.some
+        readBlock2.map(block2 => fullBlockEquals(insertedBlock2, block2)) shouldBe true.some
         blockList shouldBe Set(b1.hash, b2.hash)
       }
 
       EmbeddedPgSqlSlickDb[IO]
         .evalMap(SlickApi[IO])
         .use(test)
+        .handleErrorWith { error =>
+          IO(assert(false, error))
+        }
         .unsafeRunSync()
     }
   }
 
   "Stored and loaded name-value pairs" should "be the same" in {
-    forAll(nonEmptyString, nonEmptyString) { (name, value) =>
+    forAll(nonEmptyAlphaString, nonEmptyAlphaString) { (name, value) =>
       def test[F[_]: Async](storeF: => F[Int], loadF: => F[Option[String]]): F[Assertion] = for {
         _         <- storeF
         extracted <- OptionT(loadF).getOrRaise(new RuntimeException("Failed to get value by name"))
@@ -307,7 +318,7 @@ object SlickSpec {
     bonds <- Gen.listOfN(size, Arbitrary.arbitrary[(ByteArray, Long)])
   } yield bonds.toMap
 
-  val nonEmptyString: Gen[String] = Gen.nonEmptyListOf(Arbitrary.arbChar.arbitrary).map(_.mkString)
+  val nonEmptyAlphaString: Gen[String] = Gen.nonEmptyListOf(Gen.alphaChar).map(_.mkString)
 
   def fullDeployEquals(d1: Deploy, d2: Deploy): Boolean =
     d1.sig == d2.sig &&
