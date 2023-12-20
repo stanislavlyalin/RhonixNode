@@ -2,51 +2,32 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
-import io.rhonix.rholang.ast.rholang.Absyn.{GroundInt, Name, NameRemainder, PGround, PPar, Proc, ProcRemainder}
-import io.rhonix.rholang.{NilN, ParN}
+import coop.rchain.rholang.interpreter.compiler.VarSort
+import coop.rchain.rholang.normalizer2.util.Mock.*
+import io.rhonix.rholang.ast.rholang.Absyn.{GroundInt, GroundString, PGround, PPar}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class ParNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Par normalizer" should "delegate recursive call to the dependency" in {
+  "Par normalizer" should "normalize sequentially both terms" in {
     forAll { (s1: String, s2: String) =>
-      // Construct mock Par object
-      val i1  = new GroundInt(s1)
-      val i2  = new GroundInt(s2)
-      val g1  = new PGround(i1)
-      val g2  = new PGround(i2)
-      val par = new PPar(g1, g2)
+      val term1 = new PGround(new GroundString(s1))
+      val term2 = new PGround(new GroundString(s2))
+      // term1 | term2
+      val par   = new PPar(term1, term2)
 
-      import collection.mutable.ListBuffer
-
-      // List of actual arguments to recursive call
-      val args = ListBuffer[Proc]()
-
-      // Mock implementation of recursive normalizer
-      implicit val normalizerRec = new NormalizerRec[IO] {
-        override def normalize(proc: Proc): IO[ParN] = {
-          args.append(proc)
-          NilN.pure[IO]
-        }
-
-        // Other normalizer overloads should not be called.
-
-        override def normalize(proc: Name): IO[ParN] = ???
-
-        override def normalize(proc: ProcRemainder) = ???
-
-        override def normalize(proc: NameRemainder) = ???
-      }
+      implicit val (mockRec, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       // Run Par normalizer
       ParNormalizer.normalizePar[IO](par).unsafeRunSync()
 
+      val terms         = mockRec.extractData
       // Expect both sides of par to be normalized in sequence
-      args shouldBe ListBuffer(g1, g2)
+      val expectedTerms = Seq(TermData(ProcTerm(term1)), TermData(ProcTerm(term2)))
+
+      terms shouldBe expectedTerms
     }
   }
-
 }
