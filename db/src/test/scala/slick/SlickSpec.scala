@@ -67,23 +67,13 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   }
 
   "Concurrent deployInsert() function calls" should "correctly handle concurrency" in {
+    // Test inserting the same deploy 100 times in parallel.
+    // During insertion all nested fields are first saved if not present (e.g. deploy id, shard id)
+
     val d       = Arbitrary.arbitrary[Deploy].sample.get
     val sigs    = Gen.listOfN(100, Arbitrary.arbitrary[ByteArray]).sample.get
     val deploys = sigs.map(s => d.copy(sig = s))
 
-    // Try to insert the same deploy 100 times in parallel.
-    // During insertion all nested fields are first saved if not present (e.g. deploy id, shard id)
-    //
-    // What is expected is that all 100 deploy are inserted since they have different signatures.
-    //
-    // But what is observed that concurrent queries all attempt to inset inner fields
-    // and fail with unique constraint violation.
-    //
-    // org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException: Unique index or primary key violation:
-    // "PUBLIC.idx_deployer ON PUBLIC.deployer(pub_key NULLS FIRST) VALUES ( /* 1 */ X'4d467379736f59' )";
-    // SQL statement: insert into "deployer" ("pub_key") values (?) [23505-214]
-    //
-    // This is despite the fact that api.deployInsert is transactional
     def test(api: SlickApi[IO]): IO[Assertion] =
       deploys.parTraverse_(api.deployInsert).map(_ shouldBe an[Unit]) >>
         sigs.traverse(api.deployGet).map(_.count(_.isDefined)).map(_ shouldBe sigs.length)
