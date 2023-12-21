@@ -140,7 +140,13 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
           (for {
             deploySetId <- deploySetInsert(hash)
             deployIds   <- getDeployIdsBySigs(deploySigs).result
-            _           <- insertBinds(deploySetId, deployIds)
+            _           <- if (deployIds.length == deploySigs.length) insertBinds(deploySetId, deployIds)
+                           else
+                             DBIO.failed(
+                               new RuntimeException(
+                                 "Signatures of deploys added to deploy set do not match deploys in deploy table",
+                               ),
+                             )
           } yield deploySetId).transactionally
       }
 
@@ -193,7 +199,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
         for {
           blockSetId <- blockSetInsert(hash)
           blockIds   <- getBlockIdsByHashes(blockHashes)
-          _          <- insertBinds(blockSetId, blockIds)
+          _          <- if (blockIds.length == blockHashes.length) insertBinds(blockSetId, blockIds)
+                        else
+                          DBIO.failed(
+                            new RuntimeException("Hashes of blocks added to block set do not match blocks in block table"),
+                          )
         } yield blockSetId
     }
 
