@@ -7,13 +7,13 @@ import slick.SlickDb
 import slick.dbio.{DBIOAction, Effect, NoStream}
 
 trait DBIOActionRunSyntax {
-  implicit def DBIOActionRunSyntax[F[_], R, S <: NoStream, E <: Effect](
+  implicit def DBIOActionRunSyntax[R, S <: NoStream, E <: Effect](
     x: DBIOAction[R, S, E],
-  ): DBIOSyntaxOps[F, R, S, E] = new DBIOSyntaxOps[F, R, S, E](x)
+  ): DBIOSyntaxOps[R, S, E] = new DBIOSyntaxOps[R, S, E](x)
 }
 
-final class DBIOSyntaxOps[F[_], R, +S <: NoStream, -E <: Effect](val x: DBIOAction[R, S, E]) extends AnyVal {
-  def run(implicit F: Async[F], slickDb: SlickDb): F[R] = slickDb
+final class DBIOSyntaxOps[R, +S <: NoStream, -E <: Effect](val x: DBIOAction[R, S, E]) extends AnyVal {
+  def run[F[_]](implicit F: Async[F], slickDb: SlickDb): F[R] = slickDb
     .run(x)
     // This error handling is to ensure that the action is run the second time if the first time it failed with
     // UNIQUE_VIOLATION. This is to make concurrent inserts work for data that requires lookups, since Slick does not
