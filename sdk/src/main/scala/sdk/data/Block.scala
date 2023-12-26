@@ -28,11 +28,4 @@ final case class Block(
   dropDeploySet: Set[ByteArray],       // deploy set rejected from pre state
   mergeDeploySetFinal: Set[ByteArray], // deploy set finally accepted
   dropDeploySetFinal: Set[ByteArray],  // deploy set finally rejected
-) {
-  override def equals(obj: Any): Boolean = obj match {
-    case that: Block => this.hash == that.hash
-    case _           => false
-  }
-
-  override def hashCode(): Int = hash.hashCode()
-}
+)
