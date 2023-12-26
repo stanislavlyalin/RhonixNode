@@ -259,7 +259,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   "Stored and loaded name-value pairs" should "be the same" in {
     embedPgSlick[IO]
       .use { api =>
-        implicit val slickDb: SlickDb = api.slickDb
+        implicit val slickDb: SlickDb         = api.slickDb
+        import org.scalacheck.Shrink
+        implicit val noShrink: Shrink[String] = Shrink.shrinkAny
 
         IO.delay {
           forAll(nonEmptyAlphaString, nonEmptyAlphaString) { (name, value) =>
