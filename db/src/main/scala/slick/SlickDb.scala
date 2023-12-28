@@ -3,6 +3,7 @@ package slick
 import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.syntax.all.*
+import sdk.syntax.all.sdkSyntaxFuture
 import slick.api.SlickApi
 import slick.dbio.{DBIOAction, NoStream}
 import slick.jdbc.JdbcBackend.Database
@@ -14,7 +15,7 @@ import scala.util.Try
 
 // Do not expose underlying Database to prevent possibility of calling close() on it
 final case class SlickDb private (private val db: Database, profile: JdbcProfile) {
-  def run[F[_]: Async, A](a: DBIOAction[A, NoStream, Nothing]): F[A] = Async[F].fromFuture(db.run(a).pure)
+  def run[F[_]: Async, A](a: DBIOAction[A, NoStream, Nothing]): F[A] = db.run(a).asEffect
 }
 
 object SlickDb {
@@ -27,17 +28,17 @@ object SlickDb {
       implicit val slickDb: SlickDb = new SlickDb(db, profile)
       val key                       = "dbVersion"
 
-      def applyMigration(m: Migration): F[Unit] = Async[F].fromFuture(db.run(m()).pure)
+      def applyMigration(m: Migration): F[Unit] = db.run(m()).asEffect
 
       def applyAllNewerThen(version: Int, api: SlickApi[F]): F[Unit] = migrations
         .all(dialect)
         .collect {
           case (idx, migrations) if idx > version =>
-            migrations.migrations.foreach(applyMigration).pure *>
+            migrations.migrations.traverse(applyMigration) *>
               api.queries.putConfig(key, idx.toString).run
         }
         .toList
-        .traverse_(_.void)
+        .sequence_
 
       def run: F[Unit] = (for {
         api          <- SlickApi[F](slickDb)
