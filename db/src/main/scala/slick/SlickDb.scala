@@ -1,13 +1,16 @@
 package slick
 
-import cats.effect.Sync
+import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.syntax.all.*
-import org.postgresql.util.PSQLException
+import slick.api.SlickApi
 import slick.dbio.{DBIOAction, NoStream}
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
-import slick.migration.api.Dialect
+import slick.migration.api.{Dialect, Migration}
+import slick.syntax.all.DBIOActionRunSyntax
+
+import scala.util.Try
 
 // Do not expose underlying Database to prevent possibility of calling close() on it
 final case class SlickDb private (private val db: Database, profile: JdbcProfile) {
@@ -20,16 +23,33 @@ object SlickDb {
     profile: JdbcProfile,
     dialect: Dialect[?],
   ): F[SlickDb] = {
-    // Execute migrations each time SlickDb is instantiated
-    def runMigration(db: Database): F[Unit] =
-      Async[F].fromFuture(Sync[F].delay(db.run(migrations.all(dialect)()))).handleErrorWith {
-        // Since slick-migration-api has no information about which migrations have been applied,
-        // re-applying migrations may throw exception about the existence of an entity in the database
-        // SQLState 42P07 means `ERROR: relation "xxx" already exists`
-        case e: PSQLException if e.getSQLState == "42P07" => ().pure
-        case error                                        => Async[F].raiseError(error)
-      }
+    def runMigrations(db: Database): F[SlickDb] = {
+      implicit val slickDb: SlickDb = new SlickDb(db, profile)
+      val key                       = "dbVersion"
 
-    runMigration(db).as(new SlickDb(db, profile))
+      def applyMigration(m: Migration): F[Unit] = Async[F].fromFuture(db.run(m()).pure)
+
+      def applyAllNewerThen(version: Int, api: SlickApi[F]): F[Unit] = migrations
+        .all(dialect)
+        .collect {
+          case (idx, migrations) if idx > version =>
+            migrations.migrations.foreach(applyMigration).pure *>
+              api.queries.putConfig(key, idx.toString).run
+        }
+        .toList
+        .traverse_(_.void)
+
+      def run: F[Unit] = (for {
+        api          <- SlickApi[F](slickDb)
+        dbVersionOpt <- api.queries.getConfig(key).run.recover { case _ => "0".some }
+        version      <- OptionT
+                          .fromOption(Try(dbVersionOpt.getOrElse("0").toInt).toOption)
+                          .getOrRaise(new RuntimeException(s"Error reading $key from config table"))
+      } yield applyAllNewerThen(version, api)).flatten
+
+      run *> slickDb.pure
+    }
+
+    runMigrations(db).as(new SlickDb(db, profile))
   }
 }
