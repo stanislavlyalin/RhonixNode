@@ -20,7 +20,7 @@ class SlickSqlSpec extends AnyFlatSpec with Matchers {
       }
       IO(println(showSql)).as(Succeeded)
     }
-    EmbeddedH2SlickDb[IO]
+    EmbeddedPgSqlSlickDb[IO]
       .use(implicit db => test(db.profile))
       .unsafeRunSync()
   }
