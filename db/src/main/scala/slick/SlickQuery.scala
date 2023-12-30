@@ -67,7 +67,7 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       qDeploys.filter(_.sig === sig).map(_.id)
 
     /** Insert a new record in table. Returned id. */
-    def deployInsert(deploy: TableDeploys.Deploy): FixedSqlAction[Long, NoStream, Write] =
+    def deployInsert(deploy: TableDeploys.Deploy): DBIOAction[Long, NoStream, Write] =
       (qDeploys returning qDeploys.map(_.id)) += deploy
 
     val actions = for {
@@ -140,7 +140,13 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
           (for {
             deploySetId <- deploySetInsert(hash)
             deployIds   <- getDeployIdsBySigs(deploySigs).result
-            _           <- insertBinds(deploySetId, deployIds)
+            _           <- if (deployIds.length == deploySigs.length) insertBinds(deploySetId, deployIds)
+                           else
+                             DBIO.failed(
+                               new RuntimeException(
+                                 "Signatures of deploys added to deploy set do not match deploys in deploy table",
+                               ),
+                             )
           } yield deploySetId).transactionally
       }
 
@@ -193,7 +199,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
         for {
           blockSetId <- blockSetInsert(hash)
           blockIds   <- getBlockIdsByHashes(blockHashes)
-          _          <- insertBinds(blockSetId, blockIds)
+          _          <- if (blockIds.length == blockHashes.length) insertBinds(blockSetId, blockIds)
+                        else
+                          DBIO.failed(
+                            new RuntimeException("Hashes of blocks added to block set do not match blocks in block table"),
+                          )
         } yield blockSetId
     }
 
@@ -251,11 +261,13 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       in: (Array[Byte], Seq[(Array[Byte], Long)]),
     ): DBIOAction[Long, NoStream, All] =
       in match {
-        case (hash, bMap) =>
+        case (hash, bMapSeq) =>
           for {
-            bondsMapId   <- bondsMapInsert(hash)
-            validatorIds <- validatorsInsertIfNot(bMap.map(_._1))
-            _            <- bondsInsert(bondsMapId, validatorIds.zip(bMap.map(_._2)))
+            bondsMapId            <- bondsMapInsert(hash)
+            validatorsIdWithStake <- DBIO.sequence(bMapSeq.map { case (validatorPk, stake) =>
+                                       validatorInsertIfNot(validatorPk).map(validatorId => (validatorId, stake))
+                                     })
+            _                     <- bondsInsert(bondsMapId, validatorsIdWithStake)
           } yield bondsMapId
       }
 
@@ -267,16 +279,17 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
     qBondsMaps.map(_.hash).result
 
   private def getBondsMapDataById(bondsMapId: Long): DBIOAction[Seq[(Array[Byte], Long)], NoStream, Read] = {
-    def getBondIds(bondsMapId: Long)         =
+    def getBondIds(bondsMapId: Long)                                                  =
       qBonds.filter(_.bondsMapId === bondsMapId).map(b => (b.validatorId, b.stake)).result
-    def getValidatorPKsByIds(ids: Seq[Long]) =
-      qValidators.filter(_.id inSet ids).map(_.pubKey).result
+    def getValidatorPKById(id: Long): DBIOAction[Option[Array[Byte]], NoStream, Read] =
+      qValidators.filter(_.id === id).map(_.pubKey).result.headOption
 
     for {
       bondMapIds            <- getBondIds(bondsMapId)
-      (validatorIds, stakes) = bondMapIds.unzip
-      validatorPks          <- getValidatorPKsByIds(validatorIds)
-    } yield validatorPks zip stakes
+      validatorsPkWithStake <- DBIO.sequence(bondMapIds.map { case (validatorId, stake) =>
+                                 getValidatorPKById(validatorId).map(validatorPk => (validatorPk, stake))
+                               })
+    } yield validatorsPkWithStake.collect { case (Some(pk), stake) => (pk, stake) }
   }
 
   /** Get a bonds map data by map hash. If there isn't such set - return None */
@@ -319,12 +332,12 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       offencesSet        <- insertBlockSet(b.offencesSet)
       bondsMapId         <- bondsMapInsertIfNot(b.bondsMap.hash, b.bondsMap.data)
       finalFringe        <- insertBlockSet(b.finalFringe)
-      deploySetId        <- insertDeploySet(b.deploySet)
+      deploySetId        <- insertDeploySet(b.execDeploySet)
 
-      mergeSetId      <- insertBlockSet(b.mergeSet)
-      dropSetId       <- insertBlockSet(b.dropSet)
-      mergeSetFinalId <- insertBlockSet(b.mergeSetFinal)
-      dropSetFinalId  <- insertBlockSet(b.dropSetFinal)
+      mergeSetId      <- insertDeploySet(b.mergeDeploySet)
+      dropSetId       <- insertDeploySet(b.dropDeploySet)
+      mergeSetFinalId <- insertDeploySet(b.mergeDeploySetFinal)
+      dropSetFinalId  <- insertDeploySet(b.dropDeploySetFinal)
 
       newBlock = TableBlocks.Block(
                    id = 0L,
@@ -341,11 +354,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
                    offencesSetId = offencesSet,
                    bondsMapId = bondsMapId,
                    finalFringeId = finalFringe,
-                   deploySetId = deploySetId,
-                   mergeSetId = mergeSetId,
-                   dropSetId = dropSetId,
-                   mergeSetFinalId = mergeSetFinalId,
-                   dropSetFinalId = dropSetFinalId,
+                   execDeploySetId = deploySetId,
+                   mergeDeploySetId = mergeSetId,
+                   dropDeploySetId = dropSetId,
+                   mergeDeploySetFinalId = mergeSetFinalId,
+                   dropDeploySetFinalId = dropSetFinalId,
                  )
 
       blockId <- insertIfNot(b.hash, blockIdByHash, newBlock, blockInsert)
@@ -396,11 +409,11 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       offencesSetData      <- getBlockSetData(b.offencesSetId)
       bondsMapData         <- getBondsMapData(b.bondsMapId)
       finalFringeData      <- getBlockSetData(b.finalFringeId)
-      deploySetData        <- getDeploySetData(b.deploySetId)
-      mergeSetData         <- getBlockSetData(b.mergeSetId)
-      dropSetData          <- getBlockSetData(b.dropSetId)
-      mergeSetFinalData    <- getBlockSetData(b.mergeSetFinalId)
-      dropSetFinalData     <- getBlockSetData(b.dropSetFinalId)
+      deploySetData        <- getDeploySetData(b.execDeploySetId)
+      mergeSetData         <- getDeploySetData(b.mergeDeploySetId)
+      dropSetData          <- getDeploySetData(b.dropDeploySetId)
+      mergeSetFinalData    <- getDeploySetData(b.mergeDeploySetFinalId)
+      dropSetFinalData     <- getDeploySetData(b.dropDeploySetFinalId)
     } yield api.data.Block(
       version = b.version,
       hash = b.hash,
@@ -415,17 +428,17 @@ final case class SlickQuery(profile: JdbcProfile, ec: ExecutionContext) {
       offencesSet = offencesSetData,
       bondsMap = bondsMapData,
       finalFringe = finalFringeData,
-      deploySet = deploySetData,
-      mergeSet = mergeSetData,
-      dropSet = dropSetData,
-      mergeSetFinal = mergeSetFinalData,
-      dropSetFinal = dropSetFinalData,
+      execDeploySet = deploySetData,
+      mergeDeploySet = mergeSetData,
+      dropDeploySet = dropSetData,
+      mergeDeploySetFinal = mergeSetFinalData,
+      dropDeploySetFinal = dropSetFinalData,
     )
 
     getBlock(hash).flatMap {
       case Some(block) => getBlockData(block).map(_.some)
       case None        => DBIO.successful(None)
-    }
+    }.transactionally
   }
 
   private def validatorInsertIfNot(pK: Array[Byte]): DBIOAction[Long, NoStream, All] = {
