@@ -15,7 +15,7 @@ case class MockFreeVarWriter[T]() extends FreeVarWriter[T] {
     DefFreeVarIndex
   }
 
-  override def withNewFreeVarScope[R](scopeFn: () => R, insideReceive: Boolean = false): R = {
+  override def withNewFreeVarScope[R](insideReceive: Boolean = false)(scopeFn: () => R): R = {
     withNewScopeLevel = withNewScopeLevel + 1
     val res = scopeFn()
     withNewScopeLevel = withNewScopeLevel - 1

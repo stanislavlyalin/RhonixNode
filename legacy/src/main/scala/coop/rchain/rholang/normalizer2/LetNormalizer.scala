@@ -109,15 +109,13 @@ object LetNormalizer {
           case declImpl: DeclImpl =>
             for {
               values       <- declImpl.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)
-              patternTuple <- FreeVarWriter[T].withNewFreeVarScope { () =>
+              patternTuple <- BoundVarWriter[T].withNewVarScope()(() =>
                                 (
                                   // TODO: Why is the remainder processed before the collection elements (for sequential F)?
                                   NormalizerRec[F].normalize(declImpl.nameremainder_),
-                                  declImpl.listname_.asScala.toList.traverse(n =>
-                                    BoundVarWriter[T].withNewBoundVarScope(() => NormalizerRec[F].normalize(n)),
-                                  ),
-                                ).mapN((rem, ps) => (ps, rem, FreeVarReader[T].getFreeVars))
-                              }
+                                  declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize),
+                                ).mapN((rem, ps) => (ps, rem, FreeVarReader[T].getFreeVars)),
+                              )
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 

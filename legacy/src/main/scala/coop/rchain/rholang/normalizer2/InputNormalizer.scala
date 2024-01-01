@@ -3,7 +3,6 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.models.ReceiveBind
-import coop.rchain.rholang.interpreter.compiler.VarSort
 import coop.rchain.rholang.interpreter.errors.ReceiveOnSameChannelsError
 import coop.rchain.rholang.normalizer2.env.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarReader, FreeVarWriter}
@@ -176,8 +175,7 @@ object InputNormalizer {
             .traverse { case ((names, remainder), source) =>
               for {
                 initFreeCount <- Sync[F].delay(FreeVarReader[T].getFreeVars.size)
-                rbNames       <-
-                  names.traverse(n => BoundVarWriter[T].withNewBoundVarScope(() => NormalizerRec[F].normalize(n)))
+                rbNames       <- names.traverse(NormalizerRec[F].normalize)
                 rbRemainder   <- NormalizerRec[F].normalize(remainder)
                 freeCount      = FreeVarReader[T].getFreeVars.size - initFreeCount
               } yield ReceiveBindN(rbNames, source, rbRemainder, freeCount)
@@ -195,14 +193,12 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          patternTuple <- FreeVarWriter[T].withNewFreeVarScope(
-                            () =>
-                              for {
-                                binds <- createBinds(patterns, processedSources)
-                                // After pattern processing getFreeVars() will return free variables for all patterns
-                                vars   = FreeVarReader[T].getFreeVars
-                              } yield (binds, vars),
-                            insideReceive = true,
+          patternTuple <- BoundVarWriter[T].withNewVarScope(insideReceive = true)(() =>
+                            for {
+                              binds <- createBinds(patterns, processedSources)
+                              // After pattern processing getFreeVars() will return free variables for all patterns
+                              vars   = FreeVarReader[T].getFreeVars
+                            } yield (binds, vars),
                           )
 
           (unsortBinds, freeVars) = patternTuple

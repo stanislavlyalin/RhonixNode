@@ -1,6 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
-import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
+import coop.rchain.rholang.interpreter.compiler.IdContext
 
 trait FreeVarWriter[T] {
   // Free variables operations
@@ -11,7 +11,7 @@ trait FreeVarWriter[T] {
   // Scope operations
 
   /** Runs functions in an empty free variables scope (preserving history) */
-  def withNewFreeVarScope[R](scopeFn: () => R, insideReceive: Boolean = false): R
+  def withNewFreeVarScope[R](insideReceive: Boolean)(scopeFn: () => R): R
 }
 
 object FreeVarWriter {

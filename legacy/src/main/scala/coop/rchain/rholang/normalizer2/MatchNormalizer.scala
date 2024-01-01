@@ -20,14 +20,12 @@ object MatchNormalizer {
         val (pattern, caseBody) = (ci.proc_1, ci.proc_2)
         for {
           // Normalize pattern in a fresh bound and free variables scope
-          patternTuple <- BoundVarWriter[T].withNewBoundVarScope(() =>
-                            FreeVarWriter[T].withNewFreeVarScope(() =>
-                              for {
-                                pattern <- NormalizerRec[F].normalize(pattern)
-                                // Get free variables from the pattern
-                                freeVars = FreeVarReader[T].getFreeVars
-                              } yield (pattern, freeVars),
-                            ),
+          patternTuple <- BoundVarWriter[T].withNewVarScope()(() =>
+                            for {
+                              pattern <- NormalizerRec[F].normalize(pattern)
+                              // Get free variables from the pattern
+                              freeVars = FreeVarReader[T].getFreeVars
+                            } yield (pattern, freeVars),
                           )
 
           (patternResult, freeVars) = patternTuple
