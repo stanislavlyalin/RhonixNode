@@ -35,9 +35,10 @@ object MatchNormalizer {
                               NormalizerRec[F].normalize(caseBody)
                             }
         } yield MatchCaseN(patternResult, caseBodyResult, freeVars.length)
-      case _            => UnrecognizedNormalizerError("Unexpected Case implementation.").raiseError
+
+      case _ => UnrecognizedNormalizerError("Unexpected Case implementation.").raiseError
     }
 
-    (NormalizerRec[F].normalize(p.proc_), p.listcase_.asScala.toList.traverse(normalizeCase)).mapN(MatchN.apply)
+    (NormalizerRec[F].normalize(p.proc_), p.listcase_.asScala.toVector.traverse(normalizeCase)).mapN(MatchN.apply)
   }
 }

@@ -11,9 +11,8 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 object VarRefNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def normalizeVarRef[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarReader](p: PVarRef): F[ConnVarRefN] =
-    BoundVarReader[T].findBoundVar(p.var_) match {
-      case None                                                   =>
-        UnboundVariableRef(p.var_, p.line_num, p.col_num).raiseError
+    Sync[F].delay(BoundVarReader[T].findBoundVar(p.var_)).flatMap {
+      // Found bounded variable
       case Some((BoundContext(idx, kind, sourcePosition), depth)) =>
         kind match {
           case ProcSort =>
@@ -27,5 +26,8 @@ object VarRefNormalizer {
               case _                 => UnexpectedNameContext(p.var_, sourcePosition, SourcePosition(p.line_num, p.col_num)).raiseError
             }
         }
+
+      // Bounded variable not found
+      case None => UnboundVariableRef(p.var_, p.line_num, p.col_num).raiseError
     }
 }

@@ -41,10 +41,13 @@ object VarNormalizer {
           }
 
         case _: ProcVarWildcard =>
-          if (FreeVarReader[T].topLevel)
-            TopLevelWildcardsNotAllowedError(s"_ (wildcard) at $pos").raiseError
-          else
+          if (!FreeVarReader[T].topLevel) {
+            // Wildcard inside pattern
             (WildcardN: VarN).pure[F]
+          } else {
+            // Wildcard not inside pattern (top level) not allowed
+            TopLevelWildcardsNotAllowedError(s"_ (wildcard) at $pos").raiseError
+          }
       }
     }
 }

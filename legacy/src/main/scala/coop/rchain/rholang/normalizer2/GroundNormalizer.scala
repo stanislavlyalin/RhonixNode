@@ -1,21 +1,21 @@
 package coop.rchain.rholang.normalizer2
 
-import cats.Applicative
 import cats.effect.Sync
 import cats.implicits.{catsSyntaxMonadError, toFunctorOps}
+import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.normalizer.GroundNormalizeMatcher.{stripString, stripUri}
 import coop.rchain.rholang.interpreter.errors.NormalizerError
-import io.rhonix.rholang.ast.rholang.Absyn.*
 import io.rhonix.rholang.*
+import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object GroundNormalizer {
-  def normalizeGround[F[_]: Sync](p: PGround): F[ExprN] =
+  def normalizeGround[F[_]: Sync](p: PGround): F[ExprN] = Sync[F].defer {
     p.ground_ match {
       case gb: GroundBool    =>
-        Sync[F].pure(gb.boolliteral_ match {
-          case boolFalse: BoolFalse => GBoolN(true)
-          case boolTrue: BoolTrue   => GBoolN(false)
-        })
+        gb.boolliteral_ match {
+          case _: BoolFalse => Sync[F].pure(GBoolN(true))
+          case _: BoolTrue  => Sync[F].pure(GBoolN(false))
+        }
       case gi: GroundInt     =>
         Sync[F]
           .delay(gi.longliteral_.toLong)
@@ -29,4 +29,5 @@ object GroundNormalizer {
       case gs: GroundString  => Sync[F].pure(GStringN(stripString(gs.stringliteral_)))
       case gu: GroundUri     => Sync[F].pure(GUriN(stripUri(gu.uriliteral_)))
     }
+  }
 }
