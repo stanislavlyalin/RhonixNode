@@ -287,7 +287,7 @@ object NetworkSim extends IOApp {
       lfs.state.bonds.activeSet.toList.traverse(mkNode(_, db))
 
     Stream
-      .resource(slick.PostgresSlickDb[F].apply(nodeCfg.dbName, nodeCfg.dbUser, nodeCfg.dbPassword))
+      .resource(slick.PostgresSlickDb[F](nodeCfg.dbName, nodeCfg.dbUser, nodeCfg.dbPassword))
       .flatMap { db =>
         Stream
           .resource(mkNet(lfs, db))
