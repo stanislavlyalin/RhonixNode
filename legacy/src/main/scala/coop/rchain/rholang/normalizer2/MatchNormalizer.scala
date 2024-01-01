@@ -3,8 +3,8 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.errors.UnrecognizedNormalizerError
-import coop.rchain.rholang.normalizer2.env.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarReader, FreeVarWriter}
+import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.ast.rholang.Absyn.{Case, CaseImpl, PMatch}
 import io.rhonix.rholang.{MatchCaseN, MatchN}
 

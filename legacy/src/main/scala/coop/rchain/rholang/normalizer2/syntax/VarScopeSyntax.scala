@@ -1,14 +1,13 @@
-package coop.rchain.rholang.normalizer2.env.syntax
+package coop.rchain.rholang.normalizer2.syntax
 
 import coop.rchain.rholang.interpreter.compiler.FreeContext
-import coop.rchain.rholang.normalizer2.env.BoundVarWriter
+import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarWriter}
 
-trait BoundVarWriterSyntax {
-  implicit def boundVarWriterOps[T](writer: BoundVarWriter[T]): BoundVarWriterOps[T] =
-    new BoundVarWriterOps[T](writer)
+trait VarScopeSyntax {
+  implicit def boundVarWriterOps[T](bw: BoundVarWriter[T]): VarScopeOps[T] = new VarScopeOps[T](bw)
 }
 
-final class BoundVarWriterOps[T](val writer: BoundVarWriter[T]) extends AnyVal {
+final class VarScopeOps[T](val bw: BoundVarWriter[T]) extends AnyVal {
 
   /** Bound free variables in the current scope.
    *
@@ -24,6 +23,13 @@ final class BoundVarWriterOps[T](val writer: BoundVarWriter[T]) extends AnyVal {
       levels == levels.indices,
       "Error when absorbing free variables during normalization: incorrect de Bruijn levels.",
     )
-    writer.putBoundVars(data)
+    bw.putBoundVars(data)
   }
+
+  /** Creates a new (empty) bound and free variable context/scope.
+   *
+   * Empty variable context is used to normalize patterns.
+   */
+  def withNewVarScope[R](insideReceive: Boolean = false)(scopeFn: () => R)(implicit fw: FreeVarWriter[T]): R =
+    bw.withNewBoundVarScope(() => fw.withNewFreeVarScope(insideReceive)(scopeFn))
 }
