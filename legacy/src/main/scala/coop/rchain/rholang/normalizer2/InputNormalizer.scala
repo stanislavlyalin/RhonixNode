@@ -207,7 +207,7 @@ object InputNormalizer {
           //  With the new types, sorting is unnecessary as they are always sorted by hash.
           binds <- sortBinds(unsortBinds)
 
-          thereAreDuplicatesInSources = processedSources.distinct.sizeIs != processedSources.size
+          thereAreDuplicatesInSources = processedSources.distinct.size != processedSources.size
           _                          <- ReceiveOnSameChannelsError(p.line_num, p.col_num)
                                           .raiseError[F, Unit]
                                           .whenA(thereAreDuplicatesInSources)

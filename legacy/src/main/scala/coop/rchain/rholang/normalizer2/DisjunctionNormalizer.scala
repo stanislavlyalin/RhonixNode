@@ -9,7 +9,7 @@ import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object DisjunctionNormalizer {
-  def normalizeDisjunction[F[_]: Sync: NormalizerRec, T: FreeVarReader](p: PConjunction): F[ConnOrN] = {
+  def normalizeDisjunction[F[_]: Sync: NormalizerRec, T: FreeVarReader](p: PDisjunction): F[ConnOrN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
     if (FreeVarReader[T].topLevel)
       TopLevelLogicalConnectivesNotAllowedError(s"\\/ (disjunction) at $pos").raiseError

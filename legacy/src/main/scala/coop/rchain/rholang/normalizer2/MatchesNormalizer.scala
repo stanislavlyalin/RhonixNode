@@ -1,6 +1,5 @@
 package coop.rchain.rholang.normalizer2
 
-import cats.Apply
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarWriter}

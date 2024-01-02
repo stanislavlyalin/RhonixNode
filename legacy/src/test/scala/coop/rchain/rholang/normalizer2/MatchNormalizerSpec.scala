@@ -4,6 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import coop.rchain.rholang.interpreter.compiler.{ProcSort, VarSort}
 import coop.rchain.rholang.normalizer2.util.Mock.*
+import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.mockADT
+import io.rhonix.rholang.{MatchCaseN, MatchN}
 import io.rhonix.rholang.ast.rholang.Absyn.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -11,7 +13,9 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Match normalizer" should "sequentially normalize  the target, and then the cases in order" in {
+  behavior of "Match normalizer"
+
+  it should "convert AST term to match ADT term" in {
     forAll { (targetStr: String, pattern1Str: String, pattern2Str: String, b: Boolean) =>
       val targetTerm    = new PVar(new ProcVarVar(targetStr))
       val pattern1Term  = new PGround(new GroundString(pattern1Str))
@@ -30,10 +34,21 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
       implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort]()
 
-      MatchNormalizer.normalizeMatch[IO, VarSort](inputTerm).unsafeRunSync()
+      val adt = MatchNormalizer.normalizeMatch[IO, VarSort](inputTerm).unsafeRunSync()
+
+      val expectedAdt = MatchN(
+        target = mockADT(targetTerm: Proc),
+        cases = Seq(
+          MatchCaseN(pattern = mockADT(pattern1Term: Proc), source = mockADT(caseBody1Term: Proc)),
+          MatchCaseN(pattern = mockADT(pattern2Term: Proc), source = mockADT(caseBody2Term: Proc)),
+        ),
+      )
+
+      adt shouldBe expectedAdt
 
       val terms = mockRec.extractData
 
+      // Expect all terms to be normalized in sequence
       val expectedTerms = Seq(
         TermData(ProcTerm(targetTerm)),
         TermData(term = ProcTerm(pattern1Term), boundNewScopeLevel = 1, freeScopeLevel = 1),
@@ -46,7 +61,7 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     }
   }
 
-  it should "bind new variables available in case body" in {
+  it should "bind free variables before case body normalization" in {
     val cases     = List(new CaseImpl(new PNil, new PNil))
     val listCases = new ListCase()
     cases.foreach(listCases.add)
@@ -69,5 +84,4 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
     addedBoundVars shouldBe expectedBoundVars
   }
-
 }

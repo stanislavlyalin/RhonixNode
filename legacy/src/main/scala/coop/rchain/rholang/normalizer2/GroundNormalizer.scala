@@ -13,8 +13,8 @@ object GroundNormalizer {
     p.ground_ match {
       case gb: GroundBool    =>
         gb.boolliteral_ match {
-          case _: BoolFalse => Sync[F].pure(GBoolN(true))
-          case _: BoolTrue  => Sync[F].pure(GBoolN(false))
+          case _: BoolFalse => Sync[F].pure(GBoolN(false))
+          case _: BoolTrue  => Sync[F].pure(GBoolN(true))
         }
       case gi: GroundInt     =>
         Sync[F]

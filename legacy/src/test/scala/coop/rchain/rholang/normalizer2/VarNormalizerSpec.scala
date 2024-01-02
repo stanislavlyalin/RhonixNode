@@ -18,7 +18,9 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Var normalizer" should "return the Rholang bound variable if the BoundVarMap contains a variable with the same name" in {
+  behavior of "Var normalizer"
+
+  it should "return the Rholang bound variable if the BoundVarMap contains a variable with the same name" in {
     forAll { (varName: String, varIndex: Int) =>
       val term = new PVar(new ProcVarVar(varName))
 
