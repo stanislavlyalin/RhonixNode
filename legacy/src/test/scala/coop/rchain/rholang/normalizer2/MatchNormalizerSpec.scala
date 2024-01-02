@@ -3,8 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import coop.rchain.rholang.interpreter.compiler.{ProcSort, VarSort}
-import coop.rchain.rholang.normalizer2.util.Mock.{createMockDSL, BoundVarWriterData, ProcTerm, TermData, VarReaderData}
-import coop.rchain.rholang.normalizer2.util.MockNormalizerRec
+import coop.rchain.rholang.normalizer2.util.Mock.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -16,7 +15,7 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     forAll { (targetStr: String, pattern1Str: String, pattern2Str: String, b: Boolean) =>
       val targetTerm    = new PVar(new ProcVarVar(targetStr))
       val pattern1Term  = new PGround(new GroundString(pattern1Str))
-      val caseBody1Term = new PNil()
+      val caseBody1Term = new PNil
       val pattern2Term  = new PVar(new ProcVarVar(pattern2Str))
       val caseBody2Term = new PGround(new GroundBool(if (b) new BoolTrue else new BoolFalse))
 
@@ -47,7 +46,7 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     }
   }
 
-  "Match normalizer" should "absorb free variables and bind them in a copy of the scope" in {
+  it should "bind new variables available in case body" in {
     val cases     = List(new CaseImpl(new PNil, new PNil))
     val listCases = new ListCase()
     cases.foreach(listCases.add)
@@ -62,6 +61,7 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
     val addedBoundVars = mockBVW.extractData
 
+    // Absorbed free variables and bind them in a copy of the scope
     val expectedBoundVars = Seq(
       BoundVarWriterData(name = "x", varType = ProcSort, copyScopeLevel = 1),
       BoundVarWriterData(name = "y", varType = ProcSort, copyScopeLevel = 1),

@@ -11,7 +11,7 @@ import scala.jdk.CollectionConverters.*
 
 object ContrNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeInput[F[_]: Sync: NormalizerRec, T: BoundVarWriter: FreeVarReader: FreeVarWriter](
+  def normalizeContr[F[_]: Sync: NormalizerRec, T: BoundVarWriter: FreeVarReader: FreeVarWriter](
     p: PContr,
   ): F[ReceiveN] =
     for {

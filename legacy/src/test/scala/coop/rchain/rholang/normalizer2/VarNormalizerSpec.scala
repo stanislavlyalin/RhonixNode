@@ -18,7 +18,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  it should "return the Rholang bound variable if the BoundVarMap contains a variable with the same name" in {
+  "Var normalizer" should "return the Rholang bound variable if the BoundVarMap contains a variable with the same name" in {
     forAll { (varName: String, varIndex: Int) =>
       val term = new PVar(new ProcVarVar(varName))
 
@@ -69,7 +69,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
   }
 
   it should "throw an exception when trying to add a free variable to the top-level term (not in the pattern)" in {
-    forAll { (varName: String, varIndex: Int) =>
+    forAll { (varName: String) =>
       val term = new PVar(new ProcVarVar(varName))
 
       // Create a mock DSL with the true `isTopLevel` flag (default value).

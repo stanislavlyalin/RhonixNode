@@ -8,20 +8,20 @@ import scala.collection.mutable.ListBuffer
 
 case class MockFreeVarWriter[T]() extends FreeVarWriter[T] {
   private val buffer: ListBuffer[FreeVarWriterData[T]] = ListBuffer.empty
-  private var withNewScopeLevel: Int                   = 0
+  private var scopeLevel: Int                          = 0
 
   override def putFreeVar(binding: IdContext[T]): Int = {
-    buffer.append(binding match { case (name, varType, _) => FreeVarWriterData(name, varType, withNewScopeLevel) })
+    buffer.append(binding match { case (name, varType, _) => FreeVarWriterData(name, varType, scopeLevel) })
     DefFreeVarIndex
   }
 
   override def withNewFreeVarScope[R](insideReceive: Boolean = false)(scopeFn: () => R): R = {
-    withNewScopeLevel = withNewScopeLevel + 1
+    scopeLevel = scopeLevel + 1
     val res = scopeFn()
-    withNewScopeLevel = withNewScopeLevel - 1
+    scopeLevel = scopeLevel - 1
     res
   }
 
   def extractData: Seq[FreeVarWriterData[T]] = buffer.toSeq
-  def newScopeLevel(): Int                   = withNewScopeLevel
+  def getScopeLevel: Int                     = scopeLevel
 }

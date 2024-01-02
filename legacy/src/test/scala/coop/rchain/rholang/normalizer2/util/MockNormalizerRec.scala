@@ -17,9 +17,9 @@ case class MockNormalizerRec[F[_]: Applicative, T](mockBVW: MockBoundVarWriter[T
     buffer.append(
       TermData(
         term = term,
-        boundNewScopeLevel = mockBVW.newScopeLevel(),
-        boundCopyScopeLevel = mockBVW.copyScopeLevel(),
-        freeScopeLevel = mockFVW.newScopeLevel(),
+        boundNewScopeLevel = mockBVW.getNewScopeLevel,
+        boundCopyScopeLevel = mockBVW.getCopyScopeLevel,
+        freeScopeLevel = mockFVW.getScopeLevel,
       ),
     )
 
