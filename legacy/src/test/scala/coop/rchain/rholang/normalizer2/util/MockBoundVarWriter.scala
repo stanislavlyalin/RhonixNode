@@ -1,5 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
+import cats.effect.Sync
+import cats.implicits.*
 import coop.rchain.rholang.interpreter.compiler.IdContext
 import coop.rchain.rholang.normalizer2.env.BoundVarWriter
 import coop.rchain.rholang.normalizer2.util.Mock.BoundVarWriterData
@@ -18,19 +20,17 @@ case class MockBoundVarWriter[T]() extends BoundVarWriter[T] {
     Seq()
   }
 
-  override def withNewBoundVarScope[R](scopeFn: () => R): R = {
-    newScopeLevel = newScopeLevel + 1
-    val res = scopeFn()
-    newScopeLevel = newScopeLevel - 1
-    res
-  }
+  override def withNewBoundVarScope[F[_]: Sync, R](scopeFn: () => F[R]): F[R] = for {
+    _   <- Sync[F].delay(newScopeLevel += 1)
+    res <- scopeFn()
+    _   <- Sync[F].delay(newScopeLevel -= 1)
+  } yield res
 
-  override def withCopyBoundVarScope[R](scopeFn: () => R): R = {
-    copyScopeLevel = copyScopeLevel + 1
-    val res = scopeFn()
-    copyScopeLevel = copyScopeLevel - 1
-    res
-  }
+  override def withCopyBoundVarScope[F[_]: Sync, R](scopeFn: () => F[R]): F[R] = for {
+    _   <- Sync[F].delay(copyScopeLevel += 1)
+    res <- scopeFn()
+    _   <- Sync[F].delay(copyScopeLevel -= 1)
+  } yield res
 
   def extractData: Seq[BoundVarWriterData[T]] = buffer.toSeq
   def getNewScopeLevel: Int                   = newScopeLevel

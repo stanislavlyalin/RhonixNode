@@ -1,5 +1,6 @@
 package coop.rchain.rholang.normalizer2.syntax
 
+import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.FreeContext
 import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarWriter}
 
@@ -30,6 +31,8 @@ final class VarScopeOps[T](val bw: BoundVarWriter[T]) extends AnyVal {
    *
    * Empty variable context is used to normalize patterns.
    */
-  def withNewVarScope[R](insideReceive: Boolean = false)(scopeFn: () => R)(implicit fw: FreeVarWriter[T]): R =
+  def withNewVarScope[F[_]: Sync, R](insideReceive: Boolean = false)(scopeFn: () => F[R])(implicit
+    fw: FreeVarWriter[T],
+  ): F[R] =
     bw.withNewBoundVarScope(() => fw.withNewFreeVarScope(insideReceive)(scopeFn))
 }

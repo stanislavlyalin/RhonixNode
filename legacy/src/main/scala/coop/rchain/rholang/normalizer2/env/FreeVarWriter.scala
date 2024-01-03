@@ -1,5 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
+import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.IdContext
 
 trait FreeVarWriter[T] {
@@ -14,7 +15,7 @@ trait FreeVarWriter[T] {
    * @param insideReceive Flag is necessary for normalizing the connectives.
    * Since we cannot rely on a specific pattern matching order, we cannot use patterns
    * separated by \/ to bind any variables in the top-level receive. */
-  def withNewFreeVarScope[R](insideReceive: Boolean)(scopeFn: () => R): R
+  def withNewFreeVarScope[F[_]: Sync, R](insideReceive: Boolean)(scopeFn: () => F[R]): F[R]
 }
 
 object FreeVarWriter {

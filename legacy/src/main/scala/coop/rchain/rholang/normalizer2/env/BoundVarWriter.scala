@@ -1,5 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
+import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
 
 trait BoundVarWriter[T] {
@@ -11,10 +12,10 @@ trait BoundVarWriter[T] {
   // Scope operations
 
   /** Runs functions in an empty bound variables scope (preserving history) */
-  def withNewBoundVarScope[R](scopeFn: () => R): R
+  def withNewBoundVarScope[F[_]: Sync, R](scopeFn: () => F[R]): F[R]
 
   /** Runs functions in an copy of this bound variables scope (preserving history) */
-  def withCopyBoundVarScope[R](scopeFn: () => R): R
+  def withCopyBoundVarScope[F[_]: Sync, R](scopeFn: () => F[R]): F[R]
 }
 
 object BoundVarWriter {

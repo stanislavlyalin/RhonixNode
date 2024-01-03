@@ -1,5 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
+import cats.effect.Sync
+import cats.implicits.*
 import coop.rchain.rholang.interpreter.compiler.IdContext
 import coop.rchain.rholang.normalizer2.env.FreeVarWriter
 import coop.rchain.rholang.normalizer2.util.Mock.{DefFreeVarIndex, FreeVarWriterData}
@@ -15,12 +17,11 @@ case class MockFreeVarWriter[T]() extends FreeVarWriter[T] {
     DefFreeVarIndex
   }
 
-  override def withNewFreeVarScope[R](insideReceive: Boolean = false)(scopeFn: () => R): R = {
-    scopeLevel = scopeLevel + 1
-    val res = scopeFn()
-    scopeLevel = scopeLevel - 1
-    res
-  }
+  override def withNewFreeVarScope[F[_]: Sync, R](insideReceive: Boolean = false)(scopeFn: () => F[R]): F[R] = for {
+    _   <- Sync[F].delay(scopeLevel += 1)
+    res <- scopeFn()
+    _   <- Sync[F].delay(scopeLevel -= 1)
+  } yield res
 
   def extractData: Seq[FreeVarWriterData[T]] = buffer.toSeq
   def getScopeLevel: Int                     = scopeLevel
