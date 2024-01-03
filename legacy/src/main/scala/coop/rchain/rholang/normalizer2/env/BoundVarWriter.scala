@@ -6,9 +6,7 @@ trait BoundVarWriter[T] {
   // Bound variables operations
 
   /** Inserts new variables in bound map  */
-  def putBoundVar(bindings: Seq[IdContext[T]]): Seq[Int]
-
-  def absorbFree(binders: Seq[FreeContext[T]]): Unit
+  def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int]
 
   // Scope operations
 

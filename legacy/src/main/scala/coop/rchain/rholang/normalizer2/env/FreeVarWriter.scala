@@ -1,6 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
-import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
+import coop.rchain.rholang.interpreter.compiler.IdContext
 
 trait FreeVarWriter[T] {
   // Free variables operations
@@ -8,13 +8,10 @@ trait FreeVarWriter[T] {
   /** Puts free variables to the context */
   def putFreeVar(binding: IdContext[T]): Int
 
-  /** Puts wildcard to the context */
-  def putWildcard(source_position: SourcePosition): Unit
-
   // Scope operations
 
   /** Runs functions in an empty free variables scope (preserving history) */
-  def withNewFreeVarScope[R](scopeFn: () => R): R
+  def withNewFreeVarScope[R](insideReceive: Boolean)(scopeFn: () => R): R
 }
 
 object FreeVarWriter {
