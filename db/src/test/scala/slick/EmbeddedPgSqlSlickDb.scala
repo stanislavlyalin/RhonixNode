@@ -17,6 +17,7 @@ object EmbeddedPgSqlSlickDb {
     )
     val dbResource =
       Resource.make(open)(db => Sync[F].delay(db.close())).map(x => Database.forDataSource(x.getPostgresDatabase, None))
-    SlickDb.resource(dbResource, PostgresProfile, new PostgresDialect)
+
+    dbResource.evalMap(SlickDb(_, PostgresProfile, new PostgresDialect))
   }
 }
