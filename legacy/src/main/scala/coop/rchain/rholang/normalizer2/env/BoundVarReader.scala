@@ -3,7 +3,6 @@ package coop.rchain.rholang.normalizer2.env
 import coop.rchain.rholang.interpreter.compiler.BoundContext
 
 trait BoundVarReader[T] {
-  // Bound variables operations
 
   /** Gets bound variable by name, current level */
   def getBoundVar(name: String): Option[BoundContext[T]]
