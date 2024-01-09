@@ -34,7 +34,8 @@ sealed trait RhoTypeN {
     case _           => false
   }
 
-  // Have to hash bytes since this.rhoHash.value.hasCode is different for two copies of the same array
+  // Have to hash bytes since this.rhoHash.value.hashCode is different for two copies of the same array
+  // TODO Maybe this.rhoHash.value.toList.hashCode is more effective
   private lazy val hCode       = MurmurHash3.arrayHash(this.rhoHash.value)
   override def hashCode(): Int = hCode
 }
