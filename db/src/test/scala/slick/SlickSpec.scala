@@ -265,8 +265,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
         IO.delay {
           forAll(nonEmptyAlphaString, nonEmptyAlphaString) { (name, value) =>
-            val storeF = api.queries.putConfig(name, value).run[IO]
-            val loadF  = api.queries.getConfig(name).run[IO]
+            val storeF = api.actions.putConfig(name, value).run[IO]
+            val loadF  = api.actions.getConfig(name).run[IO]
             (storeF >> loadF).unsafeRunSync() shouldBe Some(value)
           }
         }
