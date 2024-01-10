@@ -4,6 +4,7 @@ import cats.Eval
 import cats.syntax.all.*
 import io.rhonix.rholang.parmanager.Manager.*
 import sdk.syntax.all.*
+import scala.util.hashing.MurmurHash3
 
 /** Base trait for Rholang elements in the Reducer */
 sealed trait RhoTypeN {
@@ -33,7 +34,10 @@ sealed trait RhoTypeN {
     case _           => false
   }
 
-  override def hashCode(): Int = this.rhoHash.value.hashCode()
+  // Have to hash bytes since this.rhoHash.value.hashCode is different for two copies of the same array
+  // TODO Maybe this.rhoHash.value.toList.hashCode is more effective
+  private lazy val hCode       = MurmurHash3.arrayHash(this.rhoHash.value)
+  override def hashCode(): Int = hCode
 }
 
 /** Rholang element that can be processed in parallel, together with other elements */
