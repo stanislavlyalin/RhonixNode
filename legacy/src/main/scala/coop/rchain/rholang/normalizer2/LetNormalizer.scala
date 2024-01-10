@@ -109,20 +109,19 @@ object LetNormalizer {
           case declImpl: DeclImpl =>
             for {
               values       <- declImpl.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)
-              patternTuple <- BoundVarScope[F].withNewVarScope()(() =>
+              patternTuple <- BoundVarScope[F].withNewVarScope()(Sync[F].defer {
                                 (
-                                  // TODO: Why is the remainder processed before the collection elements (for sequential F)?
                                   NormalizerRec[F].normalize(declImpl.nameremainder_),
                                   declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize),
-                                ).mapN((rem, ps) => (ps, rem, FreeVarReader[T].getFreeVars)),
-                              )
+                                ).mapN((rem, ps) => (ps, rem, FreeVarReader[T].getFreeVars))
+                              })
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 
-              continuation <- BoundVarScope[F].withCopyBoundVarScope { () =>
+              continuation <- BoundVarScope[F].withCopyBoundVarScope(Sync[F].defer {
                                 BoundVarWriter[T].absorbFree(patternFreeVars)
                                 NormalizerRec[F].normalize(convertDecls(p.decls_))
-                              }
+                              })
             } yield MatchN(
               target = EListN(values),
               cases = Seq(

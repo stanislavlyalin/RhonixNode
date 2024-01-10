@@ -20,20 +20,21 @@ object MatchNormalizer {
         val (pattern, caseBody) = (ci.proc_1, ci.proc_2)
         for {
           // Normalize pattern in a fresh bound and free variables scope
-          patternTuple <- BoundVarScope[F].withNewVarScope()(() =>
+          patternTuple <- BoundVarScope[F].withNewVarScope()(Sync[F].defer {
                             for {
                               pattern <- NormalizerRec[F].normalize(pattern)
                               // Get free variables from the pattern
                               freeVars = FreeVarReader[T].getFreeVars
-                            } yield (pattern, freeVars),
-                          )
+                            } yield (pattern, freeVars)
+                          })
 
           (patternResult, freeVars) = patternTuple
 
-          caseBodyResult <- BoundVarScope[F].withCopyBoundVarScope { () =>
+          caseBodyResult <- BoundVarScope[F].withCopyBoundVarScope(Sync[F].defer {
                               BoundVarWriter[T].absorbFree(freeVars)
                               NormalizerRec[F].normalize(caseBody)
-                            }
+                            })
+
         } yield MatchCaseN(patternResult, caseBodyResult, freeVars.length)
 
       case _ => UnrecognizedNormalizerError("Unexpected Case implementation.").raiseError

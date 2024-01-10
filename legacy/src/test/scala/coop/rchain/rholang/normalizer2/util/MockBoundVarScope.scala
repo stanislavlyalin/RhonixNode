@@ -8,15 +8,15 @@ case class MockBoundVarScope[F[_]: Sync]() extends BoundVarScope[F] {
   private var newScopeLevel: Int  = 0
   private var copyScopeLevel: Int = 0
 
-  override def withNewBoundVarScope[R](scopeFn: () => F[R]): F[R] = for {
+  override def withNewBoundVarScope[R](scopeFn: F[R]): F[R] = for {
     _   <- Sync[F].delay(newScopeLevel += 1)
-    res <- scopeFn()
+    res <- scopeFn
     _    = newScopeLevel -= 1
   } yield res
 
-  override def withCopyBoundVarScope[R](scopeFn: () => F[R]): F[R] = for {
+  override def withCopyBoundVarScope[R](scopeFn: F[R]): F[R] = for {
     _   <- Sync[F].delay(copyScopeLevel += 1)
-    res <- scopeFn()
+    res <- scopeFn
     _    = copyScopeLevel -= 1
   } yield res
 

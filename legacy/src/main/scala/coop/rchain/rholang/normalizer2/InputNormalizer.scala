@@ -195,13 +195,13 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          patternTuple <- BoundVarScope[F].withNewVarScope(insideReceive = true)(() =>
+          patternTuple <- BoundVarScope[F].withNewVarScope(insideReceive = true)(Sync[F].defer {
                             for {
                               binds <- createBinds(patterns, processedSources)
                               // After pattern processing getFreeVars() will return free variables for all patterns
                               vars   = FreeVarReader[T].getFreeVars
-                            } yield (binds, vars),
-                          )
+                            } yield (binds, vars)
+                          })
 
           (unsortBinds, freeVars) = patternTuple
 
@@ -215,10 +215,10 @@ object InputNormalizer {
                                           .whenA(thereAreDuplicatesInSources)
 
           // Normalize body in the current bound and free variables scope
-          continuation               <- BoundVarScope[F].withCopyBoundVarScope { () =>
+          continuation               <- BoundVarScope[F].withCopyBoundVarScope(Sync[F].defer {
                                           BoundVarWriter[T].absorbFree(freeVars)
                                           NormalizerRec[F].normalize(p.proc_)
-                                        }
+                                        })
         } yield ReceiveN(binds, continuation, persistent, peek, freeVars.size)
       }
     }

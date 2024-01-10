@@ -12,6 +12,6 @@ final class VarScopeOps[F[_]](val bWScope: BoundVarScope[F]) extends AnyVal {
    *
    * Empty variable context is used to normalize patterns.
    */
-  def withNewVarScope[R](insideReceive: Boolean = false)(scopeFn: () => F[R])(implicit fWScope: FreeVarScope[F]): F[R] =
-    bWScope.withNewBoundVarScope(() => fWScope.withNewFreeVarScope(insideReceive)(scopeFn))
+  def withNewVarScope[R](insideReceive: Boolean = false)(scopeFn: F[R])(implicit fWScope: FreeVarScope[F]): F[R] =
+    bWScope.withNewBoundVarScope(fWScope.withNewFreeVarScope(insideReceive)(scopeFn))
 }
