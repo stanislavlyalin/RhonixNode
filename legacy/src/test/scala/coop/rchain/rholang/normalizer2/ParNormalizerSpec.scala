@@ -21,7 +21,7 @@ class ParNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       // term1 | term2
       val term  = new PPar(left, right)
 
-      implicit val (mockRec, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       // Run Par normalizer
       val adt = ParNormalizer.normalizePar[IO](term).unsafeRunSync()
@@ -31,7 +31,7 @@ class ParNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
       adt shouldBe expectedAdt
 
-      val terms         = mockRec.extractData
+      val terms         = nRec.extractData
       // Expect both sides of par to be normalized in sequence
       val expectedTerms = Seq(TermData(ProcTerm(left)), TermData(ProcTerm(right)))
 

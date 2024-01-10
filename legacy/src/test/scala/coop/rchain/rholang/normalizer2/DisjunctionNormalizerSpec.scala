@@ -22,15 +22,15 @@ class DisjunctionNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyCheck
       val right = new PGround(new GroundString(s2))
       val term  = new PDisjunction(left, right)
 
-      implicit val (mockRec, _, _, _, mockFVR) = createMockDSL[IO, VarSort](isTopLevel = false)
+      implicit val (nRec, _, _, _, _, _, _, fVScopeReader) = createMockDSL[IO, VarSort](isTopLevel = false)
 
-      val adt = DisjunctionNormalizer.normalizeDisjunction[IO, VarSort](term).unsafeRunSync()
+      val adt = DisjunctionNormalizer.normalizeDisjunction[IO](term).unsafeRunSync()
 
       val expectedAdt = ConnOrN(Seq(mockADT(left: Proc), mockADT(right: Proc)))
 
       adt shouldBe expectedAdt
 
-      val terms         = mockRec.extractData
+      val terms         = nRec.extractData
       // Expect both sides of conjunction to be normalized in sequence
       val expectedTerms = Seq(TermData(ProcTerm(left)), TermData(ProcTerm(right)))
 
@@ -42,10 +42,10 @@ class DisjunctionNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyCheck
     val term = new PDisjunction(new PNil, new PNil)
 
     // Create a mock DSL with the true `isTopLevel` flag (default value).
-    implicit val (mockRec, _, _, _, mockFVR) = createMockDSL[IO, VarSort]()
+    implicit val (nRec, _, _, _, _, _, _, fVScopeReader) = createMockDSL[IO, VarSort]()
 
     val thrown = intercept[TopLevelLogicalConnectivesNotAllowedError] {
-      DisjunctionNormalizer.normalizeDisjunction[IO, VarSort](term).unsafeRunSync()
+      DisjunctionNormalizer.normalizeDisjunction[IO](term).unsafeRunSync()
     }
 
     thrown.getMessage should include("disjunction")

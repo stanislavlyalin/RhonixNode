@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.models.ReceiveBind
 import coop.rchain.rholang.interpreter.errors.ReceiveOnSameChannelsError
-import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarReader, FreeVarWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.Bindings.*
@@ -15,7 +15,9 @@ import scala.jdk.CollectionConverters.*
 
 object InputNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeInput[F[_]: Sync: NormalizerRec, T: BoundVarWriter: FreeVarReader: FreeVarWriter](
+  def normalizeInput[F[
+    _,
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope, T: BoundVarWriter: FreeVarReader](
     p: PInput,
   ): F[ParN] = {
     if (p.listreceipt_.size() > 1) {
@@ -193,7 +195,7 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          patternTuple <- BoundVarWriter[T].withNewVarScope(insideReceive = true)(() =>
+          patternTuple <- BoundVarScope[F].withNewVarScope(insideReceive = true)(() =>
                             for {
                               binds <- createBinds(patterns, processedSources)
                               // After pattern processing getFreeVars() will return free variables for all patterns
@@ -213,7 +215,7 @@ object InputNormalizer {
                                           .whenA(thereAreDuplicatesInSources)
 
           // Normalize body in the current bound and free variables scope
-          continuation               <- BoundVarWriter[T].withCopyBoundVarScope { () =>
+          continuation               <- BoundVarScope[F].withCopyBoundVarScope { () =>
                                           BoundVarWriter[T].absorbFree(freeVars)
                                           NormalizerRec[F].normalize(p.proc_)
                                         }

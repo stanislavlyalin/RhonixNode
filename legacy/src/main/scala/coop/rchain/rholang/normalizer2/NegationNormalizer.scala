@@ -4,17 +4,17 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.interpreter.errors.{PatternReceiveError, TopLevelLogicalConnectivesNotAllowedError}
-import coop.rchain.rholang.normalizer2.env.FreeVarReader
+import coop.rchain.rholang.normalizer2.env.{FreeVarReader, FreeVarScopeReader}
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object NegationNormalizer {
-  def normalizeNegation[F[_]: Sync: NormalizerRec, T: FreeVarReader](p: PNegation): F[ConnNotN] = {
+  def normalizeNegation[F[_]: Sync: NormalizerRec](p: PNegation)(implicit scope: FreeVarScopeReader): F[ConnNotN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
-    if (FreeVarReader[T].topLevel)
+    if (scope.topLevel)
       TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
     else {
-      if (FreeVarReader[T].topLevelReceivePattern) {
+      if (scope.topLevelReceivePattern) {
         // TODO: According to Rholang documentation:
         //  https://github.com/rchain/rchain/blob/25e523580a339db9ce2e8abdc9dcab44618d4c5c/docs/rholang/rholangtut.md?plain=1#L244-L252
         //  Since we cannot rely on a specific pattern matching order,

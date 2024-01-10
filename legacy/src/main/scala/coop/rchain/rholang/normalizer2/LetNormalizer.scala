@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarReader, FreeVarWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope, FreeVarWriter}
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.*
 
 object LetNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeLet[F[_]: Sync: NormalizerRec, T: BoundVarWriter: FreeVarReader: FreeVarWriter](
+  def normalizeLet[F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope, T: BoundVarWriter: FreeVarReader](
     p: PLet,
   ): F[ParN] =
     p.decls_ match {
@@ -109,7 +109,7 @@ object LetNormalizer {
           case declImpl: DeclImpl =>
             for {
               values       <- declImpl.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)
-              patternTuple <- BoundVarWriter[T].withNewVarScope()(() =>
+              patternTuple <- BoundVarScope[F].withNewVarScope()(() =>
                                 (
                                   // TODO: Why is the remainder processed before the collection elements (for sequential F)?
                                   NormalizerRec[F].normalize(declImpl.nameremainder_),
@@ -119,7 +119,7 @@ object LetNormalizer {
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 
-              continuation <- BoundVarWriter[T].withCopyBoundVarScope { () =>
+              continuation <- BoundVarScope[F].withCopyBoundVarScope { () =>
                                 BoundVarWriter[T].absorbFree(patternFreeVars)
                                 NormalizerRec[F].normalize(convertDecls(p.decls_))
                               }

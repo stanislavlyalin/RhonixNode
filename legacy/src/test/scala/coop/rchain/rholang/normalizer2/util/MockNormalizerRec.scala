@@ -5,12 +5,12 @@ import cats.implicits.{catsSyntaxApplicativeId, none}
 import coop.rchain.rholang.normalizer2.NormalizerRec
 import coop.rchain.rholang.normalizer2.util.Mock.*
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
-import io.rhonix.rholang.{GStringN, NilN, ParN, VarN}
-import io.rhonix.rholang.ast.rholang.Absyn.{GroundString, Name, NameRemainder, PGround, Proc, ProcRemainder}
+import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
+import io.rhonix.rholang.{GStringN, ParN, VarN}
 
 import scala.collection.mutable.ListBuffer
 
-case class MockNormalizerRec[F[_]: Applicative, T](mockBVW: MockBoundVarWriter[T], mockFVW: MockFreeVarWriter[T])
+case class MockNormalizerRec[F[_]: Applicative, T](bWScope: MockBoundVarScope[F], fWScope: MockFreeVarScope[F])
     extends NormalizerRec[F] {
   private val buffer: ListBuffer[TermData] = ListBuffer.empty
 
@@ -18,9 +18,9 @@ case class MockNormalizerRec[F[_]: Applicative, T](mockBVW: MockBoundVarWriter[T
     buffer.append(
       TermData(
         term = term,
-        boundNewScopeLevel = mockBVW.getNewScopeLevel,
-        boundCopyScopeLevel = mockBVW.getCopyScopeLevel,
-        freeScopeLevel = mockFVW.getScopeLevel,
+        boundNewScopeLevel = bWScope.getNewScopeLevel,
+        boundCopyScopeLevel = bWScope.getCopyScopeLevel,
+        freeScopeLevel = fWScope.getScopeLevel,
       ),
     )
 

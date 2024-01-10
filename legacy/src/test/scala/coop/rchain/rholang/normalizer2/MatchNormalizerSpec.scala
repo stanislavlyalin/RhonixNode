@@ -32,7 +32,7 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
       cases.foreach(listCases.add)
       val inputTerm = new PMatch(targetTerm, listCases)
 
-      implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
 
       val adt = MatchNormalizer.normalizeMatch[IO, VarSort](inputTerm).unsafeRunSync()
 
@@ -46,7 +46,7 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
       adt shouldBe expectedAdt
 
-      val terms = mockRec.extractData
+      val terms = nRec.extractData
 
       // Expect all terms to be normalized in sequence
       val expectedTerms = Seq(
@@ -68,13 +68,13 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     // match Nil { case Nil => Nil}
     val term      = new PMatch(new PNil, listCases)
 
-    implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort](
+    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](
       initFreeVars = Seq(VarReaderData("x", 0, ProcSort), VarReaderData("y", 1, ProcSort)),
     )
 
     MatchNormalizer.normalizeMatch[IO, VarSort](term).unsafeRunSync()
 
-    val addedBoundVars = mockBVW.extractData
+    val addedBoundVars = bVW.extractData
 
     // Absorbed free variables and bind them in a copy of the scope
     val expectedBoundVars = Seq(

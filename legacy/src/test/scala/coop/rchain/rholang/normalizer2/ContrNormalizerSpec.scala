@@ -30,7 +30,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
         // contract source (pattern1, pattern2, ... remainder) { continuation }
         val term = new PContr(source, listPatterns, remainder, continuation)
 
-        implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort]()
+        implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
 
         val adt = ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
 
@@ -49,7 +49,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
         adt shouldBe expectedAdt
 
-        val terms         = mockRec.extractData
+        val terms         = nRec.extractData
         // Expect all terms to be normalized in sequence
         val expectedTerms = TermData(NameTerm(source)) +:
           patterns.map(x => TermData(NameTerm(x), boundNewScopeLevel = 1, freeScopeLevel = 1)) :+
@@ -64,13 +64,13 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     listPatterns.add(new NameVar(""))
     val term         = new PContr(new NameVar(""), listPatterns, new NameRemainderEmpty(), new PNil)
 
-    implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort](
+    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](
       initFreeVars = Seq(VarReaderData("x", 0, NameSort), VarReaderData("y", 1, NameSort)),
     )
 
     ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
 
-    val addedBoundVars = mockBVW.extractData
+    val addedBoundVars = bVW.extractData
 
     // Absorbed free variables and bind them in a copy of the scope
     val expectedBoundVars = Seq(

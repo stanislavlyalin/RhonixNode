@@ -9,12 +9,14 @@ import coop.rchain.rholang.interpreter.errors.{
   UnexpectedProcContext,
   UnexpectedReuseOfProcContextFree,
 }
-import coop.rchain.rholang.normalizer2.env.{BoundVarReader, FreeVarReader, FreeVarWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarReader, FreeVarReader, FreeVarScopeReader, FreeVarWriter}
 import io.rhonix.rholang.ast.rholang.Absyn.{PVar, ProcVarVar, ProcVarWildcard}
 import io.rhonix.rholang.{BoundVarN, FreeVarN, VarN, WildcardN}
 
 object VarNormalizer {
-  def normalizeVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](p: PVar): F[VarN] =
+  def normalizeVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](
+    p: PVar,
+  )(implicit scopeReader: FreeVarScopeReader): F[VarN] =
     Sync[F].defer {
       def pos = SourcePosition(p.line_num, p.col_num)
       p.procvar_ match {
@@ -27,7 +29,7 @@ object VarNormalizer {
               UnexpectedProcContext(pvv.var_, sourcePosition, pos).raiseError
 
             case None =>
-              if (FreeVarReader[T].topLevel)
+              if (scopeReader.topLevel)
                 TopLevelFreeVariablesNotAllowedError(s"${pvv.var_} at $pos").raiseError
               else
                 FreeVarReader[T].getFreeVar(pvv.var_) match {
@@ -41,7 +43,7 @@ object VarNormalizer {
           }
 
         case _: ProcVarWildcard =>
-          if (!FreeVarReader[T].topLevel) {
+          if (!scopeReader.topLevel) {
             // Wildcard inside pattern
             (WildcardN: VarN).pure[F]
           } else {

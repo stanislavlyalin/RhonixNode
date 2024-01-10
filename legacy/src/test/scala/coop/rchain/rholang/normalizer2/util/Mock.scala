@@ -1,6 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
 import cats.Applicative
+import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 
@@ -25,26 +26,34 @@ object Mock {
   val DefPosition: SourcePosition = SourcePosition(0, 0)
   val DefFreeVarIndex: Int        = 0
 
-  def createMockDSL[F[_]: Applicative, T](
+  // (nRec, bVScope, bVW, bVR, fVScope, fVW, fVR, fVScopeReader)
+
+  def createMockDSL[F[_]: Sync, T](
     initBoundVars: Seq[VarReaderData[T]] = Seq(),
     initFreeVars: Seq[VarReaderData[T]] = Seq(),
     isTopLevel: Boolean = true,
     isReceivePattern: Boolean = false,
   ): (
     MockNormalizerRec[F, T],
-    MockBoundVarWriter[T],
+    MockBoundVarScope[F],
+    MockBoundVarWriter[F, T],
     MockBoundVarReader[T],
-    MockFreeVarWriter[T],
+    MockFreeVarScope[F],
+    MockFreeVarWriter[F, T],
     MockFreeVarReader[T],
+    MockFreeVarScopeReader,
   ) = {
-    val mockBVW: MockBoundVarWriter[T] = MockBoundVarWriter[T]()
-    val mockBVR: MockBoundVarReader[T] = MockBoundVarReader[T](initBoundVars)
+    val mockBVScope: MockBoundVarScope[F] = MockBoundVarScope[F]()
+    val mockBVW: MockBoundVarWriter[F, T] = MockBoundVarWriter[F, T](mockBVScope)
+    val mockBVR: MockBoundVarReader[T]    = MockBoundVarReader[T](initBoundVars)
 
-    val mockFVW: MockFreeVarWriter[T] = MockFreeVarWriter[T]()
-    val mockFVR: MockFreeVarReader[T] = MockFreeVarReader[T](initFreeVars, isTopLevel, isReceivePattern)
+    val mockFVScope: MockFreeVarScope[F] = MockFreeVarScope[F]()
+    val mockFVW: MockFreeVarWriter[F, T] = MockFreeVarWriter[F, T](mockFVScope)
+    val mockFVR: MockFreeVarReader[T]    = MockFreeVarReader[T](initFreeVars)
 
-    val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVW, mockFVW)
+    val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVScope, mockFVScope)
 
-    (mockNormalizerRec, mockBVW, mockBVR, mockFVW, mockFVR)
+    val mockFVScopeReader: MockFreeVarScopeReader = MockFreeVarScopeReader(isTopLevel, isReceivePattern)
+    (mockNormalizerRec, mockBVScope, mockBVW, mockBVR, mockFVScope, mockFVW, mockFVR, mockFVScopeReader)
   }
 }

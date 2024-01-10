@@ -5,8 +5,6 @@ import coop.rchain.rholang.normalizer2.util.Mock.{DefPosition, VarReaderData}
 
 case class MockFreeVarReader[T](
   freeVars: Seq[VarReaderData[T]],
-  isTopLevel: Boolean,
-  isReceivePattern: Boolean,
 ) extends FreeVarReader[T] {
 
   private val freeVarMap: Map[String, FreeContext[T]] =
@@ -14,6 +12,4 @@ case class MockFreeVarReader[T](
 
   override def getFreeVars: Seq[(String, FreeContext[T])]       = freeVarMap.toSeq
   override def getFreeVar(name: String): Option[FreeContext[T]] = freeVarMap.get(name)
-  override def topLevel: Boolean                                = isTopLevel
-  override def topLevelReceivePattern: Boolean                  = isReceivePattern && isTopLevel
 }
