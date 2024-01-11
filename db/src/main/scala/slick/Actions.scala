@@ -49,24 +49,22 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   def deployGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.deploys.result
 
   /** Get deploy by unique sig. Returned (TableDeploys.Deploy, shard.name, deployer.pubKey) */
-  def deployGetData(sig: Array[Byte]): DBIOAction[Option[api.data.Deploy], NoStream, Read] = {
-    val query = for {
-      deploy   <- queries.deployBySig(sig)
-      shard    <- queries.shardById(deploy.shardId)
-      deployer <- queries.deployerById(deploy.deployerId)
-    } yield (deploy, deployer.pubKey, shard.name)
-    query.result.headOption.map(_.map { case (d, pK, sName) =>
-      api.data.Deploy(
-        sig = d.sig,
-        deployerPk = pK,
-        shardName = sName,
-        program = d.program,
-        phloPrice = d.phloPrice,
-        phloLimit = d.phloLimit,
-        nonce = d.nonce,
-      )
-    })
-  }
+  def deployGetData(sig: Array[Byte]): DBIOAction[Option[api.data.Deploy], NoStream, Read] =
+    queries
+      .deployWithDataBySig(sig)
+      .result
+      .headOption
+      .map(_.map { case (d, pK, sName) =>
+        api.data.Deploy(
+          sig = d.sig,
+          deployerPk = pK,
+          shardName = sName,
+          program = d.program,
+          phloPrice = d.phloPrice,
+          phloLimit = d.phloLimit,
+          nonce = d.nonce,
+        )
+      })
 
   /** Insert a new record in table if there is no such entry. Returned id */
   def deployInsertIfNot(d: api.data.Deploy): DBIOAction[Long, NoStream, All] = {
@@ -104,12 +102,12 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
     } yield r
 
     queries
-      .deployIdDeployerShardBySig(sig)
+      .deployBySig(sig)
       .result
       .headOption
       .flatMap {
-        case Some((deployId, deployerId, shardId)) => deleteAndCleanUp(deployId, deployerId, shardId)
-        case None                                  => DBIO.successful(0)
+        case Some(d) => deleteAndCleanUp(d.id, d.deployerId, d.shardId)
+        case None    => DBIO.successful(0)
       }
       .transactionally
   }
@@ -119,17 +117,14 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   /** Insert a new Block in table if there is no such entry. Returned id */
   def blockInsertIfNot(b: api.data.Block): DBIOAction[Long, NoStream, All] = {
 
-    def insertBlockSet(setDataOpt: Option[api.data.SetData]): DBIOAction[Option[Long], NoStream, All] =
-      setDataOpt match {
-        case Some(setData) => blockSetInsertIfNot(setData.hash, setData.data).map(Some(_))
-        case None          => DBIO.successful(None)
-      }
+    def insertBlockSet(setDataOpt: Option[api.data.SetData]): DBIOAction[Option[Long], NoStream, All] = setDataOpt
+      .map(setData => blockSetInsertIfNot(setData.hash, setData.data).map(_.some))
+      .getOrElse(DBIO.successful(None))
 
     def insertDeploySet(setDataOpt: Option[api.data.SetData]): DBIOAction[Option[Long], NoStream, All] =
-      setDataOpt match {
-        case Some(setData) => deploySetInsertIfNot(setData.hash, setData.data).map(Some(_))
-        case None          => DBIO.successful(None)
-      }
+      setDataOpt
+        .map(setData => deploySetInsertIfNot(setData.hash, setData.data).map(_.some))
+        .getOrElse(DBIO.successful(None))
 
     def blockInsert(block: TableBlocks.Block): DBIOAction[Long, NoStream, Write] =
       (qBlocks returning qBlocks.map(_.id)) += block
@@ -195,8 +190,8 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
       .transactionally
 
   private def getBlockData(b: TableBlocks.Block): DBIOAction[Block, NoStream, Read & Transactional] = for {
-    validatorPK          <- queries.validatorPkById(b.validatorId).result.head
-    shardName            <- queries.shardNameById(b.shardId).result.head
+    validatorPK          <- queries.validatorPkById(b.validatorId).result.head // TODO: Unsafe
+    shardName            <- queries.shardNameById(b.shardId).result.head       // TODO: Unsafe
     justificationSetData <- getBlockSetData(b.justificationSetId)
     offencesSetData      <- getBlockSetData(b.offencesSetId)
     bondsMapData         <- getBondsMapData(b.bondsMapId)
@@ -228,29 +223,29 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   )
 
   private def getBlockSetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read & Transactional] =
-    idOpt match {
-      case Some(id) =>
-        for {
-          hash <- queries.blockSetHashById(id).result.head
-          data <- blockSetGetDataById(id)
-        } yield Some(api.data.SetData(hash, data))
-      case None     => DBIO.successful(None)
-    }
+    idOpt
+      .map { id =>
+        (for {
+          hashOpt <- queries.blockSetHashById(id).result.headOption
+          dataSeq <- queries.blockHashesByBlockSetId(id).result
+        } yield hashOpt.map(hash => api.data.SetData(hash, dataSeq))).transactionally
+      }
+      .getOrElse(DBIO.successful(None))
 
   private def getDeploySetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read & Transactional] =
-    idOpt match {
-      case Some(id) =>
-        for {
-          hash <- queries.deploySetHashById(id).result.head
-          data <- deploySetGetDataById(id)
-        } yield Some(api.data.SetData(hash, data))
-      case None     => DBIO.successful(None)
-    }
+    idOpt
+      .map { id =>
+        (for {
+          hashOpt <- queries.deploySetHashById(id).result.headOption
+          dataSeq <- queries.deploySigsByDeploySetId(id).result
+        } yield hashOpt.map(hash => api.data.SetData(hash, dataSeq))).transactionally
+      }
+      .getOrElse(DBIO.successful(None))
 
-  private def getBondsMapData(id: Long): DBIOAction[BondsMapData, NoStream, Read] = for {
-    hash <- queries.bondsMapHashById(id).result.head
-    data <- getBondsMapDataById(id)
-  } yield api.data.BondsMapData(hash, data)
+  private def getBondsMapData(id: Long): DBIOAction[BondsMapData, NoStream, Read & Transactional] = (for {
+    hash    <- queries.bondsMapHashById(id).result.head // TODO: Unsafe
+    dataSeq <- queries.bondsMapDataById(id).result
+  } yield BondsMapData(hash, dataSeq)).transactionally
 
   /** DeploySet */
 
@@ -286,19 +281,8 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   }
 
   /** Get a list of signatures for deploys included at this deploySet. If there isn't such set - return None */
-  def deploySetGetData(hash: Array[Byte]): DBIOAction[Option[Seq[Array[Byte]]], NoStream, Read & Transactional] =
-    queries
-      .deploySetIdByHash(hash)
-      .result
-      .headOption
-      .flatMap {
-        case Some(deploySetId) => deploySetGetDataById(deploySetId).map(Some(_))
-        case None              => DBIO.successful(None)
-      }
-      .transactionally
-
-  private def deploySetGetDataById(deploySetId: Long): DBIOAction[Seq[Array[Byte]], NoStream, Read & Transactional] =
-    queries.deployIdsByDeploySetId(deploySetId).result.flatMap(queries.deploySigsByIds(_).result).transactionally
+  def deploySetGetData(hash: Array[Byte]): DBIOAction[Option[Seq[Array[Byte]]], NoStream, Read] =
+    queries.deploySigsByDeploySetHash(hash).result.map(_.some)
 
   /** BlockSet */
 
@@ -336,18 +320,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** Get a list of hashes for blocks included at this blockSet. If there isn't such set - return None */
   def blockSetGetData(hash: Array[Byte]): DBIOAction[Option[Seq[Array[Byte]]], NoStream, Read & Transactional] =
-    queries
-      .blockSetIdByHash(hash)
-      .result
-      .headOption
-      .flatMap {
-        case Some(blockSetId) => blockSetGetDataById(blockSetId).map(Some(_))
-        case None             => DBIO.successful(None)
-      }
-      .transactionally
-
-  private def blockSetGetDataById(blockSetId: Long): DBIOAction[Seq[Array[Byte]], NoStream, Read & Transactional] =
-    queries.blockIdsByBlockSetId(blockSetId).result.flatMap(queries.blockHashesByIds(_).result).transactionally
+    queries.blockHashesByBlockSetHash(hash).result.map(_.some)
 
   /** BondsMap */
 
@@ -386,23 +359,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** Get a bonds map data by map hash. If there isn't such set - return None */
   def bondsMapGetData(hash: Array[Byte]): DBIOAction[Option[Seq[(Array[Byte], Long)]], NoStream, All] =
-    queries
-      .bondsMapIdByHash(hash)
-      .result
-      .headOption
-      .flatMap {
-        case Some(bondsMapId) => getBondsMapDataById(bondsMapId).map(Some(_))
-        case None             => DBIO.successful(None)
-      }
-      .transactionally
-
-  private def getBondsMapDataById(bondsMapId: Long): DBIOAction[Seq[(Array[Byte], Long)], NoStream, Read] = for {
-    bondMapIds            <- queries.bondIdsByBondsMapId(bondsMapId).result
-    validatorsPkWithStake <-
-      DBIO.sequence(bondMapIds.map { case (validatorId, stake) =>
-        queries.validatorPkById(validatorId).result.headOption.map(validatorPk => (validatorPk, stake))
-      })
-  } yield validatorsPkWithStake.collect { case (Some(pk), stake) => (pk, stake) }
+    queries.bondsMapByHash(hash).result.map(_.some)
 
   /** Validator */
 
