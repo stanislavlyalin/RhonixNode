@@ -28,9 +28,19 @@ object Mock {
 
   // (nRec, bVScope, bVW, bVR, fVScope, fVW, fVR, fVScopeReader)
 
+  /**
+   * Create a mock DSL for testing the normalizer.
+   * @param initBoundVars initial bound variables for the mock bound variable reader.
+   *                      The key is the name of the variable. The value is a tuple of the index and the type.
+   * @param initFreeVars initial free variables for the mock free variable reader.
+   *                      The key is the name of the variable. The value is a tuple of the index and the type.
+   * @param isTopLevel initial value for the isTopLevel flag of the mock free variable scope reader.
+   * @param isReceivePattern initial value for the isReceivePattern flag of the mock free variable scope reader.
+   * @return all the components of the mock DSL.
+   */
   def createMockDSL[F[_]: Sync, T](
-    initBoundVars: Seq[VarReaderData[T]] = Seq(),
-    initFreeVars: Seq[VarReaderData[T]] = Seq(),
+    initBoundVars: Map[String, (Int, T)] = Map[String, (Int, T)](),
+    initFreeVars: Map[String, (Int, T)] = Map[String, (Int, T)](),
     isTopLevel: Boolean = true,
     isReceivePattern: Boolean = false,
   ): (

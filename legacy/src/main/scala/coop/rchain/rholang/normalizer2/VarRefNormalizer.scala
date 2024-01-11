@@ -10,7 +10,7 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object VarRefNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeVarRef[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarReader](p: PVarRef): F[ConnVarRefN] =
+  def normalizeVarRef[F[_]: Sync, T >: VarSort: BoundVarReader](p: PVarRef): F[ConnVarRefN] =
     Sync[F].delay(BoundVarReader[T].findBoundVar(p.var_)).flatMap {
       // Found bounded variable
       case Some((BoundContext(idx, kind, sourcePosition), depth)) =>

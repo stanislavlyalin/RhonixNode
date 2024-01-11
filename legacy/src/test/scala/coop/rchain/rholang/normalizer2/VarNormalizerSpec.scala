@@ -26,7 +26,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
       implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
         // Add a variable with the name `varName` and the index `varIndex` to the boundVarMap
-        initBoundVars = Seq(VarReaderData(varName, varIndex, ProcSort)),
+        initBoundVars = Map(varName -> (varIndex, ProcSort)),
       )
 
       val par = VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
@@ -40,7 +40,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
       implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
         // Add a variable with an unexpected type (NameSort)
-        initBoundVars = Seq(VarReaderData(varName, varIndex, NameSort)),
+        initBoundVars = Map(varName -> (varIndex, NameSort)),
       )
 
       val thrown = intercept[UnexpectedProcContext] {
@@ -91,7 +91,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
       implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
         // Add a free variable with the same name
-        initFreeVars = Seq(VarReaderData(varName, varIndex, NameSort)),
+        initFreeVars = Map(varName -> (varIndex, NameSort)),
         isTopLevel = false,
       )
 

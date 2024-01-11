@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import coop.rchain.rholang.interpreter.compiler.{NameSort, VarSort}
+import coop.rchain.rholang.interpreter.compiler.{NameSort, ProcSort, VarSort}
 import coop.rchain.rholang.interpreter.errors.ReceiveOnSameChannelsError
 import coop.rchain.rholang.normalizer2.util.Mock.*
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
@@ -83,25 +83,24 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
   }
 
   it should "bind free variables before case body normalization" in {
-    val listReceipt = new ListReceipt()
-    listReceipt.add(new ReceiptLinear(new LinearSimple(new ListLinearBind())))
-    val term        = new PInput(listReceipt, new PNil)
+    forAll { (varsNameStr: Seq[String]) =>
 
-    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](
-      initFreeVars = Seq(VarReaderData("x", 0, NameSort), VarReaderData("y", 1, NameSort)),
-    )
+      val listReceipt = new ListReceipt()
+      listReceipt.add(new ReceiptLinear(new LinearSimple(new ListLinearBind())))
+      val term        = new PInput(listReceipt, new PNil)
 
-    InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
+      val initFreeVars = varsNameStr.distinct.zipWithIndex.map { case (name, index) => (name, (index, NameSort)) }.toMap
 
-    val addedBoundVars = bVW.extractData
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
-    // Absorbed free variables and bind them in a copy of the scope
-    val expectedAddedBoundVars = Seq(
-      BoundVarWriterData(name = "x", varType = NameSort, copyScopeLevel = 1),
-      BoundVarWriterData(name = "y", varType = NameSort, copyScopeLevel = 1),
-    )
+      InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 
-    addedBoundVars shouldBe expectedAddedBoundVars
+      val addedBoundVars = bVW.extractData
+
+      val expectedBoundVars = initFreeVars.keys.toSeq.map(BoundVarWriterData(_, varType = NameSort, copyScopeLevel = 1))
+
+      addedBoundVars.toSet shouldBe expectedBoundVars.toSet
+    }
   }
 
   it should "handle a simple persistent receive" in {

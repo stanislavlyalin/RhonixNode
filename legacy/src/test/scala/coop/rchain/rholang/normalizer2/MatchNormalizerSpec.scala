@@ -5,31 +5,34 @@ import cats.effect.unsafe.implicits.global
 import coop.rchain.rholang.interpreter.compiler.{ProcSort, VarSort}
 import coop.rchain.rholang.normalizer2.util.Mock.*
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.mockADT
-import io.rhonix.rholang.{MatchCaseN, MatchN}
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.{MatchCaseN, MatchN}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.Arbitrary.arbString
 
 class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
   behavior of "Match normalizer"
 
-  it should "convert AST term to match ADT term" in {
-    forAll { (targetStr: String, pattern1Str: String, pattern2Str: String, b: Boolean) =>
-      val targetTerm    = new PVar(new ProcVarVar(targetStr))
-      val pattern1Term  = new PGround(new GroundString(pattern1Str))
-      val caseBody1Term = new PNil
-      val pattern2Term  = new PVar(new ProcVarVar(pattern2Str))
-      val caseBody2Term = new PGround(new GroundBool(if (b) new BoolTrue else new BoolFalse))
+  it should "normalize target and cases with new var scope and construct ADT" in {
+    forAll { (targetStr: String, casesDataStr: Seq[(String, String)]) =>
+      val targetTerm = new PVar(new ProcVarVar(targetStr))
 
-      // match target { case pattern1 => caseBody1; case pattern2 => caseBody2 }
-      val cases     = List(
-        new CaseImpl(pattern1Term, caseBody1Term),
-        new CaseImpl(pattern2Term, caseBody2Term),
-      )
+      val casesDataTerm = casesDataStr.map { case (patternStr, caseBodyStr) =>
+        val patternTerm  = new PVar(new ProcVarVar(patternStr))
+        val caseBodyTerm = new PVar(new ProcVarVar(caseBodyStr))
+        (patternTerm, caseBodyTerm)
+      }
+      val cases         = casesDataTerm.map { case (patternTerm, caseBodyTerm) =>
+        new CaseImpl(patternTerm, caseBodyTerm)
+      }
+
       val listCases = new ListCase()
       cases.foreach(listCases.add)
+
+      // match target { case pattern1 => caseBody1; case pattern2 => caseBody2; ... }
       val inputTerm = new PMatch(targetTerm, listCases)
 
       implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
@@ -38,10 +41,12 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
       val expectedAdt = MatchN(
         target = mockADT(targetTerm: Proc),
-        cases = Seq(
-          MatchCaseN(pattern = mockADT(pattern1Term: Proc), source = mockADT(caseBody1Term: Proc)),
-          MatchCaseN(pattern = mockADT(pattern2Term: Proc), source = mockADT(caseBody2Term: Proc)),
-        ),
+        cases = casesDataTerm.map { case (patternTerm, caseBodyTerm) =>
+          MatchCaseN(
+            pattern = mockADT(patternTerm: Proc),
+            source = mockADT(caseBodyTerm: Proc),
+          )
+        },
       )
 
       adt shouldBe expectedAdt
@@ -49,39 +54,34 @@ class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
       val terms = nRec.extractData
 
       // Expect all terms to be normalized in sequence
-      val expectedTerms = Seq(
-        TermData(ProcTerm(targetTerm)),
-        TermData(term = ProcTerm(pattern1Term), boundNewScopeLevel = 1, freeScopeLevel = 1),
-        TermData(term = ProcTerm(caseBody1Term), boundCopyScopeLevel = 1),
-        TermData(term = ProcTerm(pattern2Term), boundNewScopeLevel = 1, freeScopeLevel = 1),
-        TermData(term = ProcTerm(caseBody2Term), boundCopyScopeLevel = 1),
-      )
-
+      val expectedTerms = TermData(ProcTerm(targetTerm)) +: casesDataTerm.flatMap { case (patternTerm, caseBodyTerm) =>
+        Seq(
+          TermData(term = ProcTerm(patternTerm), boundNewScopeLevel = 1, freeScopeLevel = 1),
+          TermData(term = ProcTerm(caseBodyTerm), boundCopyScopeLevel = 1),
+        )
+      }
       terms shouldBe expectedTerms
     }
   }
 
-  it should "bind free variables before case body normalization" in {
-    val cases     = List(new CaseImpl(new PNil, new PNil))
-    val listCases = new ListCase()
-    cases.foreach(listCases.add)
-    // match Nil { case Nil => Nil}
-    val term      = new PMatch(new PNil, listCases)
+  it should "bound free variables in copy scope level" in {
+    forAll { (varsNameStr: Seq[String]) =>
+      val cases     = List(new CaseImpl(new PNil, new PNil))
+      val listCases = new ListCase()
+      cases.foreach(listCases.add)
+      // match Nil { case Nil => Nil}
+      val term      = new PMatch(new PNil, listCases)
 
-    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](
-      initFreeVars = Seq(VarReaderData("x", 0, ProcSort), VarReaderData("y", 1, ProcSort)),
-    )
+      val initFreeVars = varsNameStr.distinct.zipWithIndex.map { case (name, index) => (name, (index, ProcSort)) }.toMap
 
-    MatchNormalizer.normalizeMatch[IO, VarSort](term).unsafeRunSync()
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
-    val addedBoundVars = bVW.extractData
+      MatchNormalizer.normalizeMatch[IO, VarSort](term).unsafeRunSync()
 
-    // Absorbed free variables and bind them in a copy of the scope
-    val expectedBoundVars = Seq(
-      BoundVarWriterData(name = "x", varType = ProcSort, copyScopeLevel = 1),
-      BoundVarWriterData(name = "y", varType = ProcSort, copyScopeLevel = 1),
-    )
+      val addedBoundVars    = bVW.extractData
+      val expectedBoundVars = initFreeVars.keys.toSeq.map(BoundVarWriterData(_, varType = ProcSort, copyScopeLevel = 1))
 
-    addedBoundVars shouldBe expectedBoundVars
+      addedBoundVars.toSet shouldBe expectedBoundVars.toSet
+    }
   }
 }

@@ -21,7 +21,8 @@ final class BoundVarWriterOps[T](val bw: BoundVarWriter[T]) extends AnyVal {
     val (levels, data) = sortedByLevel.unzip(fv => (fv._2.level, (fv._1, fv._2.typ, fv._2.sourcePosition)))
     assert(
       levels == levels.indices,
-      "Error when absorbing free variables during normalization: incorrect de Bruijn levels.",
+      "Error when absorbing free variables during normalization: incorrect de Bruijn levels." +
+        s"Should be ${levels.indices}, but was $levels.",
     )
     bw.putBoundVars(data)
   }
