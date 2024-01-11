@@ -1,6 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
 import cats.Applicative
+import cats.effect.Sync
 import cats.implicits.{catsSyntaxApplicativeId, none}
 import coop.rchain.rholang.normalizer2.NormalizerRec
 import coop.rchain.rholang.normalizer2.util.Mock.*
@@ -10,7 +11,7 @@ import io.rhonix.rholang.{GStringN, ParN, VarN}
 
 import scala.collection.mutable.ListBuffer
 
-case class MockNormalizerRec[F[_]: Applicative, T](bWScope: MockBoundVarScope[F], fWScope: MockFreeVarScope[F])
+case class MockNormalizerRec[F[_]: Sync, T](bWScope: MockBoundVarScope[F], fWScope: MockFreeVarScope[F])
     extends NormalizerRec[F] {
   private val buffer: ListBuffer[TermData] = ListBuffer.empty
 
@@ -24,24 +25,26 @@ case class MockNormalizerRec[F[_]: Applicative, T](bWScope: MockBoundVarScope[F]
       ),
     )
 
-  override def normalize(proc: Proc): F[ParN] = {
+  // Because addInBuf is not pure, we need to use Sync[F].delay
+
+  override def normalize(proc: Proc): F[ParN] = Sync[F].delay {
     addInBuf(ProcTerm(proc))
-    mockADT(proc).pure
+    mockADT(proc)
   }
 
-  override def normalize(name: Name): F[ParN] = {
+  override def normalize(name: Name): F[ParN] = Sync[F].delay {
     addInBuf(NameTerm(name))
-    mockADT(name).pure
+    mockADT(name)
   }
 
-  override def normalize(remainder: ProcRemainder): F[Option[VarN]] = {
+  override def normalize(remainder: ProcRemainder): F[Option[VarN]] = Sync[F].delay {
     addInBuf(ProcRemainderTerm(remainder))
-    RemainderADTDefault.pure
+    RemainderADTDefault
   }
 
-  override def normalize(remainder: NameRemainder): F[Option[VarN]] = {
+  override def normalize(remainder: NameRemainder): F[Option[VarN]] = Sync[F].delay {
     addInBuf(NameRemainderTerm(remainder))
-    RemainderADTDefault.pure
+    RemainderADTDefault
   }
 
   def extractData: Seq[TermData] = buffer.toSeq

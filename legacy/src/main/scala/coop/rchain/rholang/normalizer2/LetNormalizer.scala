@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope, FreeVarWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
@@ -109,19 +109,17 @@ object LetNormalizer {
           case declImpl: DeclImpl =>
             for {
               values       <- declImpl.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)
-              patternTuple <- BoundVarScope[F].withNewVarScope()(Sync[F].defer {
-                                (
-                                  NormalizerRec[F].normalize(declImpl.nameremainder_),
-                                  declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize),
-                                ).mapN((rem, ps) => (ps, rem, FreeVarReader[T].getFreeVars))
-                              })
+              patternTuple <- BoundVarScope[F].withNewVarScope()(for {
+                                rem <- NormalizerRec[F].normalize(declImpl.nameremainder_)
+                                ps  <- declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
+                              } yield (ps, rem, FreeVarReader[T].getFreeVars))
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 
-              continuation <- BoundVarScope[F].withCopyBoundVarScope(Sync[F].defer {
-                                BoundVarWriter[T].absorbFree(patternFreeVars)
-                                NormalizerRec[F].normalize(convertDecls(p.decls_))
-                              })
+              continuation <- BoundVarScope[F].withCopyBoundVarScope(for {
+                                _ <- Sync[F].delay(BoundVarWriter[T].absorbFree(patternFreeVars))
+                                r <- NormalizerRec[F].normalize(convertDecls(p.decls_))
+                              } yield r)
             } yield MatchN(
               target = EListN(values),
               cases = Seq(
