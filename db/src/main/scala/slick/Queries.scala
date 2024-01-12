@@ -59,15 +59,17 @@ final case class Queries(profile: JdbcProfile) {
     deployer <- qDeployers if deploy.deployerId === deployer.id
   } yield (deploy, deployer.pubKey, shard.name)
 
-  def deploySigsByDeploySetId(deploySetId: Rep[Long]): Query[Rep[Array[Byte]], Array[Byte], Seq] = for {
-    dsb <- qDeploySetBinds.filter(_.deploySetId === deploySetId)
-    d   <- qDeploys if d.id === dsb.deployId
-  } yield d.sig
-
   def deploySigsByDeploySetHash(hash: Array[Byte]): Query[Rep[Array[Byte]], Array[Byte], Seq] = for {
     dsb <- qDeploySetBinds.filter(_.deploySetId in qDeploySets.filter(_.hash === hash).map(_.id))
     d   <- qDeploys if d.id === dsb.deployId
   } yield d.sig
+
+  def deploySetData(deploySetId: Long): Query[(Rep[Array[Byte]], Rep[Array[Byte]]), (Array[Byte], Array[Byte]), Seq] =
+    for {
+      ds  <- qDeploySets.filter(_.id === deploySetId)
+      dsb <- qDeploySetBinds if dsb.deploySetId === ds.id
+      d   <- qDeploys if d.id === dsb.deployId
+    } yield (ds.hash, d.sig)
 
   /** Block */
 
@@ -76,11 +78,6 @@ final case class Queries(profile: JdbcProfile) {
   def blockIdByHash(hash: Array[Byte]): Query[Rep[Long], Long, Seq] = blockByHash(hash).map(_.id)
 
   def blockByHash(hash: Array[Byte]): Query[TableBlocks, TableBlocks.Block, Seq] = qBlocks.filter(_.hash === hash)
-
-  def blockHashesByBlockSetId(blockSetId: Long): Query[Rep[Array[Byte]], Array[Byte], Seq] = for {
-    bsb <- qBlockSetBinds.filter(_.blockSetId === blockSetId)
-    b   <- qBlocks if b.id === bsb.blockId
-  } yield b.hash
 
   def blockHashesByBlockSetHash(hash: Array[Byte]): Query[Rep[Array[Byte]], Array[Byte], Seq] = for {
     bsb <- qBlockSetBinds.filter(_.blockSetId in qBlockSets.filter(_.hash === hash).map(_.id))
@@ -94,16 +91,18 @@ final case class Queries(profile: JdbcProfile) {
   def deploySetIdByHash(hash: Array[Byte]): Query[Rep[Long], Long, Seq] =
     qDeploySets.filter(_.hash === hash).map(_.id)
 
-  def deploySetHashById(id: Long): Query[Rep[Array[Byte]], Array[Byte], Seq] =
-    qDeploySets.filter(_.id === id).map(_.hash)
-
   /** BlockSet */
 
   def blockSets: Query[Rep[Array[Byte]], Array[Byte], Seq] = qBlockSets.map(_.hash)
 
   def blockSetIdByHash(hash: Array[Byte]): Query[Rep[Long], Long, Seq] = qBlockSets.filter(_.hash === hash).map(_.id)
 
-  def blockSetHashById(id: Long): Query[Rep[Array[Byte]], Array[Byte], Seq] = qBlockSets.filter(_.id === id).map(_.hash)
+  def blockSetData(blockSetId: Long): Query[(Rep[Array[Byte]], Rep[Array[Byte]]), (Array[Byte], Array[Byte]), Seq] =
+    for {
+      bs  <- qBlockSets.filter(_.id === blockSetId)
+      bsb <- qBlockSetBinds if bsb.blockSetId === bs.id
+      b   <- qBlocks if b.id === bsb.blockId
+    } yield (bs.hash, b.hash)
 
   /** BondsMap */
 
@@ -111,17 +110,18 @@ final case class Queries(profile: JdbcProfile) {
 
   def bondsMapIdByHash(hash: Array[Byte]): Query[Rep[Long], Long, Seq] = qBondsMaps.filter(_.hash === hash).map(_.id)
 
-  def bondsMapHashById(id: Long): Query[Rep[Array[Byte]], Array[Byte], Seq] = qBondsMaps.filter(_.id === id).map(_.hash)
-
-  def bondsMapDataById(bondsMapId: Rep[Long]): Query[(Rep[Array[Byte]], Rep[Long]), (Array[Byte], Long), Seq] = for {
-    b <- qBonds.filter(_.bondsMapId === bondsMapId)
-    v <- qValidators if v.id === b.validatorId
-  } yield (v.pubKey, b.stake)
-
   def bondsMapByHash(hash: Array[Byte]): Query[(Rep[Array[Byte]], Rep[Long]), (Array[Byte], Long), Seq] = for {
     b <- qBonds.filter(_.bondsMapId in qBondsMaps.filter(_.hash === hash).map(_.id))
     v <- qValidators if v.id === b.validatorId
   } yield (v.pubKey, b.stake)
+
+  def bondsMapData(
+    bondsMapId: Long,
+  ): Query[(Rep[Array[Byte]], (Rep[Array[Byte]], Rep[Long])), (Array[Byte], (Array[Byte], Long)), Seq] = for {
+    bm <- qBondsMaps.filter(_.id === bondsMapId)
+    b  <- qBonds if b.bondsMapId === bm.id
+    v  <- qValidators if v.id === b.validatorId
+  } yield (bm.hash, (v.pubKey, b.stake))
 
   /** Validator */
 

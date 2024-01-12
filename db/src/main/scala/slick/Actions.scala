@@ -1,6 +1,7 @@
 package slick
 
 import cats.syntax.all.*
+import sdk.primitive.ByteArray
 import slick.api.data.{Block, BondsMapData, SetData}
 import slick.dbio.Effect.*
 import slick.jdbc.JdbcProfile
@@ -222,30 +223,34 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
     dropDeploySetFinal = dropSetFinalData,
   )
 
-  private def getBlockSetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read & Transactional] =
+  private def getBlockSetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read] =
     idOpt
       .map { id =>
-        (for {
-          hashOpt <- queries.blockSetHashById(id).result.headOption
-          dataSeq <- queries.blockHashesByBlockSetId(id).result
-        } yield hashOpt.map(hash => api.data.SetData(hash, dataSeq))).transactionally
+        queries
+          .blockSetData(id)
+          .result
+          .map(_.groupBy { case (bsHash, _) => ByteArray(bsHash) }.headOption.map { case (bsHash, group) =>
+            api.data.SetData(bsHash.bytes, group.map { case (_, bHash) => bHash })
+          })
       }
       .getOrElse(DBIO.successful(None))
 
-  private def getDeploySetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read & Transactional] =
+  private def getDeploySetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read] =
     idOpt
       .map { id =>
-        (for {
-          hashOpt <- queries.deploySetHashById(id).result.headOption
-          dataSeq <- queries.deploySigsByDeploySetId(id).result
-        } yield hashOpt.map(hash => api.data.SetData(hash, dataSeq))).transactionally
+        queries
+          .deploySetData(id)
+          .result
+          .map(_.groupBy { case (dsHash, _) => ByteArray(dsHash) }.headOption.map { case (dsHash, group) =>
+            api.data.SetData(dsHash.bytes, group.map { case (_, dSig) => dSig })
+          })
       }
       .getOrElse(DBIO.successful(None))
 
-  private def getBondsMapData(id: Long): DBIOAction[BondsMapData, NoStream, Read & Transactional] = (for {
-    hash    <- queries.bondsMapHashById(id).result.head // TODO: Unsafe
-    dataSeq <- queries.bondsMapDataById(id).result
-  } yield BondsMapData(hash, dataSeq)).transactionally
+  private def getBondsMapData(id: Long): DBIOAction[BondsMapData, NoStream, Read] =
+    queries.bondsMapData(id).result.map(_.groupBy { case (bmHash, _) => ByteArray(bmHash) }.head).map {
+      case (bmHash, data) => BondsMapData(bmHash.bytes, data.map { case (_, (pubKey, stake)) => (pubKey, stake) })
+    }
 
   /** DeploySet */
 
