@@ -108,11 +108,12 @@ object LetNormalizer {
         p.decl_ match {
           case declImpl: DeclImpl =>
             for {
-              values       <- declImpl.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)
-              patternTuple <- BoundVarScope[F].withNewVarScope()(for {
-                                rem <- NormalizerRec[F].normalize(declImpl.nameremainder_)
-                                ps  <- declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
-                              } yield (ps, rem, FreeVarReader[T].getFreeVars))
+              values          <- declImpl.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)
+              normalizePattern = for {
+                                   rem <- NormalizerRec[F].normalize(declImpl.nameremainder_)
+                                   ps  <- declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
+                                 } yield (ps, rem, FreeVarReader[T].getFreeVars)
+              patternTuple    <- normalizePattern.withNewVarScope()
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 

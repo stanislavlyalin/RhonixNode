@@ -195,11 +195,12 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          patternTuple <- BoundVarScope[F].withNewVarScope(insideReceive = true)(for {
+          bind          = for {
                             binds <- createBinds(patterns, processedSources)
                             // After pattern processing getFreeVars() will return free variables for all patterns
                             vars   = FreeVarReader[T].getFreeVars
-                          } yield (binds, vars))
+                          } yield (binds, vars)
+          patternTuple <- bind.withNewVarScope(insideReceive = true)
 
           (unsortBinds, freeVars) = patternTuple
 

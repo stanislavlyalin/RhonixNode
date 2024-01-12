@@ -2,7 +2,7 @@ package coop.rchain
 
 import coop.rchain.metrics.Metrics
 import coop.rchain.rholang.interpreter.{RhoHistoryRepositorySyntax, RhoRuntimeSyntax}
-import coop.rchain.rholang.normalizer2.syntax.{BoundVarWriterSyntax, VarScopeSyntax}
+import coop.rchain.rholang.normalizer2.syntax.{BoundVarWriterSyntax, EffectSyntax}
 
 package object rholang {
   val RholangMetricsSource: Metrics.Source = Metrics.Source(Metrics.BaseSource, "rholang")
@@ -14,4 +14,4 @@ trait AllSyntaxRholang
     extends RhoRuntimeSyntax
     with RhoHistoryRepositorySyntax
     with BoundVarWriterSyntax
-    with VarScopeSyntax
+    with EffectSyntax

@@ -16,11 +16,12 @@ object ContrNormalizer {
     for {
       source <- NormalizerRec[F].normalize(p.name_)
 
-      patternTuple <- BoundVarScope[F].withNewVarScope(insideReceive = true)(for {
-                        patterns <- p.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
-                        reminder <- NormalizerRec[F].normalize(p.nameremainder_)
-                        vars      = FreeVarReader[T].getFreeVars
-                      } yield (ReceiveBindN(patterns, source, reminder, vars.size), vars))
+      normalizePattern = for {
+                           patterns <- p.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
+                           reminder <- NormalizerRec[F].normalize(p.nameremainder_)
+                           vars      = FreeVarReader[T].getFreeVars
+                         } yield (ReceiveBindN(patterns, source, reminder, vars.size), vars)
+      patternTuple    <- normalizePattern.withNewVarScope(insideReceive = true)
 
       (bind, freeVars) = patternTuple
 
