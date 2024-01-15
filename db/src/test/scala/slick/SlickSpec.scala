@@ -119,7 +119,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   }
 
   "deploySetInsert() function call" should "add the correct entry to the DeploySets and DeploySetBinds tables" in {
-    forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploys: Set[Deploy], dSetHash: ByteArray) =>
+    forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploySet: Set[Deploy], dSetHash: ByteArray) =>
+      val deploys = deploySet.map(_.copy(program = nonEmptyAlphaString.sample.get))
       embedPgSlick[IO]
         .use { api =>
           for {
