@@ -382,8 +382,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
     insertable: B,
     insert: B => DBIOAction[Long, NoStream, All],
   ): DBIOAction[Long, NoStream, All] =
-    getIdByUnique(unique).result.headOption.flatMap {
-      case Some(existingId) => DBIO.successful(existingId)
-      case None             => insert(insertable)
-    }.transactionally
+    getIdByUnique(unique).result.headOption
+      .flatMap(_.map(DBIO.successful).getOrElse(insert(insertable)))
+      .transactionally
 }
