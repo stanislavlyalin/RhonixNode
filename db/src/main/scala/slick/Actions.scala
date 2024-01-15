@@ -22,9 +22,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** Shard */
 
-  /** Get a list of all shard names */
-  def shardGetAll: DBIOAction[Seq[String], NoStream, Read] = queries.shards.result
-
   private def shardInsertIfNot(name: String): DBIOAction[Long, NoStream, All] = {
     def shardInsert(name: String): DBIOAction[Long, NoStream, Write] =
       (qShards.map(_.name) returning qShards.map(_.id)) += name
@@ -34,9 +31,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** Deployer */
 
-  /** Get a list of all deployer public keys */
-  def deployerGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.deployers.result
-
   private def deployerInsertIfNot(pK: Array[Byte]): DBIOAction[Long, NoStream, All] = {
     def deployerInsert(pK: Array[Byte]): DBIOAction[Long, NoStream, Write] =
       (qDeployers.map(_.pubKey) returning qDeployers.map(_.id)) += pK
@@ -45,9 +39,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   }
 
   /** Deploy */
-
-  /** Get a list of all deploy signatures */
-  def deployGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.deploys.result
 
   /** Get deploy by unique sig. Returned (TableDeploys.Deploy, shard.name, deployer.pubKey) */
   def deployGetData(sig: Array[Byte]): DBIOAction[Option[api.data.Deploy], NoStream, Read] =
@@ -91,26 +82,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
     } yield deployId
 
     actions.transactionally
-  }
-
-  /** Delete deploy by unique sig. And clean up dependencies in Deployers and Shards if possible.
-   * Return 1 if deploy deleted, or 0 otherwise. */
-  def deployDeleteAndCleanUp(sig: Array[Byte]): DBIOAction[Int, NoStream, All] = {
-    def deleteAndCleanUp(deployId: Long, deployerId: Long, shardId: Long): DBIOAction[Int, NoStream, Write] = for {
-      r <- queries.deployById(deployId).delete
-      _ <- queries.deployerForCleanUp(deployerId).delete
-      _ <- queries.shardForCleanUp(shardId).delete
-    } yield r
-
-    queries
-      .deployBySig(sig)
-      .result
-      .headOption
-      .flatMap {
-        case Some(d) => deleteAndCleanUp(d.id, d.deployerId, d.shardId)
-        case None    => DBIO.successful(0)
-      }
-      .transactionally
   }
 
   /** Block */
@@ -172,9 +143,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
     actions.transactionally
   }
-
-  /** Get a list of all blocks hashes from DB */
-  def blockGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.blocks.result
 
   /** Get deploy by unique sig. Returned (TableDeploys.Deploy, shard.name, deployer.pubKey) */
   def blockGetData(
@@ -254,9 +222,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** DeploySet */
 
-  /** Get a list of all deploySet hashes from DB */
-  def deploySetGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.deploySets.result
-
   /** Insert a new deploy set in table if there is no such entry. Returned id */
   def deploySetInsertIfNot(hash: Array[Byte], deploySigs: Seq[Array[Byte]]): DBIOAction[Long, NoStream, All] = {
 
@@ -285,14 +250,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
     insertIfNot(hash, queries.deploySetIdByHash, (hash, deploySigs), insertAllData)
   }
 
-  /** Get a list of signatures for deploys included at this deploySet. If there isn't such set - return None */
-  def deploySetGetData(hash: Array[Byte]): DBIOAction[Option[Seq[Array[Byte]]], NoStream, Read] =
-    queries.deploySigsByDeploySetHash(hash).result.map(_.some)
-
   /** BlockSet */
-
-  /** Get a list of all blockSet hashes from DB */
-  def blockSetGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.blockSets.result
 
   /** Insert a new block set in table if there is no such entry. Returned id */
   def blockSetInsertIfNot(hash: Array[Byte], blockHashes: Seq[Array[Byte]]): DBIOAction[Long, NoStream, All] = {
@@ -322,10 +280,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
     insertIfNot(hash, queries.blockSetIdByHash, (hash, blockHashes), insertAllData)
   }
-
-  /** Get a list of hashes for blocks included at this blockSet. If there isn't such set - return None */
-  def blockSetGetData(hash: Array[Byte]): DBIOAction[Option[Seq[Array[Byte]]], NoStream, Read & Transactional] =
-    queries.blockHashesByBlockSetHash(hash).result.map(_.some)
 
   /** BondsMap */
 
@@ -358,13 +312,6 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
     insertIfNot(hash, queries.bondsMapIdByHash, (hash, bMap), insertAllData)
   }
-
-  /** Get a list of all bonds maps hashes from DB */
-  def bondsMapGetAll: DBIOAction[Seq[Array[Byte]], NoStream, Read] = queries.bondsMap.result
-
-  /** Get a bonds map data by map hash. If there isn't such set - return None */
-  def bondsMapGetData(hash: Array[Byte]): DBIOAction[Option[Seq[(Array[Byte], Long)]], NoStream, All] =
-    queries.bondsMapByHash(hash).result.map(_.some)
 
   /** Validator */
 

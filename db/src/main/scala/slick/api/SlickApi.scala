@@ -18,10 +18,6 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
 
   val actions: Actions = Actions(db.profile, ec)
 
-  def shardGetAll: F[Set[String]] = actions.shardGetAll.run.map(_.toSet)
-
-  def deployerGetAll: F[Set[ByteArray]] = actions.deployerGetAll.run.map(_.map(ByteArray(_)).toSet)
-
   def deployInsert(d: sdk.data.Deploy): F[Unit] =
     actions
       .deployInsertIfNot(
@@ -29,8 +25,6 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
       )
       .run
       .void
-
-  def deployGetAll: F[Set[ByteArray]] = actions.deployGetAll.run.map(_.map(ByteArray(_)).toSet)
 
   def deployGet(sig: ByteArray): F[Option[sdk.data.Deploy]] = actions
     .deployGetData(sig.bytes)
@@ -49,40 +43,17 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
       ),
     )
 
-  def deployDelete(sig: ByteArray): F[Int] = actions.deployDeleteAndCleanUp(sig.bytes).run
-
   /** DeploySet */
   def deploySetInsert(deploySetHash: ByteArray, deploySigs: Set[ByteArray]): F[Unit] =
     actions.deploySetInsertIfNot(deploySetHash.bytes, deploySigs.toSeq.map(_.bytes)).run.void
-
-  def deploySetGetAll: F[Set[ByteArray]] = actions.deploySetGetAll.run.map(_.map(ByteArray(_)).toSet)
-
-  def deploySetGet(hash: ByteArray): F[Option[Set[ByteArray]]] = actions
-    .deploySetGetData(hash.bytes)
-    .run
-    .map(_.map(_.map(ByteArray(_)).toSet))
 
   /** BlockSet */
   def blockSetInsert(blockSetHash: ByteArray, blockHashes: Set[ByteArray]): F[Unit] =
     actions.blockSetInsertIfNot(blockSetHash.bytes, blockHashes.toSeq.map(_.bytes)).run.void
 
-  def blockSetGetAll: F[Set[ByteArray]] = actions.blockSetGetAll.run.map(_.map(ByteArray(_)).toSet)
-
-  def blockSetGet(hash: ByteArray): F[Option[Set[ByteArray]]] = actions
-    .blockSetGetData(hash.bytes)
-    .run
-    .map(_.map(_.map(ByteArray(_)).toSet))
-
   /** BondsMap */
   def bondsMapInsert(bondsMapHash: ByteArray, bMap: Map[ByteArray, Long]): F[Unit] =
     actions.bondsMapInsertIfNot(bondsMapHash.bytes, bMap.toSeq.map(x => (x._1.bytes, x._2))).run.void
-
-  def bondsMapGetAll: F[Set[ByteArray]] = actions.bondsMapGetAll.run.map(_.map(ByteArray(_)).toSet)
-
-  def bondsMapGet(hash: ByteArray): F[Option[Map[ByteArray, Long]]] = actions
-    .bondsMapGetData(hash.bytes)
-    .run
-    .map(_.map(_.map(x => (ByteArray(x._1), x._2)).toMap))
 
   def blockInsert(b: sdk.data.Block)(
     justificationSetHash: Option[ByteArray],
@@ -121,8 +92,6 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
     )
     .run
     .void
-
-  def blockGetAll: F[Set[ByteArray]] = actions.blockGetAll.run.map(_.map(ByteArray(_)).toSet)
 
   def blockGet(hash: ByteArray): F[Option[sdk.data.Block]] = actions
     .blockGetData(hash.bytes)
