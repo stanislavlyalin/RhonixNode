@@ -30,10 +30,7 @@ object MatchNormalizer {
 
           (patternResult, freeVars) = patternTuple
 
-          caseBodyResult <- BoundVarScope[F].withCopyBoundVarScope(for {
-                              _ <- Sync[F].delay(BoundVarWriter[T].absorbFree(freeVars))
-                              r <- NormalizerRec[F].normalize(caseBody)
-                            } yield r)
+          caseBodyResult <- NormalizerRec[F].normalize(caseBody).withAbsorbedFreeVars(freeVars)
 
         } yield MatchCaseN(patternResult, caseBodyResult, freeVars.length)
 

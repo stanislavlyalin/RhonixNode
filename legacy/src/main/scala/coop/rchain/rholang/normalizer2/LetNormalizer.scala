@@ -117,10 +117,7 @@ object LetNormalizer {
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 
-              continuation <- BoundVarScope[F].withCopyBoundVarScope(for {
-                                _ <- Sync[F].delay(BoundVarWriter[T].absorbFree(patternFreeVars))
-                                r <- NormalizerRec[F].normalize(convertDecls(p.decls_))
-                              } yield r)
+              continuation <- NormalizerRec[F].normalize(convertDecls(p.decls_)).withAbsorbedFreeVars(patternFreeVars)
             } yield MatchN(
               target = EListN(values),
               cases = Seq(

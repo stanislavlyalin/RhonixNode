@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
-import coop.rchain.rholang.syntax.*
+import coop.rchain.rholang.syntax.normalizerEffectSyntax
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
@@ -26,9 +26,7 @@ object ContrNormalizer {
       (bind, freeVars) = patternTuple
 
       // Normalize body in the current bound and free variables scope
-      continuation <- BoundVarScope[F].withCopyBoundVarScope(for {
-                        _ <- Sync[F].delay(BoundVarWriter[T].absorbFree(freeVars))
-                        r <- NormalizerRec[F].normalize(p.proc_)
-                      } yield r)
+      continuation <- NormalizerRec[F].normalize(p.proc_).withAbsorbedFreeVars(freeVars)
+
     } yield ReceiveN(bind, continuation, persistent = true, peek = false, freeVars.size)
 }

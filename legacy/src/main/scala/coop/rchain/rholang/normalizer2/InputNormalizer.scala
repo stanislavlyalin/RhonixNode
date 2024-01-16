@@ -214,10 +214,8 @@ object InputNormalizer {
                                           .whenA(thereAreDuplicatesInSources)
 
           // Normalize body in the current bound and free variables scope
-          continuation               <- BoundVarScope[F].withCopyBoundVarScope(for {
-                                          _ <- Sync[F].delay(BoundVarWriter[T].absorbFree(freeVars))
-                                          r <- NormalizerRec[F].normalize(p.proc_)
-                                        } yield r)
+          continuation               <- NormalizerRec[F].normalize(p.proc_).withAbsorbedFreeVars(freeVars)
+
         } yield ReceiveN(binds, continuation, persistent, peek, freeVars.size)
       }
     }
