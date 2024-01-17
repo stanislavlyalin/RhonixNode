@@ -27,13 +27,15 @@ class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
    * {i0, i1, ..., iN} = {fl0 + last + 1, fl1 + last + 1, ..., flN + last + 1}.
    * Here, i0, ..., iN represent the Bruijn indices of the new bound vars,
    * fl0, ..., flN are the Bruijn levels of the inserted free vars,
-   * last is the last index among all bound vars at the moment. */
+   * last is the last index among all bound vars at the moment.
+   */
 
   def withAbsorbedFreeVars[T](
     freeVars: Seq[(String, FreeContext[T])],
   )(implicit sync: Sync[F], bwScope: BoundVarScope[F], bwWriter: BoundVarWriter[T]): F[A] = {
 
-    def absorbFree(freeVars: Seq[(String, FreeContext[T])]): Seq[Int] = {
+    @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
+    def absorbFree(freeVars: Seq[(String, FreeContext[T])]): Unit = {
       val sortedByLevel  = freeVars.sortBy(_._2.level)
       val (levels, data) = sortedByLevel.unzip(fv => (fv._2.level, (fv._1, fv._2.typ, fv._2.sourcePosition)))
       assert(

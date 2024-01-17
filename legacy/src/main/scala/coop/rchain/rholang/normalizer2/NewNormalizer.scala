@@ -11,12 +11,11 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 import scala.jdk.CollectionConverters.*
 
 object NewNormalizer {
-  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeNew[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarWriter: BoundVarReader](p: PNew): F[NewN] =
+  def normalizeNew[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarWriter](p: PNew): F[NewN] =
     Sync[F].defer {
       val simpleBindings = p.listnamedecl_.asScala.toSeq.collect { case n: NameDeclSimpl =>
         (n.var_, NameSort, SourcePosition(n.line_num, n.col_num))
-      }
+      } // Unsorted simple bindings
 
       val sortedUrnData = p.listnamedecl_.asScala.toSeq
         .collect { case n: NameDeclUrn =>
@@ -29,11 +28,7 @@ object NewNormalizer {
 
       val (uris, urnBindings) = sortedUrnData.unzip
 
-      val newBindings = simpleBindings ++ urnBindings
-
-      val initCount = BoundVarReader[T].boundVarCount
-      BoundVarWriter[T].putBoundVars(newBindings)
-      val bindCount = BoundVarReader[T].boundVarCount - initCount
+      val bindCount = BoundVarWriter[T].putBoundVars(simpleBindings ++ urnBindings)
 
       NormalizerRec[F]
         .normalize(p.proc_)

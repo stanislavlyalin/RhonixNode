@@ -9,9 +9,6 @@ trait BoundVarReader[T] {
 
   /** Finds bound variable, searching parent levels */
   def findBoundVar(name: String): Option[(BoundContext[T], Int)]
-
-  /** Bounded variables count */
-  def boundVarCount: Int
 }
 
 object BoundVarReader {

@@ -6,7 +6,7 @@ import coop.rchain.rholang.interpreter.compiler.{NameSort, VarSort}
 import coop.rchain.rholang.normalizer2.util.Mock.*
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.mockADT
 import io.rhonix.rholang.ast.rholang.Absyn.*
-import io.rhonix.rholang.{GStringN, ParN}
+import io.rhonix.rholang.{GStringN, NewN, ParN}
 import org.scalacheck.Arbitrary.arbString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -36,21 +36,24 @@ class NewNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
       val adt = NewNormalizer.normalizeNew[IO, VarSort](term).unsafeRunSync()
 
+      val expectedAdt = NewN(
+        bindCount = 0, // Because Mock BoundVarWriter doesn't actually add bound variables
+        p = mockADT(body),
+        uri = urnsStr.map(_._1),
+        injections = Map[String, ParN](),
+      )
+
+      adt shouldBe expectedAdt
+
       val sortedUris = urnsStr.sortBy(_._1) // Sort by Uri
 
-      // Checking that bound variables are added to the scope
+      // Checking that bound variables are added to the scope in the correct order
       val expectedUnsortedSimpleBinds = declsWithRandomOrder.collect { case n: NameDeclSimpl => n.var_ }
       val expectedSortedUrnNames      = sortedUris.map(_._2)
       val expectedBoundVars           =
         (expectedUnsortedSimpleBinds ++ expectedSortedUrnNames).map(BoundVarWriterData(_, varType = NameSort))
       val addedBoundVars              = bVW.extractData
       addedBoundVars shouldBe expectedBoundVars
-
-      // Checking that output is correct except for bindCount
-      // adt.bindCount will be always 0 because we don't have a way to count bound variables in Mock DSL
-      adt.p shouldBe mockADT(body)
-      adt.uri shouldBe sortedUris.map(x => GStringN(x._1))
-      adt.injections shouldBe Map[String, ParN]()
     }
   }
 }
