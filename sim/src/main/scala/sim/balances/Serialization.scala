@@ -12,14 +12,13 @@ import weaver.data.ConflictResolution
 import weaver.data.Bonds
 
 object Serialization {
-
   implicit def balancesStateSerialize[F[_]: Monad]: Serialize[F, BalancesState] =
     new Serialize[F, BalancesState] {
       override def write(x: BalancesState): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
         x match {
           case BalancesState(diffs) =>
             w.write(diffs.size) *>
-              diffs.toList.sorted.traverse_ { case (k, v) => w.write(k.bytes) *> w.write(v) }
+              serializeSeq[F, (Wallet, Balance)](diffs.toSeq, { case (k, v) => w.write(k.bytes) *> w.write(v) })
         }
 
       override def read: PrimitiveReader[F] => F[BalancesState] = (r: PrimitiveReader[F]) =>
@@ -69,7 +68,7 @@ object Serialization {
         x match {
           case Bonds(bonds) =>
             w.write(bonds.size) *>
-              bonds.toList.sorted.traverse_ { case (k, v) => w.write(k.bytes) *> w.write(v) }
+              serializeSeq[F, (S, Long)](bonds.toSeq, { case (k, v) => w.write(k.bytes) *> w.write(v) })
         }
 
       override def read: PrimitiveReader[F] => F[Bonds[S]] = (r: PrimitiveReader[F]) =>
@@ -103,15 +102,15 @@ object Serialization {
                 postStateHash,
               ) =>
             w.write(sender.bytes) *>
-              minGenJs.toList.sorted.traverse_(x => w.write(x.bytes)) *>
-              offences.toList.sorted.traverse_(x => w.write(x.bytes)) *>
-              txs.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
-              finalFringe.toList.sorted.traverse_(x => w.write(x.bytes)) *>
+              serializeSeq(minGenJs.toSeq, (x: M) => w.write(x.bytes)) *>
+              serializeSeq(offences.toSeq, (x: M) => w.write(x.bytes)) *>
+              serializeSeq(txs, (x: T) => balancesDeploySerialize.write(x)(w)) *>
+              serializeSeq(finalFringe.toSeq, (x: M) => w.write(x.bytes)) *>
               finalized.traverse_ { case ConflictResolution(accepted, rejected) =>
-                accepted.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
-                  rejected.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w))
+                serializeSeq(accepted.toSeq, (x: T) => balancesDeploySerialize.write(x)(w)) *>
+                  serializeSeq(rejected.toSeq, (x: T) => balancesDeploySerialize.write(x)(w))
               } *>
-              merge.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
+              serializeSeq(merge.toSeq, (x: T) => balancesDeploySerialize.write(x)(w)) *>
               bondsMapSerialize.write(bonds)(w) *>
               w.write(lazTol) *>
               w.write(expThresh) *>
@@ -166,4 +165,7 @@ object Serialization {
           body         <- tokenTransferRequestBodySerialize[F].read(r)
         } yield TokenTransferRequest(pubKey, digest, signature, signatureAlg, body)
     }
+
+  private def serializeSeq[F[_]: Monad, A: Ordering](l: Seq[A], writeF: A => F[Unit]): F[Unit] =
+    l.sorted.map(writeF).fold(().pure[F])(_ *> _)
 }

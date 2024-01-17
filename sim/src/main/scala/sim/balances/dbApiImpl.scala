@@ -119,8 +119,8 @@ object dbApiImpl {
   private val ProtocolVersion  = 0
   private val SigAlg           = ""
   private val SignatureDefault = ByteArray.Default
-  private val LazTolDefault    = 0
-  private val ExpThreshDefault = 0
+  private val LazTolDefault    = 1
+  private val ExpThreshDefault = 10000
   private val ShardNameDefault = "root"
   private val SeqNumDefault    = 0L
 
