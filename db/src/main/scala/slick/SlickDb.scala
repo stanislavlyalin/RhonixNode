@@ -30,15 +30,15 @@ object SlickDb {
 
       def applyAllNewerThen(version: Int, api: SlickApi[F]): F[Unit] = migrations
         .all(dialect)
-        .collect {
-          case (idx, migrations) if idx > version =>
-            import profile.api.*
-            Async[F].executionContext.flatMap { implicit ec =>
-              val actions = DBIO
-                .sequence(migrations.migrations.map(m => m()))
-                .flatMap(_ => api.queries.putConfig(key, idx.toString))
-              actions.transactionally.run
-            }
+        .drop(version)
+        .map { case (idx, migrations) =>
+          import profile.api.*
+          Async[F].executionContext.flatMap { implicit ec =>
+            val actions = DBIO
+              .sequence(migrations.migrations.map(m => m()))
+              .flatMap(_ => api.queries.putConfig(key, idx.toString))
+            actions.transactionally.run
+          }
         }
         .toList
         .sequence_
