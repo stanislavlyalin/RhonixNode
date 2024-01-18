@@ -8,7 +8,7 @@ import slick.api.SlickApi
 import slick.dbio.{DBIOAction, NoStream}
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.JdbcProfile
-import slick.migration.api.{Dialect, Migration}
+import slick.migration.api.Dialect
 import slick.syntax.all.DBIOActionRunSyntax
 
 import scala.util.Try
@@ -28,14 +28,17 @@ object SlickDb {
       implicit val slickDb: SlickDb = new SlickDb(db, profile)
       val key                       = "dbVersion"
 
-      def applyMigration(m: Migration): F[Unit] = db.run(m()).asEffect
-
       def applyAllNewerThen(version: Int, api: SlickApi[F]): F[Unit] = migrations
         .all(dialect)
         .collect {
           case (idx, migrations) if idx > version =>
-            migrations.migrations.traverse(applyMigration) *>
-              api.queries.putConfig(key, idx.toString).run
+            import profile.api.*
+            Async[F].executionContext.flatMap { implicit ec =>
+              val actions = DBIO
+                .sequence(migrations.migrations.map(m => m()))
+                .flatMap(_ => api.queries.putConfig(key, idx.toString))
+              actions.transactionally.run
+            }
         }
         .toList
         .sequence_
