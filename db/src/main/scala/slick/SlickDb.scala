@@ -1,6 +1,5 @@
 package slick
 
-import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 import sdk.syntax.all.sdkSyntaxFuture
@@ -46,9 +45,9 @@ object SlickDb {
       def run: F[Unit] = (for {
         api          <- SlickApi[F](slickDb)
         dbVersionOpt <- api.queries.getConfig(key).run.recover { case _ => "0".some }
-        version      <- OptionT
-                          .fromOption(Try(dbVersionOpt.getOrElse("0").toInt).toOption)
-                          .getOrRaise(new RuntimeException(s"Error reading $key from config table"))
+        version      <- Try(dbVersionOpt.getOrElse("0").toInt)
+                          .adaptErr(_ => new RuntimeException(s"Error reading $key from config table"))
+                          .liftTo[F]
       } yield applyAllNewerThen(version, api)).flatten
 
       run *> slickDb.pure
