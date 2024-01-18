@@ -19,6 +19,7 @@ object EmbeddedPgSqlSlickDb {
     val maxConnections = 100
     val minThreads     = 100
     val maxThreads     = 100
+    val queueSize      = 1000
     val dbResource     =
       Resource
         .make(open)(db => Sync[F].delay(db.close()))
@@ -26,7 +27,7 @@ object EmbeddedPgSqlSlickDb {
           Database.forDataSource(
             x.getPostgresDatabase,
             maxConnections = Some(maxConnections),
-            executor = AsyncExecutor("EmbeddedPgExecutor", minThreads, maxThreads, 1000, maxConnections),
+            executor = AsyncExecutor("EmbeddedPgExecutor", minThreads, maxThreads, queueSize, maxConnections),
           ),
         )
 
