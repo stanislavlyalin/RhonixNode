@@ -49,7 +49,7 @@ object SlickDb {
                           .liftTo[F]
       } yield applyAllNewerThen(version, api)).flatten
 
-      run *> slickDb.pure
+      run.as(slickDb)
     }
 
     runMigrations(db).as(new SlickDb(db, profile))
