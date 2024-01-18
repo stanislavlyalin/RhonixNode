@@ -30,7 +30,8 @@ object SlickDb {
       def applyAllNewerThen(version: Int, api: SlickApi[F]): F[Unit] = migrations
         .all(dialect)
         .drop(version)
-        .map { case (idx, migrations) =>
+        .toList
+        .traverse_ { case (idx, migrations) =>
           import profile.api.*
           Async[F].executionContext.flatMap { implicit ec =>
             val actions = DBIO
@@ -39,8 +40,6 @@ object SlickDb {
             actions.transactionally.run
           }
         }
-        .toList
-        .sequence_
 
       def run: F[Unit] = (for {
         api          <- SlickApi[F](slickDb)
