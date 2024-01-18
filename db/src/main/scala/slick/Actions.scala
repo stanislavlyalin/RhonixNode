@@ -5,6 +5,7 @@ import sdk.primitive.ByteArray
 import slick.api.data.{Block, BondsMapData, SetData}
 import slick.dbio.Effect.*
 import slick.jdbc.JdbcProfile
+import slick.lifted.CompiledFunction
 import slick.tables.*
 
 import scala.concurrent.ExecutionContext
@@ -325,7 +326,13 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   /** Insert a new record in table if there is no such entry. Returned id */
   private def insertIfNot[A, B](
     unique: A,
-    getIdByUnique: A => Query[Rep[Long], Long, Seq],
+    getIdByUnique: CompiledFunction[
+      Rep[A] => Query[Rep[Long], Long, Seq],
+      Rep[A],
+      A,
+      Query[Rep[Long], Long, Seq],
+      Seq[Long],
+    ],
     insertable: B,
     insert: B => DBIOAction[Long, NoStream, All],
   ): DBIOAction[Long, NoStream, All] =
