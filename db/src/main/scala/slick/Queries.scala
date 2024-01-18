@@ -1,45 +1,43 @@
 package slick
 
 import slick.jdbc.JdbcProfile
-import slick.tables.*
 
 final case class Queries(profile: JdbcProfile) {
   import profile.api.*
 
   /** Config */
 
-  def configValue = Compiled((key: Rep[String]) => qConfigs.filter(_.name === key).map(_.value))
+  val configValue = Compiled((key: Rep[String]) => qConfigs.filter(_.name === key).map(_.value))
 
   /** Shard */
 
-  def shardNameById = Compiled((shardId: Rep[Long]) => qShards.filter(_.id === shardId).map(_.name))
+  val shardNameById = Compiled((shardId: Rep[Long]) => qShards.filter(_.id === shardId).map(_.name))
 
-  def shardIdByName = Compiled((name: Rep[String]) => qShards.filter(_.name === name).map(_.id))
+  val shardIdByName = Compiled((name: Rep[String]) => qShards.filter(_.name === name).map(_.id))
 
   /** Deployer */
 
-  def deployerIdByPK = Compiled((pK: Rep[Array[Byte]]) => qDeployers.filter(_.pubKey === pK).map(_.id))
+  val deployerIdByPK = Compiled((pK: Rep[Array[Byte]]) => qDeployers.filter(_.pubKey === pK).map(_.id))
 
   /** Deploy */
 
-  def deploys = Compiled(qDeploys.map(_.sig))
+  val deploys = Compiled(qDeploys.map(_.sig))
 
-  private def deployBySig(sig: Rep[Array[Byte]]): Query[TableDeploys, TableDeploys.Deploy, Seq] =
-    qDeploys.filter(_.sig === sig)
+  private val deployBySig = Compiled((sig: Rep[Array[Byte]]) => qDeploys.filter(_.sig === sig))
 
-  def deployIdBySig = Compiled((sig: Rep[Array[Byte]]) => deployBySig(sig).map(_.id))
+  val deployIdBySig = Compiled((sig: Rep[Array[Byte]]) => deployBySig.extract(sig).map(_.id))
 
   def deployIdsBySigs(sigs: Seq[Array[Byte]]) = Compiled(qDeploys.filter(_.sig inSet sigs).map(_.id))
 
-  def deployWithDataBySig = Compiled((sig: Rep[Array[Byte]]) =>
+  val deployWithDataBySig = Compiled((sig: Rep[Array[Byte]]) =>
     for {
-      deploy   <- deployBySig(sig)
+      deploy   <- deployBySig.extract(sig)
       shard    <- qShards if deploy.shardId === shard.id
       deployer <- qDeployers if deploy.deployerId === deployer.id
     } yield (deploy, deployer.pubKey, shard.name),
   )
 
-  def deploySetData = Compiled((deploySetId: Rep[Long]) =>
+  val deploySetData = Compiled((deploySetId: Rep[Long]) =>
     for {
       ds  <- qDeploySets.filter(_.id === deploySetId)
       dsb <- qDeploySetBinds if dsb.deploySetId === ds.id
@@ -49,21 +47,21 @@ final case class Queries(profile: JdbcProfile) {
 
   /** Block */
 
-  def blocks = Compiled(qBlocks.map(_.hash))
+  val blocks = Compiled(qBlocks.map(_.hash))
 
-  def blockIdByHash = Compiled((hash: Rep[Array[Byte]]) => blockByHash(hash).map(_.id))
+  val blockIdByHash = Compiled((hash: Rep[Array[Byte]]) => blockByHash.extract(hash).map(_.id))
 
-  def blockByHash(hash: Rep[Array[Byte]]): Query[TableBlocks, TableBlocks.Block, Seq] = qBlocks.filter(_.hash === hash)
+  val blockByHash = Compiled((hash: Rep[Array[Byte]]) => qBlocks.filter(_.hash === hash))
 
   /** DeploySet */
 
-  def deploySetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qDeploySets.filter(_.hash === hash).map(_.id))
+  val deploySetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qDeploySets.filter(_.hash === hash).map(_.id))
 
   /** BlockSet */
 
-  def blockSetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qBlockSets.filter(_.hash === hash).map(_.id))
+  val blockSetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qBlockSets.filter(_.hash === hash).map(_.id))
 
-  def blockSetData = Compiled((blockSetId: Rep[Long]) =>
+  val blockSetData = Compiled((blockSetId: Rep[Long]) =>
     for {
       bs  <- qBlockSets.filter(_.id === blockSetId)
       bsb <- qBlockSetBinds if bsb.blockSetId === bs.id
@@ -73,11 +71,11 @@ final case class Queries(profile: JdbcProfile) {
 
   /** BondsMap */
 
-  def bondsMap = Compiled(qBondsMaps.map(_.hash))
+  val bondsMap = Compiled(qBondsMaps.map(_.hash))
 
-  def bondsMapIdByHash = Compiled((hash: Rep[Array[Byte]]) => qBondsMaps.filter(_.hash === hash).map(_.id))
+  val bondsMapIdByHash = Compiled((hash: Rep[Array[Byte]]) => qBondsMaps.filter(_.hash === hash).map(_.id))
 
-  def bondsMapData = Compiled((bondsMapId: Rep[Long]) =>
+  val bondsMapData = Compiled((bondsMapId: Rep[Long]) =>
     for {
       bm <- qBondsMaps.filter(_.id === bondsMapId)
       b  <- qBonds if b.bondsMapId === bm.id
@@ -87,7 +85,7 @@ final case class Queries(profile: JdbcProfile) {
 
   /** Validator */
 
-  def validatorIdByPK = Compiled((pK: Rep[Array[Byte]]) => qValidators.filter(_.pubKey === pK).map(_.id))
+  val validatorIdByPK = Compiled((pK: Rep[Array[Byte]]) => qValidators.filter(_.pubKey === pK).map(_.id))
 
-  def validatorPkById = Compiled((validatorId: Rep[Long]) => qValidators.filter(_.id === validatorId).map(_.pubKey))
+  val validatorPkById = Compiled((validatorId: Rep[Long]) => qValidators.filter(_.id === validatorId).map(_.pubKey))
 }
