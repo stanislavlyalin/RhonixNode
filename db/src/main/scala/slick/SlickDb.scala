@@ -2,6 +2,7 @@ package slick
 
 import cats.effect.kernel.Async
 import cats.syntax.all.*
+import sdk.error.FatalError
 import sdk.syntax.all.sdkSyntaxFuture
 import slick.api.SlickApi
 import slick.dbio.{DBIOAction, NoStream}
@@ -45,7 +46,7 @@ object SlickDb {
         api          <- SlickApi[F](slickDb)
         dbVersionOpt <- api.queries.getConfig(key).run.recover { case _ => "0".some }
         version      <- Try(dbVersionOpt.getOrElse("0").toInt)
-                          .adaptErr(_ => new RuntimeException(s"Error reading $key from config table"))
+                          .adaptErr(FatalError(s"Error reading $key from config table", _))
                           .liftTo[F]
       } yield applyAllNewerThen(version, api)).flatten
 
