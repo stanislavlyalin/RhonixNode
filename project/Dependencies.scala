@@ -114,15 +114,16 @@ object Dependencies {
   val endpointsOpenApi   = "org.endpoints4s" %% "openapi"             % "4.4.0"
 
   // Database
-  val junitJupiter         = "org.junit.jupiter" % "junit-jupiter-api" % "5.10.0" % Test
-  val postgresql           = "org.postgresql"    % "postgresql"        % "42.6.0"
-  val h2db                 = "com.h2database"    % "h2"                % "2.1.214"
+  val junitJupiter         = "org.junit.jupiter"  % "junit-jupiter-api" % "5.10.0" % Test
+  val postgresql           = "org.postgresql"     % "postgresql"        % "42.6.0"
+  val h2db                 = "com.h2database"     % "h2"                % "2.1.214"
   val slick: Seq[ModuleID] = Seq(
     "com.typesafe.slick"                 %% "slick"               % "3.4.1",
     "org.slf4j"                           % "slf4j-nop"           % "2.0.5",
     "com.typesafe.slick"                 %% "slick-hikaricp"      % "3.4.1",
     "io.github.nafg.slick-migration-api" %% "slick-migration-api" % "0.9.0",// Migration tool for Slick
   )
+  val dbcp2                = "org.apache.commons" % "commons-dbcp2"     % "2.9.0"
 
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
@@ -147,5 +148,5 @@ object Dependencies {
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck, embedPgsql)
 
-  val dbLibs = Seq(h2db, postgresql, junitJupiter) ++ slick
+  val dbLibs = Seq(h2db, postgresql, junitJupiter, dbcp2) ++ slick
 }

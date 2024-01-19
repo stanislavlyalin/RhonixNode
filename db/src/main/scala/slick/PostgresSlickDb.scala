@@ -1,6 +1,7 @@
 package slick
 
 import cats.effect.{Async, Resource, Sync}
+import org.apache.commons.dbcp2.BasicDataSource
 import sdk.syntax.all.*
 import slick.jdbc.JdbcBackend.Database
 import slick.jdbc.PostgresProfile
@@ -12,12 +13,16 @@ object PostgresSlickDb {
       .make(Sync[F].delay {
         Class.forName("org.postgresql.Driver").void()
 
-        Database.forURL(
-          s"jdbc:postgresql://localhost:5432/$dbName",
-          keepAliveConnection = true,
-          user = dbUser,
-          password = dbPassword,
-        )
+        val dataSource = new BasicDataSource()
+        dataSource.setDriverClassName("org.postgresql.Driver")
+        dataSource.setUrl(s"jdbc:postgresql://localhost:5432/$dbName")
+        dataSource.setUsername(dbUser)
+        dataSource.setPassword(dbPassword)
+        dataSource.setMaxTotal(20)
+        dataSource.setMaxIdle(10)
+        dataSource.setInitialSize(10)
+
+        Database.forDataSource(dataSource, None)
       })(db => Sync[F].delay(db.close()))
       .evalMap(SlickDb(_, PostgresProfile, new PostgresDialect))
 }
