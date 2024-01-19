@@ -259,7 +259,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
       (qBlockSets.map(_.hash) returning qBlockSets.map(_.id)) += hash
 
     def getBlockIdsByHashes(hashes: Seq[Array[Byte]]): DBIOAction[Seq[Long], NoStream, Read] =
-      qBlocks.filter(_.hash inSet hashes).map(_.id).result
+      DBIO.sequence(hashes.map(queries.blockIdByHash(_).result.headOption)).map(_.flatten)
 
     def insertBinds(blockSetId: Long, blockIds: Seq[Long]): DBIOAction[Option[Int], NoStream, Write] = {
       val binds = blockIds.map(TableBlockSetBinds.BlockSetBind(blockSetId, _))
