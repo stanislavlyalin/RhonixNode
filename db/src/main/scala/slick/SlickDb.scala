@@ -37,14 +37,14 @@ object SlickDb {
           Async[F].executionContext.flatMap { implicit ec =>
             val actions = DBIO
               .sequence(migrations.migrations.map(m => m()))
-              .flatMap(_ => api.queries.putConfig(key, idx.toString))
+              .flatMap(_ => api.actions.putConfig(key, idx.toString))
             actions.transactionally.run
           }
         }
 
       def run: F[Unit] = (for {
         api          <- SlickApi[F](slickDb)
-        dbVersionOpt <- api.queries.getConfig(key).run.recover { case _ => "0".some }
+        dbVersionOpt <- api.actions.getConfig(key).run.recover { case _ => "0".some }
         version      <- Try(dbVersionOpt.getOrElse("0").toInt)
                           .adaptErr(FatalError(s"Error reading $key from config table", _))
                           .liftTo[F]

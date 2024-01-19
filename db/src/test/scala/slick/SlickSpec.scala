@@ -21,17 +21,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       embedPgSlick[IO]
         .use { api =>
           for {
-            _            <- api.deployInsert(d)
-            dFromDB      <- api.deployGet(d.sig)
-            dList        <- api.deployGetAll
-            deployerList <- api.deployerGetAll
-            shardList    <- api.shardGetAll
-          } yield {
-            d shouldBe dFromDB.get
-            dList shouldBe Set(d.sig)
-            deployerList shouldBe Set(d.deployerPk)
-            shardList shouldBe Set(d.shardName)
-          }
+            _       <- api.deployInsert(d)
+            dFromDB <- api.deployGet(d.sig)
+          } yield d shouldBe dFromDB.get
         }
         .unsafeRunSync()
     }
@@ -43,19 +35,13 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       embedPgSlick[IO]
         .use { api =>
           for {
-            _            <- api.deployInsert(d1)
-            _            <- api.deployInsert(d2)
-            d1FromDB     <- api.deployGet(d1.sig)
-            d2FromDB     <- api.deployGet(d2.sig)
-            dList        <- api.deployGetAll
-            deployerList <- api.deployerGetAll
-            shardList    <- api.shardGetAll
+            _        <- api.deployInsert(d1)
+            _        <- api.deployInsert(d2)
+            d1FromDB <- api.deployGet(d1.sig)
+            d2FromDB <- api.deployGet(d2.sig)
           } yield {
             Some(d1) shouldBe d1FromDB
             Some(d2) shouldBe d2FromDB
-            dList shouldBe Set(d1.sig, d2.sig)
-            deployerList shouldBe Set(d1.deployerPk)
-            shardList shouldBe Set(d1.shardName)
           }
         }
         .unsafeRunSync()
@@ -76,84 +62,6 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
           sigs.traverse(api.deployGet).map(_.count(_.isDefined)).map(_ shouldBe sigs.length)
       }
       .unsafeRunSync()
-  }
-
-  "deployDelete() function call" should "remove deploy and clean up dependencies in Deployers and Shards tables if possible" in {
-    forAll {
-      d1: Deploy =>
-        val d2Sig      = Arbitrary.arbitrary[ByteArray].suchThat(_ != d1.sig).sample.get
-        val d2: Deploy = d1.copy(sig = d2Sig) // create d2 with the same fields but another sig
-
-        embedPgSlick[IO]
-          .use { api =>
-            for {
-              // Creating two deploys with the same data but different sig
-              _ <- api.deployInsert(d1)
-              _ <- api.deployInsert(d2)
-
-              // First delete action (removing d1 and read db data)
-              _                 <- api.deployDelete(d1.sig)
-              dListFirst        <- api.deployGetAll
-              deployerListFirst <- api.deployerGetAll
-              shardListFirst    <- api.shardGetAll
-
-              // Second delete action (removing d2 and read db data)
-              _                  <- api.deployDelete(d2.sig)
-              dListSecond        <- api.deployGetAll
-              deployerListSecond <- api.deployerGetAll
-              shardListSecond    <- api.shardGetAll
-            } yield {
-              dListFirst shouldBe Set(d2.sig)
-              // The first action should not clear the tables Deployers and Shards. Because it using in d2
-              deployerListFirst shouldBe Set(d1.deployerPk)
-              shardListFirst shouldBe Set(d1.shardName)
-
-              dListSecond shouldBe Set()
-              // The second action should clear the tables Deployers and Shards. Because deploys deleted
-              deployerListSecond shouldBe Set()
-              shardListSecond shouldBe Set()
-            }
-          }
-          .unsafeRunSync()
-    }
-  }
-
-  "deploySetInsert() function call" should "add the correct entry to the DeploySets and DeploySetBinds tables" in {
-    forAll(nonEmptyDeploySeqGen, Arbitrary.arbitrary[ByteArray]) { (deploys: Set[Deploy], dSetHash: ByteArray) =>
-      embedPgSlick[IO]
-        .use { api =>
-          for {
-            _         <- deploys.toSeq.traverse(api.deployInsert)
-            deploySigs = deploys.map(_.sig)
-            _         <- api.deploySetInsert(dSetHash, deploySigs)
-
-            dSet     <- api.deploySetGet(dSetHash)
-            dSetList <- api.deploySetGetAll
-          } yield {
-            deploySigs shouldBe dSet.get
-            dSetList shouldBe Set(dSetHash)
-          }
-        }
-        .unsafeRunSync()
-    }
-  }
-
-  "bondsMapInsert() function call" should "add the correct entry to the BondsMaps and Bonds tables" in {
-    forAll(Arbitrary.arbitrary[ByteArray], nonEmptyBondsMapGen) { (bMapHash: ByteArray, bMap: Map[ByteArray, Long]) =>
-      embedPgSlick[IO]
-        .use { api =>
-          for {
-            _ <- api.bondsMapInsert(bMapHash, bMap)
-
-            readBMap <- api.bondsMapGet(bMapHash)
-            bMapList <- api.bondsMapGetAll
-          } yield {
-            bMap shouldBe readBMap.get
-            bMapList shouldBe Seq(bMapHash).toSet
-          }
-        }
-        .unsafeRunSync()
-    }
   }
 
   "blockInsert() function call" should "add the correct entry to the Blocks table and to the all related tables" in {
@@ -245,11 +153,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
             readBlock1 <- api.blockGet(b1.hash)
             readBlock2 <- api.blockGet(b2.hash)
-            blockList  <- api.blockGetAll
           } yield {
             readBlock1 shouldBe Some(insertedBlock1)
             readBlock2 shouldBe Some(insertedBlock2)
-            blockList shouldBe Set(b1.hash, b2.hash)
           }
         }
         .unsafeRunSync()
@@ -265,8 +171,8 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
         IO.delay {
           forAll(nonEmptyAlphaString, nonEmptyAlphaString) { (name, value) =>
-            val storeF = api.queries.putConfig(name, value).run[IO]
-            val loadF  = api.queries.getConfig(name).run[IO]
+            val storeF = api.actions.putConfig(name, value).run[IO]
+            val loadF  = api.actions.getConfig(name).run[IO]
             (storeF >> loadF).unsafeRunSync() shouldBe Some(value)
           }
         }
