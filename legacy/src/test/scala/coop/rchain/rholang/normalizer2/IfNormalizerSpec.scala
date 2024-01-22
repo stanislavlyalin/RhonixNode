@@ -19,7 +19,7 @@ class IfNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Ma
       val trueCase   = new PGround(new GroundString(trueCaseStr))
       val inputTerm  = new PIf(targetTerm, trueCase)
 
-      implicit val (nRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       val adt = IfNormalizer.normalizeIf[IO](inputTerm).unsafeRunSync()
 

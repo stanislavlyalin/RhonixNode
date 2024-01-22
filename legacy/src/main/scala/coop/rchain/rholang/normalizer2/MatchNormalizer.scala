@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.errors.UnrecognizedNormalizerError
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
+import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.ast.rholang.Absyn.{Case, CaseImpl, PMatch}
 import io.rhonix.rholang.{MatchCaseN, MatchN}
@@ -12,7 +12,9 @@ import scala.jdk.CollectionConverters.*
 
 object MatchNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeMatch[F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope, T: BoundVarWriter: FreeVarReader](
+  def normalizeMatch[F[
+    _,
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
     p: PMatch,
   ): F[MatchN] = {
     def normalizeCase(c: Case): F[MatchCaseN] = c match {
@@ -26,7 +28,7 @@ object MatchNormalizer {
 
         for {
           // Normalize pattern in a fresh bound and free variables scope
-          patternTuple <- normalizePattern.withNewVarScope()
+          patternTuple <- normalizePattern.asPattern()
 
           (patternResult, freeVars) = patternTuple
 

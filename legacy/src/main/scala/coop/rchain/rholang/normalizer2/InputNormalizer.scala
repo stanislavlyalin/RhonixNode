@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.models.ReceiveBind
 import coop.rchain.rholang.interpreter.errors.ReceiveOnSameChannelsError
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
+import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.Bindings.*
@@ -17,7 +17,7 @@ object InputNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def normalizeInput[F[
     _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope, T: BoundVarWriter: FreeVarReader](
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
     p: PInput,
   ): F[ParN] = {
     if (p.listreceipt_.size() > 1) {
@@ -200,7 +200,7 @@ object InputNormalizer {
                             // After pattern processing getFreeVars() will return free variables for all patterns
                             vars   = FreeVarReader[T].getFreeVars
                           } yield (binds, vars)
-          patternTuple <- bind.withNewVarScope(insideReceive = true)
+          patternTuple <- bind.asPattern(inReceive = true)
 
           (unsortBinds, freeVars) = patternTuple
 

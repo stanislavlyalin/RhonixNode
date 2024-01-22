@@ -21,7 +21,7 @@ class MatchesNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
       val patternTerm = new PGround(new GroundString(patternStr))
       val matchesTerm = new PMatches(targetTerm, patternTerm)
 
-      implicit val (nRec, bVScope, _, _, fVScope, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, bVScope, _, _, fVScope, _, _, rWriter, _) = createMockDSL[IO, VarSort]()
 
       val adt = MatchesNormalizer.normalizeMatches[IO](matchesTerm).unsafeRunSync()
 
@@ -36,7 +36,7 @@ class MatchesNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
 
       val expectedTerms = Seq(
         TermData(ProcTerm(targetTerm)),
-        TermData(term = ProcTerm(patternTerm), boundNewScopeLevel = 1, freeScopeLevel = 1),
+        TermData(term = ProcTerm(patternTerm), boundNewScopeLevel = 1, freeScopeLevel = 1, insidePattern = true),
       )
 
       terms shouldBe expectedTerms

@@ -24,7 +24,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
     forAll { (varName: String, varIndex: Int) =>
       val term = new PVar(new ProcVarVar(varName))
 
-      implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
+      implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort](
         // Add a variable with the name `varName` and the index `varIndex` to the boundVarMap
         initBoundVars = Map(varName -> (varIndex, ProcSort)),
       )
@@ -38,7 +38,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
     forAll { (varName: String, varIndex: Int) =>
       val term = new PVar(new ProcVarVar(varName))
 
-      implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
+      implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort](
         // Add a variable with an unexpected type (NameSort)
         initBoundVars = Map(varName -> (varIndex, NameSort)),
       )
@@ -56,7 +56,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       val term = new PVar(new ProcVarVar(varName))
 
       // Create a mock DSL with an empty BoundVarMap and FreeVarMap, and with the false `isTopLevel` flag.
-      implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](isTopLevel = false)
+      implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort](isPattern = true)
 
       val par = VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
 
@@ -75,7 +75,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       val term = new PVar(new ProcVarVar(varName))
 
       // Create a mock DSL with the true `isTopLevel` flag (default value).
-      implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort]()
+      implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort]()
 
       val thrown = intercept[TopLevelFreeVariablesNotAllowedError] {
         VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
@@ -89,10 +89,10 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
     forAll { (varName: String, varIndex: Int) =>
       val term = new PVar(new ProcVarVar(varName))
 
-      implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
+      implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort](
         // Add a free variable with the same name
         initFreeVars = Map(varName -> (varIndex, NameSort)),
-        isTopLevel = false,
+        isPattern = true,
       )
 
       val thrown = intercept[UnexpectedReuseOfProcContextFree] {
@@ -106,8 +106,8 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
   it should "return the Rholang wildcard for wildcard term inside a pattern" in {
     val term = new PVar(new ProcVarWildcard)
 
-    implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort](
-      isTopLevel = false,
+    implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort](
+      isPattern = true,
     )
 
     val par = VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
@@ -118,7 +118,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
     val term = new PVar(new ProcVarWildcard)
 
     // Create a mock DSL with the true `isTopLevel` flag (default value).
-    implicit val (_, _, _, bVR, _, fVW, fVR, fVScopeReader) = createMockDSL[IO, VarSort]()
+    implicit val (_, _, _, bVR, _, fVW, fVR, _, rReader) = createMockDSL[IO, VarSort]()
 
     val thrown = intercept[TopLevelWildcardsNotAllowedError] {
       VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()

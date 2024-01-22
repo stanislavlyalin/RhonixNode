@@ -8,7 +8,7 @@ import io.rhonix.rholang.{EMethodN, ParN}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object MethodNormalizer {
-  def normalizePar[F[_]: Applicative: NormalizerRec](p: PMethod): F[EMethodN] =
+  def normalizeMethod[F[_]: Applicative: NormalizerRec](p: PMethod): F[EMethodN] =
     (NormalizerRec[F].normalize(p.proc_), p.listproc_.asScala.toList.traverse(NormalizerRec[F].normalize)).mapN(
       (target, args) => EMethodN(target, p.var_, args),
     )

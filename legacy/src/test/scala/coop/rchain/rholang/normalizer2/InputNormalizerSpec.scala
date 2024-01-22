@@ -18,7 +18,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
   behavior of "Input normalizer"
 
   it should "handle a simple receive" in {
-    forAll { (bindsData: Map[String, Seq[String]]) =>
+    forAll(Arbitrary.arbitrary[Map[String, Seq[String]]]) { (bindsData: Map[String, Seq[String]]) =>
       val continuation = new PNil
       val remainder    = new NameRemainderEmpty()
 
@@ -48,7 +48,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
       // for (binds1 <- source1 & binds2 <- source2 & ...) { continuation }
       val term = new PInput(listReceipt, continuation)
 
-      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
       val adt = InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 
@@ -74,8 +74,22 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
       val (sourcesVar, bindsSeqVar) = varTerms.unzip
 
       val expectedTerms = sourcesVar.map(x => TermData(NameTerm(x))) ++ bindsSeqVar.flatMap(
-        _.map(bind => TermData(NameTerm(bind), boundNewScopeLevel = 1, freeScopeLevel = 1)) :+
-          TermData(NameRemainderTerm(remainder), boundNewScopeLevel = 1, freeScopeLevel = 1),
+        _.map(bind =>
+          TermData(
+            NameTerm(bind),
+            boundNewScopeLevel = 1,
+            freeScopeLevel = 1,
+            insidePattern = true,
+            insideTopLevelReceive = true,
+          ),
+        ) :+
+          TermData(
+            NameRemainderTerm(remainder),
+            boundNewScopeLevel = 1,
+            freeScopeLevel = 1,
+            insidePattern = true,
+            insideTopLevelReceive = true,
+          ),
       ) :+ TermData(ProcTerm(continuation), boundCopyScopeLevel = 1)
 
       terms shouldBe expectedTerms
@@ -91,7 +105,8 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
       val initFreeVars = varsNameStr.distinct.zipWithIndex.map { case (name, index) => (name, (index, NameSort)) }.toMap
 
-      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) =
+        createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
       InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 
@@ -110,7 +125,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     // for (pattern <= source) { Nil }
     val term         = new PInput(listReceipt, continuation)
 
-    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
     val adt = InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 
@@ -132,7 +147,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     // for (pattern <<- source) { Nil }
     val term         = new PInput(listReceipt, continuation)
 
-    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
     val adt = InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 
@@ -153,7 +168,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
     val continuation = new PNil
     val term         = new PInput(listReceipt, continuation)
 
-    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
     val adt = InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 
@@ -194,7 +209,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
     val term = new PInput(listReceipt, new PNil)
 
-    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+    implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
     val result = InputNormalizer.normalizeInput[IO, VarSort](term)
 
@@ -242,7 +257,7 @@ class InputNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
       // for (receipt1; receipt2) { continuation }
       val term = new PInput(listReceipt, continuation)
 
-      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
       val adt = InputNormalizer.normalizeInput[IO, VarSort](term).unsafeRunSync()
 

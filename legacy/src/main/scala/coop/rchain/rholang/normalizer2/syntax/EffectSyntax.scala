@@ -2,8 +2,9 @@ package coop.rchain.rholang.normalizer2.syntax
 
 import cats.effect.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
-import coop.rchain.rholang.interpreter.compiler.FreeContext
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarScope}
+import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarScope, RestrictWriter}
+import coop.rchain.rholang.syntax.normalizerEffectSyntax
 
 trait EffectSyntax {
   implicit def normalizerEffectSyntax[F[_], A](f: F[A]): NormalizerEffectOps[F, A] = new NormalizerEffectOps[F, A](f)
@@ -11,15 +12,15 @@ trait EffectSyntax {
 
 class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
 
-  /**
-   * Run effect inside a new (empty) bound and free variable context/scope.
-   *
-   * Empty variable context is used to normalize patterns.
-   */
-  def withNewVarScope(
-    insideReceive: Boolean = false,
-  )(implicit fwScope: FreeVarScope[F], bwScope: BoundVarScope[F]): F[A] =
-    bwScope.withNewBoundVarScope(fwScope.withNewFreeVarScope(insideReceive)(f))
+  /** Run function with new Bound and Free variables scope. And with with restricted conditions for the pattern.
+   * @param inReceive Flag should be true for pattern in receive (input) or contract. */
+  def asPattern(
+    inReceive: Boolean = false,
+  )(implicit bwScope: BoundVarScope[F], fwScope: FreeVarScope[F], rWriter: RestrictWriter[F]): F[A] =
+    bwScope.withNewBoundVarScope(fwScope.withNewFreeVarScope(rWriter.restrictAsPattern(inReceive)(f)))
+
+  /** Run function with restricted conditions with restrictions as for the bundle */
+  def asBundle()(implicit rWriter: RestrictWriter[F]): F[A] = rWriter.restrictAsBundle(f)
 
   /** Bound free variables in a copy of the current scope.
    *
@@ -29,13 +30,11 @@ class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
    * fl0, ..., flN are the Bruijn levels of the inserted free vars,
    * last is the last index among all bound vars at the moment.
    */
-
   def withAbsorbedFreeVars[T](
     freeVars: Seq[(String, FreeContext[T])],
   )(implicit sync: Sync[F], bwScope: BoundVarScope[F], bwWriter: BoundVarWriter[T]): F[A] = {
 
-    @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-    def absorbFree(freeVars: Seq[(String, FreeContext[T])]): Unit = {
+    def absorbFree(freeVars: Seq[(String, FreeContext[T])]): Seq[IdContext[T]] = {
       val sortedByLevel  = freeVars.sortBy(_._2.level)
       val (levels, data) = sortedByLevel.unzip(fv => (fv._2.level, (fv._1, fv._2.typ, fv._2.sourcePosition)))
       assert(
@@ -43,9 +42,19 @@ class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
         "Error when absorbing free variables during normalization: incorrect de Bruijn levels." +
           s"Should be ${levels.indices}, but was $levels.",
       )
-      bwWriter.putBoundVars(data)
+      data
     }
-
-    bwScope.withCopyBoundVarScope(sync.delay(absorbFree(freeVars)).flatMap(_ => f))
+    f.withNewBoundVars(absorbFree(freeVars)).map(_._1)
   }
+
+  /** Put new bound variables in a copy of the current scope.
+   * @return result of the effect and the number of inserted non-duplicate variables
+   */
+  def withNewBoundVars[T](
+    boundVars: Seq[IdContext[T]],
+  )(implicit sync: Sync[F], bwScope: BoundVarScope[F], bwWriter: BoundVarWriter[T]): F[(A, Int)] =
+    bwScope.withCopyBoundVarScope(for {
+      bindCount <- sync.delay(bwWriter.putBoundVars(boundVars))
+      fRes      <- f
+    } yield (fRes, bindCount))
 }

@@ -1,8 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
-import cats.Applicative
 import cats.effect.Sync
-import cats.implicits.{catsSyntaxApplicativeId, none}
+import cats.implicits.none
 import coop.rchain.rholang.normalizer2.NormalizerRec
 import coop.rchain.rholang.normalizer2.util.Mock.*
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
@@ -11,8 +10,12 @@ import io.rhonix.rholang.{GStringN, ParN, VarN}
 
 import scala.collection.mutable.ListBuffer
 
-case class MockNormalizerRec[F[_]: Sync, T](bWScope: MockBoundVarScope[F], fWScope: MockFreeVarScope[F])
-    extends NormalizerRec[F] {
+case class MockNormalizerRec[F[_]: Sync, T](
+  bWScope: MockBoundVarScope[F],
+  fWScope: MockFreeVarScope[F],
+  rWriter: MockRestrictWriter[F],
+  rReader: MockRestrictReader,
+) extends NormalizerRec[F] {
   private val buffer: ListBuffer[TermData] = ListBuffer.empty
 
   private def addInBuf(term: MockNormalizerRecTerm): Unit =
@@ -22,6 +25,9 @@ case class MockNormalizerRec[F[_]: Sync, T](bWScope: MockBoundVarScope[F], fWSco
         boundNewScopeLevel = bWScope.getNewScopeLevel,
         boundCopyScopeLevel = bWScope.getCopyScopeLevel,
         freeScopeLevel = fWScope.getScopeLevel,
+        insidePattern = rWriter.getInsidePatternFlag,
+        insideTopLevelReceive = rWriter.getInsideTopLevelReceivePatternFlag,
+        insideBundle = rWriter.getInsideBundleFlag,
       ),
     )
 

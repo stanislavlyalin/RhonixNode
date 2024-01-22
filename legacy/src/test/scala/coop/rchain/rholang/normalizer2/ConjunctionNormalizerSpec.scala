@@ -22,7 +22,7 @@ class ConjunctionNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyCheck
       val right = new PGround(new GroundString(s2))
       val term  = new PConjunction(left, right)
 
-      implicit val (mockRec, _, _, _, _, _, _, fVSReader) = createMockDSL[IO, VarSort](isTopLevel = false)
+      implicit val (mockRec, _, _, _, _, _, _, _, rReader) = createMockDSL[IO, VarSort](isPattern = true)
 
       val adt = ConjunctionNormalizer.normalizeConjunction[IO](term).unsafeRunSync()
 
@@ -42,7 +42,7 @@ class ConjunctionNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyCheck
     val term = new PConjunction(new PNil, new PNil)
 
     // Create a mock DSL with the true `isTopLevel` flag (default value).
-    implicit val (mockRec, _, _, _, _, _, _, fVSReader) = createMockDSL[IO, VarSort]()
+    implicit val (mockRec, _, _, _, _, _, _, _, rReader) = createMockDSL[IO, VarSort]()
 
     val thrown = intercept[TopLevelLogicalConnectivesNotAllowedError] {
       ConjunctionNormalizer.normalizeConjunction[IO](term).unsafeRunSync()

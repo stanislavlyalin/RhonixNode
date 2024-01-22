@@ -30,7 +30,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
         // contract source (pattern1, pattern2, ... remainder) { continuation }
         val term = new PContr(source, listPatterns, remainder, continuation)
 
-        implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort]()
+        implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
 
         val adt = ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
 
@@ -52,8 +52,22 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
         val terms         = nRec.extractData
         // Expect all terms to be normalized in sequence
         val expectedTerms = TermData(NameTerm(source)) +:
-          patterns.map(x => TermData(NameTerm(x), boundNewScopeLevel = 1, freeScopeLevel = 1)) :+
-          TermData(NameRemainderTerm(remainder), boundNewScopeLevel = 1, freeScopeLevel = 1) :+
+          patterns.map(x =>
+            TermData(
+              NameTerm(x),
+              boundNewScopeLevel = 1,
+              freeScopeLevel = 1,
+              insidePattern = true,
+              insideTopLevelReceive = true,
+            ),
+          ) :+
+          TermData(
+            NameRemainderTerm(remainder),
+            boundNewScopeLevel = 1,
+            freeScopeLevel = 1,
+            insidePattern = true,
+            insideTopLevelReceive = true,
+          ) :+
           TermData(ProcTerm(continuation), boundCopyScopeLevel = 1)
         terms shouldBe expectedTerms
     }
@@ -68,7 +82,8 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
       val initFreeVars = varsNameStr.distinct.zipWithIndex.map { case (name, index) => (name, (index, NameSort)) }.toMap
 
-      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, _) = createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) =
+        createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
       ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
 

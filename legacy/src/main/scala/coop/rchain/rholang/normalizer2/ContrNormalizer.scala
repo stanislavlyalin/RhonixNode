@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
+import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.normalizerEffectSyntax
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
@@ -10,7 +10,9 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 import scala.jdk.CollectionConverters.*
 
 object ContrNormalizer {
-  def normalizeContr[F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope, T: BoundVarWriter: FreeVarReader](
+  def normalizeContr[F[
+    _,
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
     p: PContr,
   ): F[ReceiveN] =
     for {
@@ -21,7 +23,7 @@ object ContrNormalizer {
                            reminder <- NormalizerRec[F].normalize(p.nameremainder_)
                            vars      = FreeVarReader[T].getFreeVars
                          } yield (ReceiveBindN(patterns, source, reminder, vars.size), vars)
-      patternTuple    <- normalizePattern.withNewVarScope(insideReceive = true)
+      patternTuple    <- normalizePattern.asPattern(inReceive = true)
 
       (bind, freeVars) = patternTuple
 

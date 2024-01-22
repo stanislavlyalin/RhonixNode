@@ -4,17 +4,15 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.interpreter.errors.{PatternReceiveError, TopLevelLogicalConnectivesNotAllowedError}
-import coop.rchain.rholang.normalizer2.env.{FreeVarReader, FreeVarScopeReader}
+import coop.rchain.rholang.normalizer2.env.RestrictReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object NegationNormalizer {
-  def normalizeNegation[F[_]: Sync: NormalizerRec](p: PNegation)(implicit scope: FreeVarScopeReader): F[ConnNotN] = {
+  def normalizeNegation[F[_]: Sync: NormalizerRec](p: PNegation)(implicit restrict: RestrictReader): F[ConnNotN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
-    if (scope.topLevel)
-      TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
-    else {
-      if (scope.topLevelReceivePattern) {
+    if (restrict.insidePattern)
+      if (restrict.insideTopLevelReceivePattern) {
         // TODO: According to Rholang documentation:
         //  https://github.com/rchain/rchain/blob/25e523580a339db9ce2e8abdc9dcab44618d4c5c/docs/rholang/rholangtut.md?plain=1#L244-L252
         //  Since we cannot rely on a specific pattern matching order,
@@ -25,8 +23,7 @@ object NegationNormalizer {
         //  In the future, it will be necessary to analyze whether the left and right parts of the connective contain free variables
         //  and only in such cases return a PatternReceiveError.
         PatternReceiveError(s"~ (negation) at $pos").raiseError
-      } else
-        NormalizerRec[F].normalize(p.proc_).map(ConnNotN(_))
-    }
+      } else NormalizerRec[F].normalize(p.proc_).map(ConnNotN(_))
+    else TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
   }
 }

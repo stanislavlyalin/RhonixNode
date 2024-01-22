@@ -25,7 +25,7 @@ class SendNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with 
 
       val term = new PSend(chan, sendType, listArgs)
 
-      implicit val (nRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       val adt = SendNormalizer.normalizeSend[IO](term).unsafeRunSync()
 

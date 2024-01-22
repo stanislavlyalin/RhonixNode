@@ -15,6 +15,9 @@ object Mock {
     boundNewScopeLevel: Int = 0,
     boundCopyScopeLevel: Int = 0,
     freeScopeLevel: Int = 0,
+    insidePattern: Boolean = false,
+    insideTopLevelReceive: Boolean = false,
+    insideBundle: Boolean = false,
   )
 
   sealed trait MockNormalizerRecTerm
@@ -34,15 +37,17 @@ object Mock {
    *                      The key is the name of the variable. The value is a tuple of the index and the type.
    * @param initFreeVars initial free variables for the mock free variable reader.
    *                      The key is the name of the variable. The value is a tuple of the index and the type.
-   * @param isTopLevel initial value for the isTopLevel flag of the mock free variable scope reader.
-   * @param isReceivePattern initial value for the isReceivePattern flag of the mock free variable scope reader.
+   * @param isPattern initial value for the inside pattern flag of the mock restrict reader.
+   * @param isReceivePattern initial value for the isReceivePattern flag of the mock restrict reader.
+   * @param isBundle initial value for the isBundle flag of the mock restrict reader.
    * @return all the components of the mock DSL.
    */
   def createMockDSL[F[_]: Sync, T](
     initBoundVars: Map[String, (Int, T)] = Map[String, (Int, T)](),
     initFreeVars: Map[String, (Int, T)] = Map[String, (Int, T)](),
-    isTopLevel: Boolean = true,
+    isPattern: Boolean = false,
     isReceivePattern: Boolean = false,
+    isBundle: Boolean = false,
   ): (
     MockNormalizerRec[F, T],
     MockBoundVarScope[F],
@@ -51,7 +56,8 @@ object Mock {
     MockFreeVarScope[F],
     MockFreeVarWriter[F, T],
     MockFreeVarReader[T],
-    MockFreeVarScopeReader,
+    MockRestrictWriter[F],
+    MockRestrictReader,
   ) = {
     val mockBVScope: MockBoundVarScope[F] = MockBoundVarScope[F]()
     val mockBVW: MockBoundVarWriter[F, T] = MockBoundVarWriter[F, T](mockBVScope)
@@ -61,9 +67,11 @@ object Mock {
     val mockFVW: MockFreeVarWriter[F, T] = MockFreeVarWriter[F, T](mockFVScope)
     val mockFVR: MockFreeVarReader[T]    = MockFreeVarReader[T](initFreeVars)
 
-    val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVScope, mockFVScope)
+    val mockRW: MockRestrictWriter[F] = MockRestrictWriter[F]()
 
-    val mockFVScopeReader: MockFreeVarScopeReader = MockFreeVarScopeReader(isTopLevel, isReceivePattern)
-    (mockNormalizerRec, mockBVScope, mockBVW, mockBVR, mockFVScope, mockFVW, mockFVR, mockFVScopeReader)
+    val mockRR: MockRestrictReader = MockRestrictReader(isPattern, isReceivePattern, isBundle)
+
+    val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVScope, mockFVScope, mockRW, mockRR)
+    (mockNormalizerRec, mockBVScope, mockBVW, mockBVR, mockFVScope, mockFVW, mockFVR, mockRW, mockRR)
   }
 }

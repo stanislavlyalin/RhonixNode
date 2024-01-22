@@ -25,7 +25,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
       // [x, y, ...]
       val term = new PCollect(new CollectList(listProc, remainderTerm))
 
-      implicit val (mockRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (mockRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       val adt = CollectNormalizer.normalizeCollect[IO](term).unsafeRunSync()
 
@@ -57,7 +57,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
       // (x, y, ...)
       val term = new PCollect(new CollectTuple(tuple))
 
-      implicit val (mockRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (mockRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       // Run Par normalizer
       val adt = CollectNormalizer.normalizeCollect[IO](term).unsafeRunSync()
@@ -85,7 +85,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
       // Set(x, y, ...)
       val term = new PCollect(new CollectSet(listProc, remainderTerm))
 
-      implicit val (mockRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (mockRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       // Run Par normalizer
       val adt = CollectNormalizer.normalizeCollect[IO](term).unsafeRunSync()
@@ -115,7 +115,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
       // {x: y,  k: l, ...}
       val term = new PCollect(new CollectMap(mapData, remainderTerm))
 
-      implicit val (mockRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (mockRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       val adt = CollectNormalizer.normalizeCollect[IO](term).unsafeRunSync()
 

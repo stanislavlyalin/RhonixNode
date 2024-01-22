@@ -6,7 +6,7 @@ import coop.rchain.rholang.interpreter.compiler.{NameSort, VarSort}
 import coop.rchain.rholang.normalizer2.util.Mock.*
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.mockADT
 import io.rhonix.rholang.ast.rholang.Absyn.*
-import io.rhonix.rholang.{GStringN, NewN, ParN}
+import io.rhonix.rholang.{NewN, ParN}
 import org.scalacheck.Arbitrary.arbString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -32,7 +32,7 @@ class NewNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
       val term = new PNew(listNameDecl, body)
 
-      implicit val (nRec, _, bVW, bVR, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, bVScope, bVW, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       val adt = NewNormalizer.normalizeNew[IO, VarSort](term).unsafeRunSync()
 
@@ -51,7 +51,9 @@ class NewNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       val expectedUnsortedSimpleBinds = declsWithRandomOrder.collect { case n: NameDeclSimpl => n.var_ }
       val expectedSortedUrnNames      = sortedUris.map(_._2)
       val expectedBoundVars           =
-        (expectedUnsortedSimpleBinds ++ expectedSortedUrnNames).map(BoundVarWriterData(_, varType = NameSort))
+        (expectedUnsortedSimpleBinds ++ expectedSortedUrnNames).map(
+          BoundVarWriterData(_, varType = NameSort, copyScopeLevel = 1),
+        )
       val addedBoundVars              = bVW.extractData
       addedBoundVars shouldBe expectedBoundVars
     }

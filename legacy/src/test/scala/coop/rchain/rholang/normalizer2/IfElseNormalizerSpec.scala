@@ -22,7 +22,7 @@ class IfElseNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wit
       val falseCase  = new PGround(new GroundString(falseCaseStr))
       val inputTerm  = new PIfElse(targetTerm, trueCase, falseCase)
 
-      implicit val (nRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
       val adt = IfElseNormalizer.normalizeIfElse[IO](inputTerm).unsafeRunSync()
 

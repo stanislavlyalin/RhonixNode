@@ -24,9 +24,9 @@ class MethodNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wit
       // target.methodName(args)
       val term = new PMethod(target, methodName, argsList)
 
-      implicit val (nRec, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
-      val adt         = MethodNormalizer.normalizePar[IO](term).unsafeRunSync()
+      val adt         = MethodNormalizer.normalizeMethod[IO](term).unsafeRunSync()
       val expectedAdt = EMethodN(target = mockADT(target: Proc), methodName = methodName, args = args.map(mockADT))
       adt shouldBe expectedAdt
 

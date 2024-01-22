@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarReader, FreeVarScope}
+import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
@@ -12,7 +12,9 @@ import scala.jdk.CollectionConverters.*
 
 object LetNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeLet[F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope, T: BoundVarWriter: FreeVarReader](
+  def normalizeLet[F[
+    _,
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
     p: PLet,
   ): F[ParN] =
     p.decls_ match {
@@ -113,7 +115,7 @@ object LetNormalizer {
                                    rem <- NormalizerRec[F].normalize(declImpl.nameremainder_)
                                    ps  <- declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
                                  } yield (ps, rem, FreeVarReader[T].getFreeVars)
-              patternTuple    <- normalizePattern.withNewVarScope()
+              patternTuple    <- normalizePattern.asPattern()
 
               (patterns, patternRemainder, patternFreeVars) = patternTuple
 
