@@ -27,8 +27,6 @@ final case class Queries(profile: JdbcProfile) {
 
   val deployIdBySig = Compiled((sig: Rep[Array[Byte]]) => deployBySig.extract(sig).map(_.id))
 
-  def deployIdsBySigs(sigs: Seq[Array[Byte]]) = Compiled(qDeploys.filter(_.sig inSet sigs).map(_.id))
-
   val deployWithDataBySig = Compiled((sig: Rep[Array[Byte]]) =>
     for {
       deploy   <- deployBySig.extract(sig)

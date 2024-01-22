@@ -232,12 +232,15 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
     def insertBinds(deploySetId: Long, deployIds: Seq[Long]): DBIOAction[Option[Int], NoStream, Write] =
       qDeploySetBinds ++= deployIds.map(TableDeploySetBinds.DeploySetBind(deploySetId, _))
 
+    def deployIdsBySigs(sigs: Seq[Array[Byte]]): DBIOAction[Seq[Long], NoStream, Read] =
+      DBIO.sequence(sigs.map(queries.deployIdBySig(_).result.headOption)).map(_.flatten)
+
     def insertAllData(in: (Array[Byte], Seq[Array[Byte]])): DBIOAction[Long, NoStream, Write & Read & Transactional] =
       in match {
         case (hash, deploySigs) =>
           (for {
             deploySetId <- deploySetInsert(hash)
-            deployIds   <- queries.deployIdsBySigs(deploySigs).result
+            deployIds   <- deployIdsBySigs(deploySigs)
             _           <- if (deployIds.length == deploySigs.length) insertBinds(deploySetId, deployIds)
                            else
                              DBIO.failed(
