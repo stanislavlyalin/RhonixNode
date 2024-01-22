@@ -64,7 +64,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
     /** Insert a new record in table. Returned id. */
     def deployInsert(deploy: TableDeploys.Deploy): DBIOAction[Long, NoStream, Write] =
-      (qDeploys returning qDeploys.map(_.id)) += deploy
+      (queries.deploysCompiled returning qDeploys.map(_.id)) += deploy
 
     val actions = for {
       deployerId <- deployerInsertIfNot(d.deployerPk)
@@ -100,7 +100,7 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
         .getOrElse(DBIO.successful(None))
 
     def blockInsert(block: TableBlocks.Block): DBIOAction[Long, NoStream, Write] =
-      (qBlocks returning qBlocks.map(_.id)) += block
+      (queries.blocksCompiled returning qBlocks.map(_.id)) += block
 
     val actions = for {
       validatorId <- validatorInsertIfNot(b.validatorPk)
@@ -227,10 +227,10 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   def deploySetInsertIfNot(hash: Array[Byte], deploySigs: Seq[Array[Byte]]): DBIOAction[Long, NoStream, All] = {
 
     def deploySetInsert(hash: Array[Byte]): DBIOAction[Long, NoStream, Write] =
-      (qDeploySets.map(_.hash) returning qDeploySets.map(_.id)) += hash
+      (queries.deploySetsCompiled returning qDeploySets.map(_.id)) += hash
 
     def insertBinds(deploySetId: Long, deployIds: Seq[Long]): DBIOAction[Option[Int], NoStream, Write] =
-      qDeploySetBinds ++= deployIds.map(TableDeploySetBinds.DeploySetBind(deploySetId, _))
+      queries.deploySetBindsCompiled ++= deployIds.map(TableDeploySetBinds.DeploySetBind(deploySetId, _))
 
     def deployIdsBySigs(sigs: Seq[Array[Byte]]): DBIOAction[Seq[Long], NoStream, Read] =
       DBIO.sequence(sigs.map(queries.deployIdBySig(_).result.headOption)).map(_.flatten)
@@ -259,14 +259,14 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   /** Insert a new block set in table if there is no such entry. Returned id */
   def blockSetInsertIfNot(hash: Array[Byte], blockHashes: Seq[Array[Byte]]): DBIOAction[Long, NoStream, All] = {
     def blockSetInsert(hash: Array[Byte]): DBIOAction[Long, NoStream, Write] =
-      (qBlockSets.map(_.hash) returning qBlockSets.map(_.id)) += hash
+      (queries.blockSetsCompiled returning qBlockSets.map(_.id)) += hash
 
     def getBlockIdsByHashes(hashes: Seq[Array[Byte]]): DBIOAction[Seq[Long], NoStream, Read] =
       DBIO.sequence(hashes.map(queries.blockIdByHash(_).result.headOption)).map(_.flatten)
 
     def insertBinds(blockSetId: Long, blockIds: Seq[Long]): DBIOAction[Option[Int], NoStream, Write] = {
       val binds = blockIds.map(TableBlockSetBinds.BlockSetBind(blockSetId, _))
-      qBlockSetBinds ++= binds
+      queries.blockSetBindsCompiled ++= binds
     }
 
     def insertAllData(in: (Array[Byte], Seq[Array[Byte]])): DBIOAction[Long, NoStream, Write & Read] = in match {
