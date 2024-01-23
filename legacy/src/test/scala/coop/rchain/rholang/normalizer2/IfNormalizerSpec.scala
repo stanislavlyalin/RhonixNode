@@ -13,7 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class IfNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "If normalizer" should "convert AST term to match ADT term" in {
+  "If normalizer" should "normalize PIf term" in {
     forAll { (targetStr: String, trueCaseStr: String) =>
       val targetTerm = new PVar(new ProcVarVar(targetStr))
       val trueCase   = new PGround(new GroundString(trueCaseStr))

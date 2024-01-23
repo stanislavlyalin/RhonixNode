@@ -16,7 +16,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
   behavior of "Contr normalizer"
 
-  it should "convert AST term to ADT term" in {
+  it should "normalize PContr term" in {
     forAll(Arbitrary.arbitrary[String], Gen.nonEmptyListOf[String](Arbitrary.arbitrary[String])) {
       (sourceStr: String, strings: Seq[String]) =>
         val source       = new NameVar(sourceStr)
@@ -30,7 +30,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
         // contract source (pattern1, pattern2, ... remainder) { continuation }
         val term = new PContr(source, listPatterns, remainder, continuation)
 
-        implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) = createMockDSL[IO, VarSort]()
+        implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, infoWriter, _) = createMockDSL[IO, VarSort]()
 
         val adt = ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
 
@@ -82,7 +82,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
       val initFreeVars = varsNameStr.distinct.zipWithIndex.map { case (name, index) => (name, (index, NameSort)) }.toMap
 
-      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, rWriter, _) =
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, infoWriter, _) =
         createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
       ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()

@@ -16,13 +16,13 @@ class NegationNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks w
 
   behavior of "Negation normalizer"
 
-  it should "convert AST term to ADT term" in {
+  it should "normalize PNegation term" in {
     forAll { (s: String) =>
       val data = new PGround(new GroundString(s))
       val term = new PNegation(data)
 
       // Create a mock DSL with the false `isTopLevel` flag.
-      implicit val (nRec, _, _, _, _, _, _, _, rReader) = createMockDSL[IO, VarSort](isPattern = true)
+      implicit val (nRec, _, _, _, _, _, _, _, infoReader) = createMockDSL[IO, VarSort](isPattern = true)
 
       val adt = NegationNormalizer.normalizeNegation[IO](term).unsafeRunSync()
 
@@ -42,7 +42,7 @@ class NegationNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks w
     val term = new PNegation(new PNil)
 
     // Create a mock DSL with the true `isTopLevel` flag (default value).
-    implicit val (nRec, _, _, _, _, _, _, _, rReader) = createMockDSL[IO, VarSort]()
+    implicit val (nRec, _, _, _, _, _, _, _, infoReader) = createMockDSL[IO, VarSort]()
 
     val thrown = intercept[TopLevelLogicalConnectivesNotAllowedError] {
       NegationNormalizer.normalizeNegation[IO](term).unsafeRunSync()

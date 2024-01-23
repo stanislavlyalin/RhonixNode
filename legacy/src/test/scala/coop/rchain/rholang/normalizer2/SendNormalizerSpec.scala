@@ -13,7 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class SendNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Send normalizer" should "normalize channel name and arguments and construct the ADT term" in {
+  "Send normalizer" should "normalize PSend term" in {
     forAll { (chanStr: String, argsStr: Seq[String], persistent: Boolean) =>
       val chan     = new NameVar(chanStr)
       val sendType = if (persistent) new SendMultiple() else new SendSingle()

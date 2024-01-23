@@ -1,6 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
-trait RestrictReader {
+trait NestingInfoReader {
 
   /** Current processing is being executed within a pattern. */
   def insidePattern: Boolean

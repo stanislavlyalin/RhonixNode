@@ -16,7 +16,7 @@ class DisjunctionNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyCheck
 
   behavior of "Disjunction normalizer"
 
-  it should "convert AST term to ADT term" in {
+  it should "normalize PDisjunction term" in {
     forAll { (s1: String, s2: String) =>
       val left  = new PGround(new GroundString(s1))
       val right = new PGround(new GroundString(s2))

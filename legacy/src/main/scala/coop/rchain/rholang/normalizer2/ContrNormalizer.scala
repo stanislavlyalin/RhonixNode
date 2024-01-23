@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.*
 object ContrNormalizer {
   def normalizeContr[F[
     _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
     p: PContr,
   ): F[ReceiveN] =
     for {

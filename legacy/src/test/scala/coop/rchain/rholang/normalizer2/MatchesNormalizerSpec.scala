@@ -15,13 +15,13 @@ class MatchesNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
 
   behavior of "Matches normalizer"
 
-  it should "normalize AST term" in {
+  it should "normalize PMatches term" in {
     forAll { (targetStr: String, patternStr: String) =>
       val targetTerm  = new PVar(new ProcVarVar(targetStr))
       val patternTerm = new PGround(new GroundString(patternStr))
       val matchesTerm = new PMatches(targetTerm, patternTerm)
 
-      implicit val (nRec, bVScope, _, _, fVScope, _, _, rWriter, _) = createMockDSL[IO, VarSort]()
+      implicit val (nRec, bVScope, _, _, fVScope, _, _, infoWriter, _) = createMockDSL[IO, VarSort]()
 
       val adt = MatchesNormalizer.normalizeMatches[IO](matchesTerm).unsafeRunSync()
 

@@ -2,14 +2,14 @@ package coop.rchain.rholang.normalizer2.util
 
 import cats.effect.Sync
 import cats.implicits.*
-import coop.rchain.rholang.normalizer2.env.{FreeVarScope, RestrictWriter}
+import coop.rchain.rholang.normalizer2.env.{FreeVarScope, NestingInfoWriter}
 
-case class MockRestrictWriter[F[_]: Sync]() extends RestrictWriter[F] {
+case class MockNestingInfoWriter[F[_]: Sync]() extends NestingInfoWriter[F] {
   private var insidePatternFlag: Boolean                = false
   private var insideTopLevelReceivePatternFlag: Boolean = false
   private var insideBundleFlag: Boolean                 = false
 
-  override def restrictAsPattern[R](inReceive: Boolean)(scopeFn: F[R]): F[R] = for {
+  override def markAsPattern[R](inReceive: Boolean)(scopeFn: F[R]): F[R] = for {
     insidePatternFlagRestore               <- Sync[F].delay(insidePatternFlag)
     _                                       = insidePatternFlag = true
     insideTopLevelReceivePatternFlagRestore = insideTopLevelReceivePatternFlag
@@ -19,7 +19,7 @@ case class MockRestrictWriter[F[_]: Sync]() extends RestrictWriter[F] {
     _                                       = insideTopLevelReceivePatternFlag = insideTopLevelReceivePatternFlagRestore
   } yield res
 
-  override def restrictAsBundle[R](scopeFn: F[R]): F[R] = for {
+  override def markAsBundle[R](scopeFn: F[R]): F[R] = for {
     insideBundleFlagRestore <- Sync[F].delay(insideBundleFlag)
     _                        = insideBundleFlag = true
     res                     <- scopeFn

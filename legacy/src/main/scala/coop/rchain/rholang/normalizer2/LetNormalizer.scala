@@ -14,7 +14,7 @@ object LetNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def normalizeLet[F[
     _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
     p: PLet,
   ): F[ParN] =
     p.decls_ match {

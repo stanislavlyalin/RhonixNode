@@ -2,13 +2,13 @@ package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, FreeVarScope, RestrictWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, FreeVarScope, NestingInfoWriter}
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.EMatchesN
 import io.rhonix.rholang.ast.rholang.Absyn.{PMatches, Proc}
 
 object MatchesNormalizer {
-  def normalizeMatches[F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter](
+  def normalizeMatches[F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter](
     p: PMatches,
   ): F[EMatchesN] = {
     // The expression "target matches pattern" should have the same semantics as "match target { pattern => true ; _ => false}".

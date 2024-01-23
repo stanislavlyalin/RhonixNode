@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2.syntax
 import cats.effect.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarScope, RestrictWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarScope, NestingInfoWriter}
 import coop.rchain.rholang.syntax.normalizerEffectSyntax
 
 trait EffectSyntax {
@@ -16,11 +16,11 @@ class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
    * @param inReceive Flag should be true for pattern in receive (input) or contract. */
   def asPattern(
     inReceive: Boolean = false,
-  )(implicit bwScope: BoundVarScope[F], fwScope: FreeVarScope[F], rWriter: RestrictWriter[F]): F[A] =
-    bwScope.withNewBoundVarScope(fwScope.withNewFreeVarScope(rWriter.restrictAsPattern(inReceive)(f)))
+  )(implicit bwScope: BoundVarScope[F], fwScope: FreeVarScope[F], rWriter: NestingInfoWriter[F]): F[A] =
+    bwScope.withNewBoundVarScope(fwScope.withNewFreeVarScope(rWriter.markAsPattern(inReceive)(f)))
 
   /** Run function with restricted conditions with restrictions as for the bundle */
-  def asBundle()(implicit rWriter: RestrictWriter[F]): F[A] = rWriter.restrictAsBundle(f)
+  def asBundle()(implicit rWriter: NestingInfoWriter[F]): F[A] = rWriter.markAsBundle(f)
 
   /** Bound free variables in a copy of the current scope.
    *

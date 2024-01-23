@@ -16,7 +16,7 @@ class NewNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
 
   behavior of "New normalizer"
 
-  it should "normalize the new term body, sort and add bound variables in the correct order, and construct the ADT term" in {
+  it should "normalize the new term body, sort and add bound variables in the correct order" in {
     forAll { (bodyStr: String, bindsStr: Seq[String], urnsData: Map[String, String]) =>
       // Map[Uri, Name] is used to ensure that each Uri is unique
       val urnsStr                  = urnsData.toSeq

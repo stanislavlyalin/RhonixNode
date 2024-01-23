@@ -14,7 +14,7 @@ object MatchNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def normalizeMatch[F[
     _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
     p: PMatch,
   ): F[MatchN] = {
     def normalizeCase(c: Case): F[MatchCaseN] = c match {

@@ -13,8 +13,8 @@ import scala.collection.mutable.ListBuffer
 case class MockNormalizerRec[F[_]: Sync, T](
   bWScope: MockBoundVarScope[F],
   fWScope: MockFreeVarScope[F],
-  rWriter: MockRestrictWriter[F],
-  rReader: MockRestrictReader,
+  infoWriter: MockNestingInfoWriter[F],
+  infoReader: MockNestingInfoReader,
 ) extends NormalizerRec[F] {
   private val buffer: ListBuffer[TermData] = ListBuffer.empty
 
@@ -25,9 +25,9 @@ case class MockNormalizerRec[F[_]: Sync, T](
         boundNewScopeLevel = bWScope.getNewScopeLevel,
         boundCopyScopeLevel = bWScope.getCopyScopeLevel,
         freeScopeLevel = fWScope.getScopeLevel,
-        insidePattern = rWriter.getInsidePatternFlag,
-        insideTopLevelReceive = rWriter.getInsideTopLevelReceivePatternFlag,
-        insideBundle = rWriter.getInsideBundleFlag,
+        insidePattern = infoWriter.getInsidePatternFlag,
+        insideTopLevelReceive = infoWriter.getInsideTopLevelReceivePatternFlag,
+        insideBundle = infoWriter.getInsideBundleFlag,
       ),
     )
 

@@ -14,7 +14,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class ParNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Par normalizer" should "normalize AST term" in {
+  "Par normalizer" should "normalize PPar term" in {
     forAll { (s1: String, s2: String) =>
       val left  = new PGround(new GroundString(s1))
       val right = new PGround(new GroundString(s2))

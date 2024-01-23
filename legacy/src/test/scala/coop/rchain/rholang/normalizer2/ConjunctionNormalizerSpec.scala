@@ -16,13 +16,13 @@ class ConjunctionNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyCheck
 
   behavior of "Conjunction normalizer"
 
-  it should "convert AST term to ADT term" in {
+  it should "normalize PConjunction term" in {
     forAll { (s1: String, s2: String) =>
       val left  = new PGround(new GroundString(s1))
       val right = new PGround(new GroundString(s2))
       val term  = new PConjunction(left, right)
 
-      implicit val (mockRec, _, _, _, _, _, _, _, rReader) = createMockDSL[IO, VarSort](isPattern = true)
+      implicit val (mockRec, _, _, _, _, _, _, _, infoReader) = createMockDSL[IO, VarSort](isPattern = true)
 
       val adt = ConjunctionNormalizer.normalizeConjunction[IO](term).unsafeRunSync()
 

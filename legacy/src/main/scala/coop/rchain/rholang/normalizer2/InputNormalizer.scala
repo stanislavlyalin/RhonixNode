@@ -17,7 +17,7 @@ object InputNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def normalizeInput[F[
     _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: RestrictWriter, T: BoundVarWriter: FreeVarReader](
+  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
     p: PInput,
   ): F[ParN] = {
     if (p.listreceipt_.size() > 1) {

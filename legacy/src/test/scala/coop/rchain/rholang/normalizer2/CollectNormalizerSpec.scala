@@ -15,7 +15,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "list normalizer" should "convert AST term to ADT term" in {
+  "list normalizer" should "normalize CollectList term" in {
     forAll { (strings: Seq[String]) =>
       val gStrings      = strings.map(x => new PGround(new GroundString(x)))
       val listProc      = new ListProc()
@@ -42,7 +42,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
     }
   }
 
-  "tuple normalizer" should "convert AST term to ADT term" in {
+  "tuple normalizer" should "normalize CollectTuple term" in {
     forAll(Gen.nonEmptyListOf[String](Arbitrary.arbitrary[String])) { strings: Seq[String] =>
       val gStrings = strings.map(x => new PGround(new GroundString(x)))
 
@@ -75,7 +75,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
     }
   }
 
-  "set normalizer" should "convert AST term to ADT term" in {
+  "set normalizer" should "normalize CollectSet term" in {
     forAll { (strings: Set[String]) =>
       val gStrings      = strings.toSeq.map(x => new PGround(new GroundString(x)))
       val listProc      = new ListProc()
@@ -103,7 +103,7 @@ class CollectNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wi
     }
   }
 
-  "map normalizer" should "convert AST term to ADT term" in {
+  "map normalizer" should "normalize CollectMap term" in {
     forAll { (stringPairs: Map[String, String]) =>
       val procPairs     = stringPairs.toSeq.map { case (k, v) =>
         (new PGround(new GroundString(k)), new PGround(new GroundString(v)))

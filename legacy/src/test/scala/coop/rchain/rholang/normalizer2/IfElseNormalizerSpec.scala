@@ -15,7 +15,7 @@ class IfElseNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wit
 
   behavior of "IfElse normalizer"
 
-  "IfElse normalizer" should "convert AST term to match ADT term" in {
+  "IfElse normalizer" should "normalize PIfElse term" in {
     forAll { (targetStr: String, trueCaseStr: String, falseCaseStr: String) =>
       val targetTerm = new PVar(new ProcVarVar(targetStr))
       val trueCase   = new PGround(new GroundString(trueCaseStr))

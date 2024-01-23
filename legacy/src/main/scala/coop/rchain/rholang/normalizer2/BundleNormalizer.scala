@@ -4,13 +4,13 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.interpreter.errors.{InterpreterError, UnexpectedBundleContent}
-import coop.rchain.rholang.normalizer2.env.RestrictWriter
+import coop.rchain.rholang.normalizer2.env.NestingInfoWriter
 import coop.rchain.rholang.syntax.normalizerEffectSyntax
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object BundleNormalizer {
-  def normalizeBundle[F[_]: Sync: NormalizerRec: RestrictWriter](p: PBundle): F[BundleN] = {
+  def normalizeBundle[F[_]: Sync: NormalizerRec: NestingInfoWriter](p: PBundle): F[BundleN] = {
     def connectivesExistOnTop(p: ParN): Boolean =
       p match {
         case _: ConnectiveN  => true

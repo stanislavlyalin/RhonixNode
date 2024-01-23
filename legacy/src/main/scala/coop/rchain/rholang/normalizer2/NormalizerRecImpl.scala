@@ -10,8 +10,8 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 
 final case class NormalizerRecImpl[F[
   +_,
-]: Sync: BoundVarScope: FreeVarScope: RestrictWriter, T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader]()(
-  implicit fWScopeReader: RestrictReader,
+]: Sync: BoundVarScope: FreeVarScope: NestingInfoWriter, T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader]()(
+  implicit fWScopeReader: NestingInfoReader,
 ) extends NormalizerRec[F] {
 
   implicit val nRec = this

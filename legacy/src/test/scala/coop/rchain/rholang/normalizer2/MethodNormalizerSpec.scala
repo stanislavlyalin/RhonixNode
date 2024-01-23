@@ -13,7 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MethodNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Method normalizer" should "normalize AST term" in {
+  "Method normalizer" should "normalize PMethod term" in {
     forAll { (targetStr: String, methodName: String, argsStr: Seq[String]) =>
       val target = new PGround(new GroundString(targetStr))
 
