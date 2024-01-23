@@ -6,6 +6,7 @@ import cats.effect.*
 import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
+import db.Config as DbConfig
 import diagnostics.KamonContextStore
 import diagnostics.metrics.{Config as InfluxDbConfig, InfluxDbBatchedMetrics}
 import dproc.data.Block
@@ -58,6 +59,7 @@ object NetworkSim extends IOApp {
     sim: SimConfig,
     node: NodeConfig,
     influxDb: InfluxDbConfig,
+    dbCfg: DbConfig,
   )
 
   final case class NetNode[F[_]](
@@ -116,6 +118,7 @@ object NetworkSim extends IOApp {
     netCfg: SimConfig,
     nodeCfg: NodeConfig,
     ifxDbCfg: InfluxDbConfig,
+    dbCfg: DbConfig,
   ): Stream[F, Unit] = {
     val rnd                = new scala.util.Random()
     /// Users (wallets) making transactions
@@ -215,7 +218,7 @@ object NetworkSim extends IOApp {
               _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
             } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
 
-          def unsaveReadBlock(id: ByteArray) = dbApi.readBlock(id).map(_.get)
+          def unsafeReadBlock(id: ByteArray) = dbApi.readBlock(id).map(_.get)
 
           val netNode = Node[F, M, S, T](
             vId,
@@ -224,7 +227,7 @@ object NetworkSim extends IOApp {
             nextTxs,
             buildState,
             dbApi.saveBlock,
-            unsaveReadBlock,
+            unsafeReadBlock,
           ).map { node =>
             val tpsRef    = Ref.unsafe[F, Double](0f)
             val tpsUpdate = node.dProc.finStream
@@ -287,16 +290,7 @@ object NetworkSim extends IOApp {
       lfs.state.bonds.activeSet.toList.traverse(mkNode(_, db))
 
     Stream
-      .resource(
-        slick.PostgresSlickDb[F](
-          s"jdbc:postgresql://localhost:5432/${nodeCfg.dbName}",
-          nodeCfg.dbUser,
-          nodeCfg.dbPassword,
-          10,
-          10,
-          20,
-        ),
-      )
+      .resource(slick.PostgresSlickDb[F](dbCfg))
       .flatMap { db =>
         Stream
           .resource(mkNet(lfs, db))
@@ -537,19 +531,19 @@ object NetworkSim extends IOApp {
         val mkPrng         = Random.scalaUtilRandom[IO]
 
         (loadConfig, mkContextStore, mkPrng).flatMapN {
-          case (Config(network, node, influxDb), ioLocalKamonContext, prng) =>
+          case (Config(network, node, influxDb, dbCfg), ioLocalKamonContext, prng) =>
             implicit val x: KamonContextStore[IO] = ioLocalKamonContext
             implicit val y: Random[IO]            = prng
 
             if (node.persistOnChainState)
-              NetworkSim.sim[IO](network, node, influxDb).compile.drain.as(ExitCode.Success)
+              NetworkSim.sim[IO](network, node, influxDb, dbCfg).compile.drain.as(ExitCode.Success)
             else {
               // in memory cannot run forever so restart each minute
               Stream
                 .eval(SignallingRef.of[IO, Boolean](false))
                 .flatMap { sRef =>
                   val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
-                  NetworkSim.sim[IO](network, node, influxDb).interruptWhen(sRef) concurrently resetStream
+                  NetworkSim.sim[IO](network, node, influxDb, dbCfg).interruptWhen(sRef) concurrently resetStream
                 }
                 .repeat
                 .compile
