@@ -116,7 +116,6 @@ object Dependencies {
   // Database
   val junitJupiter         = "org.junit.jupiter"  % "junit-jupiter-api" % "5.10.0" % Test
   val postgresql           = "org.postgresql"     % "postgresql"        % "42.6.0"
-  val h2db                 = "com.h2database"     % "h2"                % "2.1.214"
   val slick: Seq[ModuleID] = Seq(
     "com.typesafe.slick"                 %% "slick"               % "3.4.1",
     "org.slf4j"                           % "slf4j-nop"           % "2.0.5",
@@ -148,5 +147,5 @@ object Dependencies {
 
   val tests = Seq(scalatest, scalatest_ce, mockito, scalacheck_e, scalacheckShapeless, scalatestScalacheck, embedPgsql)
 
-  val dbLibs = Seq(h2db, postgresql, junitJupiter, dbcp2) ++ slick
+  val dbLibs = Seq(postgresql, junitJupiter, dbcp2) ++ slick
 }

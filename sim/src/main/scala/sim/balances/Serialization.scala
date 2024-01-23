@@ -1,15 +1,14 @@
 package sim.balances
 
-import cats.Monad
 import cats.syntax.all.*
+import cats.{Applicative, Monad}
 import dproc.data.Block
 import sdk.api.data.TokenTransferRequest
 import sdk.codecs.{PrimitiveReader, PrimitiveWriter, Serialize}
 import sdk.primitive.ByteArray
 import sim.balances.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sim.NetworkSim.*
-import weaver.data.ConflictResolution
-import weaver.data.Bonds
+import weaver.data.{Bonds, ConflictResolution}
 
 object Serialization {
   implicit def balancesStateSerialize[F[_]: Monad]: Serialize[F, BalancesState] =
@@ -166,6 +165,8 @@ object Serialization {
         } yield TokenTransferRequest(pubKey, digest, signature, signatureAlg, body)
     }
 
-  private def serializeSeq[F[_]: Monad, A: Ordering](l: Seq[A], writeF: A => F[Unit]): F[Unit] =
+  // This function is needed to work around the problem with `traverse_`
+  // See more examples here: https://gist.github.com/nzpr/38f843139224d1de1f0e9d15c75e925c
+  private def serializeSeq[F[_]: Applicative, A: Ordering](l: Seq[A], writeF: A => F[Unit]): F[Unit] =
     l.sorted.map(writeF).fold(().pure[F])(_ *> _)
 }
