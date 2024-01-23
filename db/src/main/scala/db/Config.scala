@@ -2,7 +2,7 @@ package db
 
 import sdk.reflect.Description
 
-@Description("db")
+@Description("dbCfg")
 final case class Config(
   @Description("Database URL")
   dbUrl: String = "jdbc:postgresql://localhost:5432/gorki_node_db",
