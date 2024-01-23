@@ -21,8 +21,8 @@ object ContrNormalizer {
       normalizePattern = for {
                            patterns <- p.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
                            reminder <- NormalizerRec[F].normalize(p.nameremainder_)
-                           vars      = FreeVarReader[T].getFreeVars
-                         } yield (ReceiveBindN(patterns, source, reminder, vars.size), vars)
+                           freeCount = FreeVarReader[T].getFreeVars.size
+                         } yield ReceiveBindN(patterns, source, reminder, freeCount)
       patternTuple    <- normalizePattern.asPattern(inReceive = true)
 
       (bind, freeVars) = patternTuple

@@ -114,17 +114,17 @@ object LetNormalizer {
               normalizePattern = for {
                                    rem <- NormalizerRec[F].normalize(declImpl.nameremainder_)
                                    ps  <- declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
-                                 } yield (ps, rem, FreeVarReader[T].getFreeVars)
+                                 } yield EListN(ps, rem)
               patternTuple    <- normalizePattern.asPattern()
 
-              (patterns, patternRemainder, patternFreeVars) = patternTuple
+              (patterns, patternFreeVars) = patternTuple
 
               continuation <- NormalizerRec[F].normalize(convertDecls(p.decls_)).withAbsorbedFreeVars(patternFreeVars)
             } yield MatchN(
               target = EListN(values),
               cases = Seq(
                 MatchCaseN(
-                  EListN(patterns, patternRemainder),
+                  patterns,
                   continuation,
                   patternFreeVars.size,
                 ),

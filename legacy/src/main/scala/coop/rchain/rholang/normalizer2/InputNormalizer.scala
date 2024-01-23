@@ -195,18 +195,13 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          bind          = for {
-                            binds <- createBinds(patterns, processedSources)
-                            // After pattern processing getFreeVars() will return free variables for all patterns
-                            vars   = FreeVarReader[T].getFreeVars
-                          } yield (binds, vars)
-          patternTuple <- bind.asPattern(inReceive = true)
+          patternTuple <- createBinds(patterns, processedSources).asPattern(inReceive = true)
 
-          (unsortBinds, freeVars) = patternTuple
+          (unsortedBinds, freeVars) = patternTuple
 
           // TODO: The sorting will be removed after the old Rholang types are removed.
           //  With the new types, sorting is unnecessary as they are always sorted by hash.
-          binds <- sortBinds(unsortBinds)
+          binds <- sortBinds(unsortedBinds)
 
           thereAreDuplicatesInSources = processedSources.distinct.size != processedSources.size
           _                          <- ReceiveOnSameChannelsError(p.line_num, p.col_num)

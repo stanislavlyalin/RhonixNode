@@ -20,15 +20,10 @@ object MatchNormalizer {
     def normalizeCase(c: Case): F[MatchCaseN] = c match {
       case ci: CaseImpl =>
         val (pattern, caseBody) = (ci.proc_1, ci.proc_2)
-        val normalizePattern    = for {
-          pattern <- NormalizerRec[F].normalize(pattern)
-          // Get free variables from the pattern
-          freeVars = FreeVarReader[T].getFreeVars
-        } yield (pattern, freeVars)
 
         for {
           // Normalize pattern in a fresh bound and free variables scope
-          patternTuple <- normalizePattern.asPattern()
+          patternTuple <- NormalizerRec[F].normalize(pattern).asPattern()
 
           (patternResult, freeVars) = patternTuple
 

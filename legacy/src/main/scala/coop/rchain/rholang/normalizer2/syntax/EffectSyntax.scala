@@ -1,9 +1,10 @@
 package coop.rchain.rholang.normalizer2.syntax
 
+import cats.{Applicative, Apply, Functor}
 import cats.effect.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
-import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter, FreeVarScope, NestingInfoWriter}
+import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.normalizerEffectSyntax
 
 trait EffectSyntax {
@@ -12,12 +13,23 @@ trait EffectSyntax {
 
 class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
 
-  /** Run function with new Bound and Free variables scope. And with with restricted conditions for the pattern.
+  /** Run a function within a new scope, label it as a pattern
    * @param inReceive Flag should be true for pattern in receive (input) or contract. */
-  def asPattern(
+  def asPatternWithoutFreeExtracting(
     inReceive: Boolean = false,
   )(implicit bwScope: BoundVarScope[F], fwScope: FreeVarScope[F], rWriter: NestingInfoWriter[F]): F[A] =
     bwScope.withNewBoundVarScope(fwScope.withNewFreeVarScope(rWriter.markAsPattern(inReceive)(f)))
+
+  /** Run a function within a new scope, label it as a pattern,
+   * and subsequently extract all free variables from the normalized result of this function.
+   * @param inReceive Flag should be true for pattern in receive (input) or contract. */
+  def asPattern[T](inReceive: Boolean = false)(implicit
+    functor: Functor[F],
+    bwScope: BoundVarScope[F],
+    fwScope: FreeVarScope[F],
+    rWriter: NestingInfoWriter[F],
+    fwReader: FreeVarReader[T],
+  ): F[(A, Seq[(String, FreeContext[T])])] = f.asPatternWithoutFreeExtracting(inReceive).map((_, fwReader.getFreeVars))
 
   /** Run function with restricted conditions with restrictions as for the bundle */
   def asBundle()(implicit rWriter: NestingInfoWriter[F]): F[A] = rWriter.markAsBundle(f)
