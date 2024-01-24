@@ -1,9 +1,9 @@
 package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
-import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
-import coop.rchain.rholang.interpreter.compiler.VarSort
-import coop.rchain.rholang.interpreter.errors.UnrecognizedNormalizerError
+import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxOptionId, catsSyntaxTuple2Semigroupal, none, toFunctorOps}
+import coop.rchain.rholang.interpreter.compiler.*
+import coop.rchain.rholang.interpreter.errors.*
 import coop.rchain.rholang.normalizer2.env.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
@@ -11,10 +11,10 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 final case class NormalizerRecImpl[F[
   +_,
 ]: Sync: BoundVarScope: FreeVarScope: NestingInfoWriter, T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader]()(
-  implicit fWScopeReader: NestingInfoReader,
+  implicit nestingInfo: NestingInfoReader,
 ) extends NormalizerRec[F] {
 
-  implicit val nRec = this
+  implicit val nRec: NormalizerRecImpl[F, T] = this
 
   override def normalize(proc: Proc): F[ParN] = Sync[F].defer {
     def unaryExp(subProc: Proc, constructor: ParN => ExprN): F[ParN] =
@@ -31,7 +31,7 @@ final case class NormalizerRecImpl[F[
       case p: PSimpleType  => Sync[F].delay(SimpleTypeNormalizer.normalizeSimpleType(p))
       case p: PGround      => GroundNormalizer.normalizeGround(p)
       case p: PCollect     => CollectNormalizer.normalizeCollect(p)
-      case p: PVar         => VarNormalizer.normalizeVar[F, T](p)
+      case p: PVar         => VarNormalizer.normalizeProcVar[F, T](p)
       case p: PVarRef      => VarRefNormalizer.normalizeVarRef[F, T](p)
       case _: PNil         => Sync[F].delay(NilN: ParN)
       case p: PEval        => EvalNormalizer.normalizeEval(p)
@@ -78,10 +78,23 @@ final case class NormalizerRecImpl[F[
     normalizedProc
   }
 
-  override def normalize(name: Name): F[ParN] = ???
+  override def normalize(name: Name): F[ParN] = Sync[F].defer {
+    name match {
+      case nv: NameVar      => VarNormalizer.asBoundVar[F, T](nv.var_, SourcePosition(nv.line_num, nv.col_num), NameSort)
+      case nq: NameQuote    => NormalizerRec[F].normalize(nq.proc_)
+      case wc: NameWildcard => VarNormalizer.asWildcard[F](SourcePosition(wc.line_num, wc.col_num))
+    }
+  }
 
-  override def normalize(remainder: ProcRemainder): F[Option[VarN]] = ???
+  override def normalize(remainder: ProcRemainder): F[Option[VarN]] =
+    remainder match {
+      case _: ProcRemainderEmpty => none.pure
+      case pr: ProcRemainderVar  => VarNormalizer.asRemainder[F, T](pr.procvar_).map(_.some)
+    }
 
-  override def normalize(remainder: NameRemainder): F[Option[VarN]] = ???
-
+  override def normalize(remainder: NameRemainder): F[Option[VarN]] =
+    remainder match {
+      case _: NameRemainderEmpty => none.pure
+      case nr: NameRemainderVar  => VarNormalizer.asRemainder[F, T](nr.procvar_).map(_.some)
+    }
 }

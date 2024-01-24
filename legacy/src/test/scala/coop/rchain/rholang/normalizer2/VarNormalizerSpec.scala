@@ -29,7 +29,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
         initBoundVars = Map(varName -> (varIndex, ProcSort)),
       )
 
-      val par = VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+      val par = VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
       par shouldBe BoundVarN(varIndex)
     }
   }
@@ -44,7 +44,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       )
 
       val thrown = intercept[UnexpectedProcContext] {
-        VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+        VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
       }
 
       thrown.getMessage should include(varName)
@@ -58,7 +58,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       // Create a mock DSL with an empty BoundVarMap and FreeVarMap, and with the false `isTopLevel` flag.
       implicit val (_, _, _, bVR, _, fVW, fVR, _, infoReader) = createMockDSL[IO, VarSort](isPattern = true)
 
-      val par = VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+      val par = VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
 
       val addedFreeVars    = fVW.extractData
       val expectedFreeVars = Seq(FreeVarWriterData(name = varName, varType = ProcSort))
@@ -78,7 +78,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       implicit val (_, _, _, bVR, _, fVW, fVR, _, infoReader) = createMockDSL[IO, VarSort]()
 
       val thrown = intercept[TopLevelFreeVariablesNotAllowedError] {
-        VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+        VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
       }
 
       thrown.getMessage should include(varName)
@@ -96,7 +96,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       )
 
       val thrown = intercept[UnexpectedReuseOfProcContextFree] {
-        VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+        VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
       }
 
       thrown.getMessage should include(varName)
@@ -110,7 +110,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       isPattern = true,
     )
 
-    val par = VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+    val par = VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
     par shouldBe WildcardN
   }
 
@@ -121,7 +121,7 @@ class VarNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
     implicit val (_, _, _, bVR, _, fVW, fVR, _, infoReader) = createMockDSL[IO, VarSort]()
 
     val thrown = intercept[TopLevelWildcardsNotAllowedError] {
-      VarNormalizer.normalizeVar[IO, VarSort](term).unsafeRunSync()
+      VarNormalizer.normalizeProcVar[IO, VarSort](term).unsafeRunSync()
     }
 
     thrown.getMessage should include("wildcard")
