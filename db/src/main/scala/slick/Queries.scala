@@ -27,8 +27,6 @@ final case class Queries(profile: JdbcProfile) {
 
   val deployIdBySig = Compiled((sig: Rep[Array[Byte]]) => deployBySig.extract(sig).map(_.id))
 
-  def deployIdsBySigs(sigs: Seq[Array[Byte]]) = Compiled(qDeploys.filter(_.sig inSet sigs).map(_.id))
-
   val deployWithDataBySig = Compiled((sig: Rep[Array[Byte]]) =>
     for {
       deploy   <- deployBySig.extract(sig)
@@ -45,6 +43,8 @@ final case class Queries(profile: JdbcProfile) {
     } yield (ds.hash, d.sig),
   )
 
+  val deploysCompiled = Compiled(qDeploys.map(identity))
+
   /** Block */
 
   val blocks = Compiled(qBlocks.map(_.hash))
@@ -53,9 +53,15 @@ final case class Queries(profile: JdbcProfile) {
 
   val blockByHash = Compiled((hash: Rep[Array[Byte]]) => qBlocks.filter(_.hash === hash))
 
+  val blocksCompiled = Compiled(qBlocks.map(identity))
+
   /** DeploySet */
 
   val deploySetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qDeploySets.filter(_.hash === hash).map(_.id))
+
+  val deploySetsCompiled = Compiled(qDeploySets.map(_.hash))
+
+  val deploySetBindsCompiled = Compiled(qDeploySetBinds.map(identity))
 
   /** BlockSet */
 
@@ -68,6 +74,10 @@ final case class Queries(profile: JdbcProfile) {
       b   <- qBlocks if b.id === bsb.blockId
     } yield (bs.hash, b.hash),
   )
+
+  val blockSetsCompiled = Compiled(qBlockSets.map(_.hash))
+
+  val blockSetBindsCompiled = Compiled(qBlockSetBinds.map(identity))
 
   /** BondsMap */
 
