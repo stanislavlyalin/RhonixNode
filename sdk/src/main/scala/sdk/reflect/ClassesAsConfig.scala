@@ -16,8 +16,12 @@ object ClassesAsConfig {
 
       ClassAsTuple(clz)
         .map { case (name, value, anno) =>
+          val formattedValue = value match {
+            case s: String => s""""$s""""
+            case _         => value.toString
+          }
           s"""|# $anno
-              |$root.$configName.$name: $value
+              |$root.$configName.$name: $formattedValue
               |""".stripMargin
         }
         .mkString("")
