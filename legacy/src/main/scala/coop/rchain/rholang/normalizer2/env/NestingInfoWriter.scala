@@ -1,5 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
+/** Preserve information about nesting structure during normalization. */
 trait NestingInfoWriter[F[_]] {
 
   /** Run scopeFn with a note that this is a pattern

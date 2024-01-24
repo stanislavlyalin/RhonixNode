@@ -1,5 +1,6 @@
 package coop.rchain.rholang.normalizer2.env
 
+/** Retrieve information about nesting structure during normalization. */
 trait NestingInfoReader {
 
   /** Current processing is being executed within a pattern. */

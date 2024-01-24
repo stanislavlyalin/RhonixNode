@@ -4,7 +4,8 @@ import coop.rchain.rholang.interpreter.compiler.IdContext
 
 trait FreeVarWriter[T] {
 
-  /** Puts free variables to the context */
+  /** Puts free variables to the context
+   * @return Bruijn index of the added variable */
   def putFreeVar(binding: IdContext[T]): Int
 }
 

@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2.util
 
 import coop.rchain.rholang.interpreter.compiler.BoundContext
 import coop.rchain.rholang.normalizer2.env.BoundVarReader
-import coop.rchain.rholang.normalizer2.util.Mock.{DefPosition, VarReaderData}
+import coop.rchain.rholang.normalizer2.util.Mock.DefPosition
 
 case class MockBoundVarReader[T](boundVars: Map[String, (Int, T)]) extends BoundVarReader[T] {
   private val boundVarMap: Map[String, BoundContext[T]] =
