@@ -5,8 +5,8 @@ import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.errors.UnrecognizedNormalizerError
 import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.*
-import io.rhonix.rholang.ast.rholang.Absyn.{Case, CaseImpl, PMatch}
-import io.rhonix.rholang.{MatchCaseN, MatchN}
+import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.*
 
 import scala.jdk.CollectionConverters.*
 

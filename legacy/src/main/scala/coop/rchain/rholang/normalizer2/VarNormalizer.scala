@@ -4,9 +4,9 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.*
 import coop.rchain.rholang.interpreter.errors.*
-import coop.rchain.rholang.normalizer2.env.{BoundVarReader, FreeVarReader, FreeVarWriter, NestingInfoReader}
-import io.rhonix.rholang.ast.rholang.Absyn.{PVar, ProcVar, ProcVarVar, ProcVarWildcard}
-import io.rhonix.rholang.{BoundVarN, FreeVarN, VarN, WildcardN}
+import coop.rchain.rholang.normalizer2.env.*
+import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.*
 
 object VarNormalizer {
   def normalizeVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](

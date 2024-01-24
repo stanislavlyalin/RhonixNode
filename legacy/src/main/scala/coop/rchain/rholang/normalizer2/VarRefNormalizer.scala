@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.*
-import coop.rchain.rholang.interpreter.errors.{UnboundVariableRef, UnexpectedNameContext, UnexpectedProcContext}
+import coop.rchain.rholang.interpreter.errors.*
 import coop.rchain.rholang.normalizer2.env.BoundVarReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*

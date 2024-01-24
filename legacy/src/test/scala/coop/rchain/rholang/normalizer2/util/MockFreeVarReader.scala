@@ -1,7 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 import coop.rchain.rholang.interpreter.compiler.FreeContext
 import coop.rchain.rholang.normalizer2.env.FreeVarReader
-import coop.rchain.rholang.normalizer2.util.Mock.{DefPosition, VarReaderData}
+import coop.rchain.rholang.normalizer2.util.Mock.DefPosition
 
 case class MockFreeVarReader[T](
   freeVars: Map[String, (Int, T)],

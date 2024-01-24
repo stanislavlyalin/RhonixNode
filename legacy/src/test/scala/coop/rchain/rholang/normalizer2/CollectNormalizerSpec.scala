@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import coop.rchain.rholang.interpreter.compiler.VarSort
 import coop.rchain.rholang.normalizer2.util.Mock.*
-import coop.rchain.rholang.normalizer2.util.MockNormalizerRec
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
 import io.rhonix.rholang.{EListN, EMapN, ESetN, ETupleN}
 import io.rhonix.rholang.ast.rholang.Absyn.*

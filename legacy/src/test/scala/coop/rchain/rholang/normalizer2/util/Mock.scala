@@ -1,6 +1,5 @@
 package coop.rchain.rholang.normalizer2.util
 
-import cats.Applicative
 import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}

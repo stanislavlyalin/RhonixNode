@@ -4,9 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import coop.rchain.rholang.interpreter.compiler.VarSort
 import coop.rchain.rholang.normalizer2.util.Mock.*
-import coop.rchain.rholang.normalizer2.util.MockNormalizerRec
 import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.mockADT
-import io.rhonix.rholang.{ParN, ParProcN}
+import io.rhonix.rholang.ParProcN
 import io.rhonix.rholang.ast.rholang.Absyn.{GroundString, PGround, PPar, Proc}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

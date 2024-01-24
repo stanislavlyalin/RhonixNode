@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
-import coop.rchain.rholang.interpreter.errors.{PatternReceiveError, TopLevelLogicalConnectivesNotAllowedError}
+import coop.rchain.rholang.interpreter.errors.*
 import coop.rchain.rholang.normalizer2.env.NestingInfoReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*

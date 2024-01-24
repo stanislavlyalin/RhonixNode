@@ -10,8 +10,8 @@ import coop.rchain.rholang.interpreter.errors.{
   UnexpectedReuseOfProcContextFree,
 }
 import coop.rchain.rholang.normalizer2.util.Mock.*
-import io.rhonix.rholang.{BoundVarN, FreeVarN, WildcardN}
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.{BoundVarN, FreeVarN, WildcardN}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
