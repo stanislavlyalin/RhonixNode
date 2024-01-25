@@ -98,4 +98,10 @@ final case class Queries(profile: JdbcProfile) {
   val validatorIdByPK = Compiled((pK: Rep[Array[Byte]]) => qValidators.filter(_.pubKey === pK).map(_.id))
 
   val validatorPkById = Compiled((validatorId: Rep[Long]) => qValidators.filter(_.id === validatorId).map(_.pubKey))
+
+  /** Peer */
+
+  val peersCompiled = Compiled(qPeers.map(identity))
+
+  val peerIdByPk = Compiled((url: Rep[String]) => qPeers.filter(_.url === url).map(_.id))
 }
