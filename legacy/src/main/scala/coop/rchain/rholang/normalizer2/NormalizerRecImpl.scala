@@ -7,6 +7,7 @@ import coop.rchain.rholang.interpreter.errors.*
 import coop.rchain.rholang.normalizer2.env.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import sdk.syntax.all.*
 
 final case class NormalizerRecImpl[
   F[+_]: Sync: BoundVarScope: FreeVarScope: NestingInfoWriter,
@@ -51,7 +52,7 @@ object NormalizerRecImpl {
       NormalizerRec[F].normalize(subProc).map(constructor)
 
     def binaryExp(subProcLeft: Proc, subProcRight: Proc, constructor: (ParN, ParN) => ExprN): F[ParN] =
-      (NormalizerRec[F].normalize(subProcLeft), NormalizerRec[F].normalize(subProcRight)).mapN(constructor)
+      (subProcLeft, subProcRight).nmap(NormalizerRec[F].normalize).mapN(constructor)
 
     // Dispatch to normalizer methods depending on parser AST type
     proc match {
