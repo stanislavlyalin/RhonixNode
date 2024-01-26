@@ -12,6 +12,7 @@ import sdk.data.{Block, Deploy}
 import sdk.primitive.ByteArray
 import slick.SlickSpec.*
 import slick.api.SlickApi
+import slick.api.data.Peer
 import slick.syntax.all.*
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -176,6 +177,44 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
             (storeF >> loadF).unsafeRunSync() shouldBe Some(value)
           }
         }
+      }
+      .unsafeRunSync()
+  }
+
+  "Loaded peers" should "be the same as generated and stored peers" in {
+    forAll(Gen.nonEmptyListOf(nonEmptyAlphaString)) { urls =>
+      val peers = urls.map(Peer(_, isSelf = false)) match {
+        case head :: tail => head.copy(isSelf = true) +: tail
+        case list         => list
+      }
+
+    embedPgSlick[IO]
+      .use { api =>
+        implicit val async            = Async[IO]
+        implicit val slickDb: SlickDb = api.slickDb
+
+        for {
+          _           <- peers.traverse(peer => api.actions.peerInsertIfNot(peer.url, peer.isSelf).run)
+          loadedPeers <- api.actions.peers.run
+        } yield peers shouldBe loadedPeers
+      }
+      .unsafeRunSync()
+    }
+  }
+
+  "Insert and then remove peer" should "lead to empty peer table" in {
+    embedPgSlick[IO]
+      .use { api =>
+        implicit val async            = Async[IO]
+        implicit val slickDb: SlickDb = api.slickDb
+
+        val url  = "url"
+        val peer = Peer(url, isSelf = true)
+        for {
+          _       <- api.actions.peerInsertIfNot(peer.url, peer.isSelf).run
+          _       <- api.actions.removePeer(peer.url).run
+          dbPeers <- api.actions.peers.run
+        } yield dbPeers shouldBe Seq.empty[Peer]
       }
       .unsafeRunSync()
   }
