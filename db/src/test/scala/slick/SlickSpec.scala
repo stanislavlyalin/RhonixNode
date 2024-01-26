@@ -8,11 +8,11 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sdk.comm.Peer
 import sdk.data.{Block, Deploy}
 import sdk.primitive.ByteArray
 import slick.SlickSpec.*
 import slick.api.SlickApi
-import slick.api.data.Peer
 import slick.syntax.all.*
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -183,7 +183,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
   "Loaded peers" should "be the same as generated and stored peers" in {
     forAll(Gen.nonEmptyListOf(nonEmptyAlphaString)) { urls =>
-      val peers = urls.map(Peer(_, isSelf = false)) match {
+      val peers = urls.map(Peer(_, isSelf = false, isValidator = true)) match {
         case head :: tail => head.copy(isSelf = true) +: tail
         case list         => list
       }
@@ -194,7 +194,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         implicit val slickDb: SlickDb = api.slickDb
 
         for {
-          _           <- peers.traverse(peer => api.actions.peerInsertIfNot(peer.url, peer.isSelf).run)
+          _           <- peers.traverse(peer => api.actions.peerInsertIfNot(peer.url, peer.isSelf, peer.isValidator).run)
           loadedPeers <- api.actions.peers.run
         } yield peers shouldBe loadedPeers
       }
@@ -209,9 +209,9 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
         implicit val slickDb: SlickDb = api.slickDb
 
         val url  = "url"
-        val peer = Peer(url, isSelf = true)
+        val peer = Peer(url, isSelf = true, isValidator = true)
         for {
-          _       <- api.actions.peerInsertIfNot(peer.url, peer.isSelf).run
+          _       <- api.actions.peerInsertIfNot(peer.url, peer.isSelf, peer.isValidator).run
           _       <- api.actions.removePeer(peer.url).run
           dbPeers <- api.actions.peers.run
         } yield dbPeers shouldBe Seq.empty[Peer]

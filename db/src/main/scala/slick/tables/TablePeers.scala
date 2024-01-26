@@ -5,11 +5,12 @@ import slick.lifted.ProvenShape
 import slick.tables.TablePeers.Peer
 
 class TablePeers(tag: Tag) extends Table[Peer](tag, "peer") {
-  def id: Rep[Long]        = column[Long]("id", O.AutoInc, O.PrimaryKey)
-  def url: Rep[String]     = column[String]("url", O.Unique)
-  def isSelf: Rep[Boolean] = column[Boolean]("isSelf")
+  def id: Rep[Long]             = column[Long]("id", O.AutoInc, O.PrimaryKey)
+  def url: Rep[String]          = column[String]("url", O.Unique)
+  def isSelf: Rep[Boolean]      = column[Boolean]("isSelf")
+  def isValidator: Rep[Boolean] = column[Boolean]("isValidator")
 
-  override def * : ProvenShape[Peer] = (id, url, isSelf).mapTo[Peer]
+  override def * : ProvenShape[Peer] = (id, url, isSelf, isValidator).mapTo[Peer]
 }
 
 object TablePeers {
@@ -17,5 +18,6 @@ object TablePeers {
     id: Long,
     url: String,
     isSelf: Boolean,
+    isValidator: Boolean,
   )
 }
