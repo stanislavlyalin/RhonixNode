@@ -5,13 +5,13 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
 import coop.rchain.rholang.normalizer2.env.*
-import coop.rchain.rholang.syntax.normalizerEffectSyntax
+import coop.rchain.rholang.syntax.rholangNormalizerSyntax
 
-trait EffectSyntax {
-  implicit def normalizerEffectSyntax[F[_], A](f: F[A]): NormalizerEffectOps[F, A] = new NormalizerEffectOps[F, A](f)
+trait NormalizerSyntax {
+  implicit def rholangNormalizerSyntax[F[_], A](f: F[A]): NormalizerOps[F, A] = new NormalizerOps[F, A](f)
 }
 
-class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
+class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
 
   /** Run a function within a new scope, label it as a pattern
    * @param withinReceive Flag should be true for pattern in receive (input) or contract. */

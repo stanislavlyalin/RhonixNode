@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.*
-import coop.rchain.rholang.syntax.normalizerEffectSyntax
+import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
