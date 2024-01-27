@@ -110,7 +110,7 @@ object NormalizerRecImpl {
       case p: PLet       => LetNormalizer.normalizeLet[F, T](p)
       case p: PMatch     => MatchNormalizer.normalizeMatch[F, T](p)
       case p: PIf        => IfNormalizer.normalizeIf[F](p)
-      case p: PIfElse    => IfElseNormalizer.normalizeIfElse[F](p)
+      case p: PIfElse    => IfNormalizer.normalizeIfElse[F](p)
       case p: PMethod    => MethodNormalizer.normalizeMethod[F](p)
 
       case p => UnrecognizedNormalizerError(s"Unrecognized parser AST type `${p.getClass}`.").raiseError

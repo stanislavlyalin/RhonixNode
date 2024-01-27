@@ -24,7 +24,7 @@ class IfElseNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks wit
 
       implicit val (nRec, _, _, _, _, _, _, _, _) = createMockDSL[IO, VarSort]()
 
-      val adt = IfElseNormalizer.normalizeIfElse[IO](inputTerm).unsafeRunSync()
+      val adt = IfNormalizer.normalizeIfElse[IO](inputTerm).unsafeRunSync()
 
       val expectedAdt = MatchN(
         target = mockADT(targetTerm: Proc),
