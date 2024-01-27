@@ -7,14 +7,18 @@ import coop.rchain.rholang.interpreter.errors.{PatternReceiveError, TopLevelLogi
 import coop.rchain.rholang.normalizer2.env.NestingInfoReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import sdk.syntax.all.*
 
 object DisjunctionNormalizer {
   def normalizeDisjunction[F[_]: Sync: NormalizerRec](
     p: PDisjunction,
   )(implicit nestingInfo: NestingInfoReader): F[ConnOrN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
+
     if (nestingInfo.insidePattern)
-      if (nestingInfo.insideTopLevelReceivePattern) {
+      if (!nestingInfo.insideTopLevelReceivePattern)
+        (p.proc_1, p.proc_2).nmap(NormalizerRec[F].normalize).mapN((left, right) => ConnOrN(Seq(left, right)))
+      else
         // TODO: According to Rholang documentation:
         //  https://github.com/rchain/rchain/blob/25e523580a339db9ce2e8abdc9dcab44618d4c5c/docs/rholang/rholangtut.md?plain=1#L244-L252
         //  Since we cannot rely on a specific pattern matching order,
@@ -25,9 +29,7 @@ object DisjunctionNormalizer {
         //  In the future, it will be necessary to analyze whether the left and right parts of the connective contain free variables
         //  and only in such cases return a PatternReceiveError.
         PatternReceiveError(s"\\/ (disjunction) at $pos").raiseError
-      } else
-        (NormalizerRec[F].normalize(p.proc_1), NormalizerRec[F].normalize(p.proc_2))
-          .mapN((left, right) => ConnOrN(Seq(left, right)))
-    else TopLevelLogicalConnectivesNotAllowedError(s"\\/ (disjunction) at $pos").raiseError
+    else
+      TopLevelLogicalConnectivesNotAllowedError(s"\\/ (disjunction) at $pos").raiseError
   }
 }

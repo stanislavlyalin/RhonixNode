@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.interpreter.errors.{InterpreterError, UnexpectedBundleContent}
 import coop.rchain.rholang.normalizer2.env.NestingInfoWriter
-import coop.rchain.rholang.syntax.normalizerEffectSyntax
+import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
@@ -24,7 +24,7 @@ object BundleNormalizer {
 
     for {
       // Inside bundle target is prohibited to have free variables and wildcards.
-      target <- NormalizerRec[F].normalize(p.proc_).asBundle()
+      target <- NormalizerRec[F].normalize(p.proc_).withinBundle()
       // Inside bundle target is prohibited to have connectives on top level.
       _      <- returnError.whenA(connectivesExistOnTop(target))
 

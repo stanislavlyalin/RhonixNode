@@ -12,9 +12,12 @@ object NegationNormalizer {
   def normalizeNegation[F[_]: Sync: NormalizerRec](
     p: PNegation,
   )(implicit nestingInfo: NestingInfoReader): F[ConnNotN] = {
-    def pos = SourcePosition(p.line_num, p.col_num)
+    val pos = SourcePosition(p.line_num, p.col_num)
+    
     if (nestingInfo.insidePattern)
-      if (nestingInfo.insideTopLevelReceivePattern) {
+      if (!nestingInfo.insideTopLevelReceivePattern)
+        NormalizerRec[F].normalize(p.proc_).map(ConnNotN(_))
+      else
         // TODO: According to Rholang documentation:
         //  https://github.com/rchain/rchain/blob/25e523580a339db9ce2e8abdc9dcab44618d4c5c/docs/rholang/rholangtut.md?plain=1#L244-L252
         //  Since we cannot rely on a specific pattern matching order,
@@ -25,7 +28,7 @@ object NegationNormalizer {
         //  In the future, it will be necessary to analyze whether the left and right parts of the connective contain free variables
         //  and only in such cases return a PatternReceiveError.
         PatternReceiveError(s"~ (negation) at $pos").raiseError
-      } else NormalizerRec[F].normalize(p.proc_).map(ConnNotN(_))
-    else TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
+    else
+      TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
   }
 }

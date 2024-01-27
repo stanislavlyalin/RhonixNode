@@ -9,42 +9,42 @@ import io.rhonix.rholang.ast.rholang.Absyn.{PVar, ProcVar, ProcVarVar, ProcVarWi
 import io.rhonix.rholang.{BoundVarN, FreeVarN, VarN, WildcardN}
 
 object VarNormalizer {
-  def normalizeProcVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](
+  def normalizeVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](
     p: PVar,
   )(implicit nestingInfo: NestingInfoReader): F[VarN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
     p.procvar_ match {
-      case pvv: ProcVarVar    => asBoundVar[F, T](pvv.var_, pos, ProcSort)
-      case _: ProcVarWildcard => asWildcard[F](pos)
+      case pvv: ProcVarVar    => normalizeBoundVar[F, T](pvv.var_, pos, ProcSort)
+      case _: ProcVarWildcard => normalizeWildcard[F](pos)
     }
   }
 
-  def asRemainder[F[_]: Sync, T >: VarSort: FreeVarReader: FreeVarWriter](
+  def normalizeRemainder[F[_]: Sync, T >: VarSort: FreeVarReader: FreeVarWriter](
     pv: ProcVar,
   )(implicit nestingInfo: NestingInfoReader): F[VarN] =
     pv match {
-      case pvv: ProcVarVar      => asFreeVar[F, T](pvv.var_, SourcePosition(pvv.line_num, pvv.col_num), ProcSort)
-      case pvw: ProcVarWildcard => asWildcard[F](SourcePosition(pvw.line_num, pvw.col_num))
+      case pvv: ProcVarVar      => normalizeFreeVar[F, T](pvv.var_, SourcePosition(pvv.line_num, pvv.col_num), ProcSort)
+      case pvw: ProcVarWildcard => normalizeWildcard[F](SourcePosition(pvw.line_num, pvw.col_num))
     }
 
-  def asBoundVar[F[_]: Sync, T: BoundVarReader: FreeVarReader: FreeVarWriter](
+  def normalizeBoundVar[F[_]: Sync, T: BoundVarReader: FreeVarReader: FreeVarWriter](
     varName: String,
     pos: SourcePosition,
     expectedSort: T,
   )(implicit nestingInfo: NestingInfoReader): F[VarN] = Sync[F].defer {
     BoundVarReader[T].getBoundVar(varName) match {
-      case Some(BoundContext(level, `expectedSort`, _)) => Sync[F].delay(BoundVarN(level))
+      case Some(BoundContext(level, `expectedSort`, _)) => Sync[F].pure(BoundVarN(level))
       case Some(BoundContext(_, _, sourcePosition))     =>
         expectedSort match {
           case ProcSort => UnexpectedProcContext(varName, sourcePosition, pos).raiseError
           case NameSort => UnexpectedNameContext(varName, sourcePosition, pos).raiseError
         }
 
-      case None => asFreeVar[F, T](varName, pos, expectedSort)
+      case None => normalizeFreeVar[F, T](varName, pos, expectedSort)
     }
   }
 
-  private def asFreeVar[F[_]: Sync, T: FreeVarReader: FreeVarWriter](
+  private def normalizeFreeVar[F[_]: Sync, T: FreeVarReader: FreeVarWriter](
     varName: String,
     pos: SourcePosition,
     expectedSort: T,
@@ -56,7 +56,7 @@ object VarNormalizer {
           FreeVarReader[T].getFreeVar(varName) match {
             case None =>
               val index = FreeVarWriter[T].putFreeVar(varName, expectedSort, pos)
-              Sync[F].delay(FreeVarN(index))
+              Sync[F].pure(FreeVarN(index))
 
             case Some(FreeContext(_, _, firstSourcePosition)) =>
               expectedSort match {
@@ -67,10 +67,10 @@ object VarNormalizer {
       else TopLevelFreeVariablesNotAllowedError(s"$varName at $pos").raiseError
     }
 
-  def asWildcard[F[_]: Sync](pos: SourcePosition)(implicit nestingInfo: NestingInfoReader): F[VarN] =
+  def normalizeWildcard[F[_]: Sync](pos: SourcePosition)(implicit nestingInfo: NestingInfoReader): F[VarN] =
     if (nestingInfo.insidePattern)
-      if (nestingInfo.insideBundle) UnexpectedBundleContent(s"Illegal wildcard in bundle at $pos").raiseError
-      else Sync[F].delay(WildcardN)
+      if (!nestingInfo.insideBundle) Sync[F].pure(WildcardN)
+      else UnexpectedBundleContent(s"Illegal wildcard in bundle at $pos").raiseError
     else TopLevelWildcardsNotAllowedError(s"_ (wildcard) at $pos").raiseError
 
 }

@@ -33,7 +33,7 @@ object NewNormalizer {
 
       NormalizerRec[F]
         .normalize(p.proc_)
-        .withNewBoundVars[T](boundVars)
+        .withAddedBoundVars[T](boundVars)
         .map { case (normalizedPar, bindCount) =>
           NewN(bindCount = bindCount, p = normalizedPar, uri = uris, injections = Map[String, ParN]())
         }

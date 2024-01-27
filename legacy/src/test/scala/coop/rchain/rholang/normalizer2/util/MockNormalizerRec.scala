@@ -1,10 +1,10 @@
 package coop.rchain.rholang.normalizer2.util
 
 import cats.effect.Sync
-import cats.implicits.none
+import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.NormalizerRec
 import coop.rchain.rholang.normalizer2.util.Mock.*
-import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
+import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{RemainderADTDefault, mockADT}
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 import io.rhonix.rholang.{GStringN, ParN, VarN}
 

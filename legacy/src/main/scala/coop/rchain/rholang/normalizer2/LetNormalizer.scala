@@ -6,17 +6,16 @@ import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import sdk.syntax.all.*
 
 import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 object LetNormalizer {
-  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeLet[F[
-    _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
-    p: PLet,
-  ): F[ParN] =
+  def normalizeLet[
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    T: BoundVarWriter: FreeVarReader,
+  ](p: PLet): F[ParN] =
     p.decls_ match {
 
       case concDeclsImpl: ConcDeclsImpl =>
@@ -60,7 +59,7 @@ object LetNormalizer {
             }
             .foreach(listLinearBind.add)
           val listReceipt    = new ListReceipt()
-          listReceipt.add(new ReceiptLinear(new LinearSimple(listLinearBind)))
+          listReceipt.add(new ReceiptLinear(new LinearSimple(listLinearBind))).void()
           new PInput(listReceipt, p.proc_)
         }
 
@@ -115,10 +114,11 @@ object LetNormalizer {
                                    rem <- NormalizerRec[F].normalize(declImpl.nameremainder_)
                                    ps  <- declImpl.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
                                  } yield EListN(ps, rem)
-              patternTuple    <- normalizePattern.asPattern()
+              patternTuple    <- normalizePattern.withinPatternGetFreeVars()
 
               (patterns, patternFreeVars) = patternTuple
 
+              // Normalize body in the copy of bound scope with added free variables as bounded
               continuation <- NormalizerRec[F].normalize(convertDecls(p.decls_)).withAbsorbedFreeVars(patternFreeVars)
             } yield MatchN(
               target = EListN(values),

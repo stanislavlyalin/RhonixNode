@@ -1,7 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
 import cats.effect.Sync
-import cats.implicits.*
+import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.FreeVarScope
 
 case class MockFreeVarScope[F[_]: Sync]() extends FreeVarScope[F] {

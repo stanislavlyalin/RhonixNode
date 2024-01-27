@@ -9,12 +9,11 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 
 import scala.jdk.CollectionConverters.*
 
-object ContrNormalizer {
-  def normalizeContr[F[
-    _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
-    p: PContr,
-  ): F[ReceiveN] =
+object ContractNormalizer {
+  def normalizeContract[
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    T: BoundVarWriter: FreeVarReader,
+  ](p: PContr): F[ReceiveN] =
     for {
       source <- NormalizerRec[F].normalize(p.name_)
 
@@ -23,11 +22,11 @@ object ContrNormalizer {
                            reminder <- NormalizerRec[F].normalize(p.nameremainder_)
                            freeCount = FreeVarReader[T].getFreeVars.size
                          } yield ReceiveBindN(patterns, source, reminder, freeCount)
-      patternTuple    <- normalizePattern.asPattern(inReceive = true)
+      patternTuple    <- normalizePattern.withinPatternGetFreeVars(withinReceive = true)
 
       (bind, freeVars) = patternTuple
 
-      // Normalize body in the current bound and free variables scope
+      // Normalize body in the copy of bound scope with added free variables as bounded
       continuation <- NormalizerRec[F].normalize(p.proc_).withAbsorbedFreeVars(freeVars)
 
     } yield ReceiveN(bind, continuation, persistent = true, peek = false, freeVars.size)

@@ -15,11 +15,10 @@ import scala.jdk.CollectionConverters.*
 
 object InputNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeInput[F[
-    _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
-    p: PInput,
-  ): F[ParN] = {
+  def normalizeInput[
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    T: BoundVarWriter: FreeVarReader,
+  ](p: PInput): F[ParN] = {
     if (p.listreceipt_.size() > 1) {
       NormalizerRec[F].normalize(
         p.listreceipt_.asScala.reverse.foldLeft(p.proc_) { (proc, receipt) =>
@@ -195,7 +194,7 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          patternTuple <- createBinds(patterns, processedSources).asPattern(inReceive = true)
+          patternTuple <- createBinds(patterns, processedSources).withinPatternGetFreeVars(withinReceive = true)
 
           (unsortedBinds, freeVars) = patternTuple
 
@@ -208,7 +207,7 @@ object InputNormalizer {
                                           .raiseError[F, Unit]
                                           .whenA(thereAreDuplicatesInSources)
 
-          // Normalize body in the current bound and free variables scope
+          // Normalize body in the copy of bound scope with added free variables as bounded
           continuation               <- NormalizerRec[F].normalize(p.proc_).withAbsorbedFreeVars(freeVars)
 
         } yield ReceiveN(binds, continuation, persistent, peek, freeVars.size)

@@ -1,8 +1,8 @@
 package coop.rchain.rholang.normalizer2.syntax
 
-import cats.{Applicative, Apply, Functor}
+import cats.Functor
 import cats.effect.Sync
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
 import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.normalizerEffectSyntax
@@ -14,25 +14,25 @@ trait EffectSyntax {
 class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
 
   /** Run a function within a new scope, label it as a pattern
-   * @param inReceive Flag should be true for pattern in receive (input) or contract. */
-  def asPatternWithoutFreeExtracting(
-    inReceive: Boolean = false,
-  )(implicit bwScope: BoundVarScope[F], fwScope: FreeVarScope[F], rWriter: NestingInfoWriter[F]): F[A] =
-    bwScope.withNewBoundVarScope(fwScope.withNewFreeVarScope(rWriter.markAsPattern(inReceive)(f)))
+   * @param withinReceive Flag should be true for pattern in receive (input) or contract. */
+  def withinPattern(
+    withinReceive: Boolean = false,
+  )(implicit bvs: BoundVarScope[F], fvs: FreeVarScope[F], nes: NestingInfoWriter[F]): F[A] =
+    bvs.withNewBoundVarScope(fvs.withNewFreeVarScope(nes.withinPattern(withinReceive)(f)))
 
   /** Run a function within a new scope, label it as a pattern,
    * and subsequently extract all free variables from the normalized result of this function.
-   * @param inReceive Flag should be true for pattern in receive (input) or contract. */
-  def asPattern[T](inReceive: Boolean = false)(implicit
-    functor: Functor[F],
-    bwScope: BoundVarScope[F],
-    fwScope: FreeVarScope[F],
-    rWriter: NestingInfoWriter[F],
-    fwReader: FreeVarReader[T],
-  ): F[(A, Seq[(String, FreeContext[T])])] = f.asPatternWithoutFreeExtracting(inReceive).map((_, fwReader.getFreeVars))
+   * @param withinReceive Flag should be true for pattern in receive (input) or contract. */
+  def withinPatternGetFreeVars[T](withinReceive: Boolean = false)(implicit
+    fun: Functor[F],
+    bvs: BoundVarScope[F],
+    fvs: FreeVarScope[F],
+    nes: NestingInfoWriter[F],
+    fvr: FreeVarReader[T],
+  ): F[(A, Seq[(String, FreeContext[T])])] = f.withinPattern(withinReceive).map((_, FreeVarReader[T].getFreeVars))
 
   /** Run function with restricted conditions with restrictions as for the bundle */
-  def asBundle()(implicit rWriter: NestingInfoWriter[F]): F[A] = rWriter.markAsBundle(f)
+  def withinBundle()(implicit nes: NestingInfoWriter[F]): F[A] = NestingInfoWriter[F].withinBundle(f)
 
   /** Bound free variables in a copy of the current scope.
    *
@@ -44,7 +44,7 @@ class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
    */
   def withAbsorbedFreeVars[T](
     freeVars: Seq[(String, FreeContext[T])],
-  )(implicit sync: Sync[F], bwScope: BoundVarScope[F], bwWriter: BoundVarWriter[T]): F[A] = {
+  )(implicit sync: Sync[F], bvs: BoundVarScope[F], bvw: BoundVarWriter[T]): F[A] = {
 
     def absorbFree(freeVars: Seq[(String, FreeContext[T])]): Seq[IdContext[T]] = {
       val sortedByLevel  = freeVars.sortBy(_._2.level)
@@ -56,17 +56,17 @@ class NormalizerEffectOps[F[_], A](val f: F[A]) extends AnyVal {
       )
       data
     }
-    f.withNewBoundVars(absorbFree(freeVars)).map(_._1)
+    f.withAddedBoundVars(absorbFree(freeVars)).map(_._1)
   }
 
   /** Put new bound variables in a copy of the current scope.
    * @return result of the effect and the number of inserted non-duplicate variables
    */
-  def withNewBoundVars[T](
+  def withAddedBoundVars[T](
     boundVars: Seq[IdContext[T]],
-  )(implicit sync: Sync[F], bwScope: BoundVarScope[F], bwWriter: BoundVarWriter[T]): F[(A, Int)] =
-    bwScope.withCopyBoundVarScope(for {
-      bindCount <- sync.delay(bwWriter.putBoundVars(boundVars))
+  )(implicit sync: Sync[F], bvs: BoundVarScope[F], bvw: BoundVarWriter[T]): F[(A, Int)] =
+    BoundVarScope[F].withCopyBoundVarScope(for {
+      bindCount <- Sync[F].delay(BoundVarWriter[T].putBoundVars(boundVars))
       fRes      <- f
     } yield (fRes, bindCount))
 }

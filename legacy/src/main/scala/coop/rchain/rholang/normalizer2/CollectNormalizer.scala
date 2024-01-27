@@ -9,7 +9,7 @@ import scala.jdk.CollectionConverters.*
 
 object CollectNormalizer {
   def normalizeCollect[F[_]: Applicative: NormalizerRec](p: PCollect): F[CollectionN] =
-    // TODO: Why is the remainder processed before the collection elements (for sequential F)?
+    // NOTE: Order of processing remainder or processes doesn't matter because they are independent.
     p.collection_ match {
       case cl: CollectList =>
         (

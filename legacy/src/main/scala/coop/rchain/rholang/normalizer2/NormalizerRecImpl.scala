@@ -20,19 +20,20 @@ final case class NormalizerRecImpl[
   override def normalize(proc: Proc): F[ParN] = NormalizerRecImpl.normalize[F, T](proc)
 
   override def normalize(name: Name): F[ParN] = name match {
-    case nv: NameVar      => VarNormalizer.asBoundVar[F, T](nv.var_, SourcePosition(nv.line_num, nv.col_num), NameSort)
+    case nv: NameVar      =>
+      VarNormalizer.normalizeBoundVar[F, T](nv.var_, SourcePosition(nv.line_num, nv.col_num), NameSort)
     case nq: NameQuote    => NormalizerRec[F].normalize(nq.proc_)
-    case wc: NameWildcard => VarNormalizer.asWildcard[F](SourcePosition(wc.line_num, wc.col_num))
+    case wc: NameWildcard => VarNormalizer.normalizeWildcard[F](SourcePosition(wc.line_num, wc.col_num))
   }
 
   override def normalize(remainder: ProcRemainder): F[Option[VarN]] = remainder match {
     case _: ProcRemainderEmpty => none.pure
-    case pr: ProcRemainderVar  => VarNormalizer.asRemainder[F, T](pr.procvar_).map(_.some)
+    case pr: ProcRemainderVar  => VarNormalizer.normalizeRemainder[F, T](pr.procvar_).map(_.some)
   }
 
   override def normalize(remainder: NameRemainder): F[Option[VarN]] = remainder match {
     case _: NameRemainderEmpty => none.pure
-    case nr: NameRemainderVar  => VarNormalizer.asRemainder[F, T](nr.procvar_).map(_.some)
+    case nr: NameRemainderVar  => VarNormalizer.normalizeRemainder[F, T](nr.procvar_).map(_.some)
   }
 }
 
@@ -60,15 +61,15 @@ object NormalizerRecImpl {
       /* =========================================== */
       case _: PNil        => (NilN: ParN).pure
       case p: PGround     => GroundNormalizer.normalizeGround[F](p)
-      case p: PVar        => VarNormalizer.normalizeProcVar[F, T](p)
+      case p: PVar        => VarNormalizer.normalizeVar[F, T](p)
       case p: PVarRef     => VarRefNormalizer.normalizeVarRef[F, T](p)
       case p: PSimpleType => Sync[F].delay(SimpleTypeNormalizer.normalizeSimpleType(p))
 
       /* Unary expressions (1-arity constructors) */
       /* ======================================== */
-      case p: PEval     => EvalNormalizer.normalizeEval[F](p)
       case p: PBundle   => BundleNormalizer.normalizeBundle[F](p)
       case p: PNegation => NegationNormalizer.normalizeNegation[F](p)
+      case p: PEval     => NormalizerRec[F].normalize(p.name_)
       case p: PExprs    => NormalizerRec[F].normalize(p.proc_)
       case p: PNot      => unaryExp(p.proc_, ENotN.apply)
       case p: PNeg      => unaryExp(p.proc_, ENegN.apply)
@@ -103,7 +104,7 @@ object NormalizerRecImpl {
       case p: PCollect   => CollectNormalizer.normalizeCollect[F](p)
       case p: PSend      => SendNormalizer.normalizeSend[F](p)
       case p: PSendSynch => SendSynchNormalizer.normalizeSendSynch[F](p)
-      case p: PContr     => ContrNormalizer.normalizeContr[F, T](p)
+      case p: PContr     => ContractNormalizer.normalizeContract[F, T](p)
       case p: PInput     => InputNormalizer.normalizeInput(p)
       case p: PNew       => NewNormalizer.normalizeNew[F, T](p)
       case p: PLet       => LetNormalizer.normalizeLet[F, T](p)
@@ -112,7 +113,7 @@ object NormalizerRecImpl {
       case p: PIfElse    => IfElseNormalizer.normalizeIfElse[F](p)
       case p: PMethod    => MethodNormalizer.normalizeMethod[F](p)
 
-      case _ => UnrecognizedNormalizerError("Compilation of construct not yet supported.").raiseError
+      case p => UnrecognizedNormalizerError(s"Unrecognized parser AST type `${p.getClass}`.").raiseError
     }
   }
 }

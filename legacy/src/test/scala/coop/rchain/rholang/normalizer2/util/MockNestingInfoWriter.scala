@@ -1,25 +1,25 @@
 package coop.rchain.rholang.normalizer2.util
 
 import cats.effect.Sync
-import cats.implicits.*
-import coop.rchain.rholang.normalizer2.env.{FreeVarScope, NestingInfoWriter}
+import cats.syntax.all.*
+import coop.rchain.rholang.normalizer2.env.NestingInfoWriter
 
 case class MockNestingInfoWriter[F[_]: Sync]() extends NestingInfoWriter[F] {
   private var insidePatternFlag: Boolean                = false
   private var insideTopLevelReceivePatternFlag: Boolean = false
   private var insideBundleFlag: Boolean                 = false
 
-  override def markAsPattern[R](inReceive: Boolean)(scopeFn: F[R]): F[R] = for {
+  override def withinPattern[R](withinReceive: Boolean)(scopeFn: F[R]): F[R] = for {
     insidePatternFlagRestore               <- Sync[F].delay(insidePatternFlag)
     _                                       = insidePatternFlag = true
     insideTopLevelReceivePatternFlagRestore = insideTopLevelReceivePatternFlag
-    _                                       = insideTopLevelReceivePatternFlag = inReceive
+    _                                       = insideTopLevelReceivePatternFlag = withinReceive
     res                                    <- scopeFn
     _                                       = insidePatternFlag = insidePatternFlagRestore
     _                                       = insideTopLevelReceivePatternFlag = insideTopLevelReceivePatternFlagRestore
   } yield res
 
-  override def markAsBundle[R](scopeFn: F[R]): F[R] = for {
+  override def withinBundle[R](scopeFn: F[R]): F[R] = for {
     insideBundleFlagRestore <- Sync[F].delay(insideBundleFlag)
     _                        = insideBundleFlag = true
     res                     <- scopeFn

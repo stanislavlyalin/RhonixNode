@@ -1,7 +1,7 @@
 package coop.rchain.rholang.normalizer2.util
 
 import cats.effect.Sync
-import cats.implicits.*
+import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.env.BoundVarScope
 
 case class MockBoundVarScope[F[_]: Sync]() extends BoundVarScope[F] {

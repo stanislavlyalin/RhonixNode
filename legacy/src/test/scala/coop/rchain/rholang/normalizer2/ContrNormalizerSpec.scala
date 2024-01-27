@@ -32,7 +32,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
 
         implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, infoWriter, _) = createMockDSL[IO, VarSort]()
 
-        val adt = ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
+        val adt = ContractNormalizer.normalizeContract[IO, VarSort](term).unsafeRunSync()
 
         val expectedAdt = ReceiveN(
           bind = ReceiveBindN(
@@ -85,7 +85,7 @@ class ContrNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with
       implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, infoWriter, _) =
         createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
-      ContrNormalizer.normalizeContr[IO, VarSort](term).unsafeRunSync()
+      ContractNormalizer.normalizeContract[IO, VarSort](term).unsafeRunSync()
 
       val addedBoundVars = bVW.extractData
 

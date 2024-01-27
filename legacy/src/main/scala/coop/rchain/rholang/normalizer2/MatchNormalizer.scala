@@ -11,27 +11,26 @@ import io.rhonix.rholang.{MatchCaseN, MatchN}
 import scala.jdk.CollectionConverters.*
 
 object MatchNormalizer {
-  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeMatch[F[
-    _,
-  ]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter, T: BoundVarWriter: FreeVarReader](
-    p: PMatch,
-  ): F[MatchN] = {
+  def normalizeMatch[
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    T: BoundVarWriter: FreeVarReader,
+  ](p: PMatch): F[MatchN] = {
     def normalizeCase(c: Case): F[MatchCaseN] = c match {
       case ci: CaseImpl =>
         val (pattern, caseBody) = (ci.proc_1, ci.proc_2)
 
         for {
           // Normalize pattern in a fresh bound and free variables scope
-          patternTuple <- NormalizerRec[F].normalize(pattern).asPattern()
+          patternTuple <- NormalizerRec[F].normalize(pattern).withinPatternGetFreeVars()
 
           (patternResult, freeVars) = patternTuple
 
+          // Normalize body in the copy of bound scope with added free variables as bounded
           caseBodyResult <- NormalizerRec[F].normalize(caseBody).withAbsorbedFreeVars(freeVars)
 
         } yield MatchCaseN(patternResult, caseBodyResult, freeVars.length)
 
-      case _ => UnrecognizedNormalizerError("Unexpected Case implementation.").raiseError
+      case c => UnrecognizedNormalizerError(s"Unexpected Case implementation `${c.getClass}`.").raiseError
     }
 
     (NormalizerRec[F].normalize(p.proc_), p.listcase_.asScala.toVector.traverse(normalizeCase)).mapN(MatchN.apply)
