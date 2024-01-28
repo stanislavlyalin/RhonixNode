@@ -83,12 +83,13 @@ object SendSynchNormalizer {
   ): F[ParN] =
     BoundVarScope[F].withCopyBoundVarScope {
       for {
-        identifier <- Sync[F].delay(UUID.randomUUID().toString)
+        identifier   <- Sync[F].delay(UUID.randomUUID().toString)
         // Source position of generated channel is the whole input expression
-        varPos      = SourcePosition(p.line_num, p.col_num)
-        // TODO: To avoid using random var name, create variant of `putBoundVars` to add bound var without String name.
-        varIndex    = BoundVarWriter[T].putBoundVars(Seq((identifier, NameSort, varPos)))
-        varGen      = BoundVarN(varIndex)
+        varPos        = SourcePosition(p.line_num, p.col_num)
+        Seq(varIndex) = BoundVarWriter[T].putBoundVars(Seq((identifier, NameSort, varPos)))
+        // TODO: To avoid using random var name, create variant of `putBoundVars` to add bound vars without String name.
+        // Seq(varIndex) = BoundVarWriter[T].createBoundVars(count = 1)
+        varGen        = BoundVarN(varIndex)
 
         // Send on the same channel, but prepend generated name to send data
         chan <- NormalizerRec[F].normalize(p.name_)

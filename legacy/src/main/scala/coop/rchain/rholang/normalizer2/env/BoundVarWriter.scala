@@ -5,9 +5,9 @@ import coop.rchain.rholang.interpreter.compiler.IdContext
 trait BoundVarWriter[T] {
 
   /** Inserts new variables in bound map.
-   *  @return the number of inserted non-duplicate variables
+   *  @return indices of inserted non-duplicate variables
    * */
-  def putBoundVars(bindings: Seq[IdContext[T]]): Int
+  def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int]
 }
 
 object BoundVarWriter {

@@ -64,9 +64,9 @@ class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
    */
   def withAddedBoundVars[T](
     boundVars: Seq[IdContext[T]],
-  )(implicit sync: Sync[F], bvs: BoundVarScope[F], bvw: BoundVarWriter[T]): F[(A, Int)] =
+  )(implicit sync: Sync[F], bvs: BoundVarScope[F], bvw: BoundVarWriter[T]): F[(A, Seq[Int])] =
     BoundVarScope[F].withCopyBoundVarScope(for {
-      bindCount <- Sync[F].delay(BoundVarWriter[T].putBoundVars(boundVars))
-      fRes      <- f
-    } yield (fRes, bindCount))
+      indices <- Sync[F].delay(BoundVarWriter[T].putBoundVars(boundVars))
+      fRes    <- f
+    } yield (fRes, indices))
 }

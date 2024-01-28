@@ -9,13 +9,13 @@ import scala.collection.mutable.ListBuffer
 case class MockBoundVarWriter[F[_], T](scope: MockBoundVarScope[F]) extends BoundVarWriter[T] {
   private val buffer: ListBuffer[BoundVarWriterData[T]] = ListBuffer.empty
 
-  override def putBoundVars(bindings: Seq[IdContext[T]]): Int = {
+  override def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int] = {
     val newScopeLevel  = scope.getNewScopeLevel
     val copyScopeLevel = scope.getCopyScopeLevel
     buffer.appendAll(bindings.map { case (name, varType, _) =>
       BoundVarWriterData(name, varType, newScopeLevel, copyScopeLevel)
     })
-    0
+    bindings.zipWithIndex.map(_._2)
   }
 
   def extractData: Seq[BoundVarWriterData[T]] = buffer.toSeq

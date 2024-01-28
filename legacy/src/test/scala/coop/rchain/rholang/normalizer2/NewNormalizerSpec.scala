@@ -37,7 +37,7 @@ class NewNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with M
       val adt = NewNormalizer.normalizeNew[IO, VarSort](term).unsafeRunSync()
 
       val expectedAdt = NewN(
-        bindCount = 0, // Because Mock BoundVarWriter doesn't actually add bound variables
+        bindCount = bindsStr.size + urnsData.size,
         p = mockADT(body),
         uri = urnsStr.map(_._1),
         injections = Map[String, ParN](),
