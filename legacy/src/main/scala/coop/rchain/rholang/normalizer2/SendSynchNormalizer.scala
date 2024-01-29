@@ -104,8 +104,8 @@ object SendSynchNormalizer {
         bind    = ReceiveBindN(WildcardN, varGen)
         receive = ReceiveN(bind, body, 1)
 
-        // Return send/receive pair
-      } yield ParN.combine(send, receive)
+        // Return send/receive pair wrapped with a new binding
+      } yield NewN(bindCount = 1, p = ParN.combine(send, receive), uri = Seq(), injections = Map[String, ParN]())
     }
 
 }
