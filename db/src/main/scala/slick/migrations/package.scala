@@ -11,5 +11,6 @@ package object migrations {
   def all(dialect: Dialect[?]): SortedMap[Int, MigrationSeq] =
     SortedMap(
       1 -> Baseline(dialect),
+      2 -> TablePeers(dialect),
     )
 }

@@ -1,6 +1,7 @@
 package slick
 
 import cats.syntax.all.*
+import sdk.comm.Peer
 import sdk.primitive.ByteArray
 import slick.api.data.{Block, BondsMapData, SetData}
 import slick.dbio.Effect.*
@@ -325,6 +326,24 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
     insertIfNot(pK, queries.validatorIdByPK, pK, validatorInsert)
   }
+
+  /** Peer */
+
+  def peers: DBIOAction[Seq[Peer], NoStream, Read] =
+    queries.peersCompiled.result.map(_.map(peer => Peer(peer.url, peer.isSelf, peer.isValidator)))
+
+  def peerInsertIfNot(
+    url: String,
+    isSelf: Boolean,
+    isValidator: Boolean,
+  ): DBIOAction[Long, profile.api.NoStream, All] = {
+    def peerInsert(peer: TablePeers.Peer): DBIOAction[Long, NoStream, All] =
+      (queries.peersCompiled returning qPeers.map(_.id)) += peer
+
+    insertIfNot(url, queries.peerIdByPk, TablePeers.Peer(0L, url, isSelf, isValidator), peerInsert)
+  }
+
+  def removePeer(url: String): DBIOAction[Int, NoStream, Write] = queries.peerIdByPk(url).delete
 
   /** Insert a new record in table if there is no such entry. Returned id */
   private def insertIfNot[A, B](
