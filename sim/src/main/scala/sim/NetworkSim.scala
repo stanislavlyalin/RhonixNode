@@ -42,6 +42,7 @@ import sim.balances.*
 import slick.SlickDb
 import weaver.WeaverState
 import weaver.data.*
+import node.comm.Config as PeerCfg
 
 import java.nio.file.Files
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -60,6 +61,7 @@ object NetworkSim extends IOApp {
     node: NodeConfig,
     influxDb: InfluxDbConfig,
     dbCfg: DbConfig,
+    peerCfg: PeerCfg,
   )
 
   final case class NetNode[F[_]](
@@ -119,6 +121,7 @@ object NetworkSim extends IOApp {
     nodeCfg: NodeConfig,
     ifxDbCfg: InfluxDbConfig,
     dbCfg: DbConfig,
+    peerCfg: PeerCfg,
   ): Stream[F, Unit] = {
     val rnd                = new scala.util.Random()
     /// Users (wallets) making transactions
@@ -531,19 +534,21 @@ object NetworkSim extends IOApp {
         val mkPrng         = Random.scalaUtilRandom[IO]
 
         (loadConfig, mkContextStore, mkPrng).flatMapN {
-          case (Config(network, node, influxDb, dbCfg), ioLocalKamonContext, prng) =>
+          case (Config(network, node, influxDb, dbCfg, peerCfg), ioLocalKamonContext, prng) =>
             implicit val x: KamonContextStore[IO] = ioLocalKamonContext
             implicit val y: Random[IO]            = prng
 
             if (node.persistOnChainState)
-              NetworkSim.sim[IO](network, node, influxDb, dbCfg).compile.drain.as(ExitCode.Success)
+              NetworkSim.sim[IO](network, node, influxDb, dbCfg, peerCfg).compile.drain.as(ExitCode.Success)
             else {
               // in memory cannot run forever so restart each minute
               Stream
                 .eval(SignallingRef.of[IO, Boolean](false))
                 .flatMap { sRef =>
                   val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
-                  NetworkSim.sim[IO](network, node, influxDb, dbCfg).interruptWhen(sRef) concurrently resetStream
+                  NetworkSim
+                    .sim[IO](network, node, influxDb, dbCfg, peerCfg)
+                    .interruptWhen(sRef) concurrently resetStream
                 }
                 .repeat
                 .compile

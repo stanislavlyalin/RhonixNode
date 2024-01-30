@@ -17,8 +17,9 @@ object ClassesAsConfig {
       ClassAsTuple(clz)
         .map { case (name, value, anno) =>
           val formattedValue = value match {
-            case s: String => s""""$s""""
-            case _         => value.toString
+            case s: String  => s""""$s""""
+            case l: List[_] => s"[\n${l.map(_.toString).mkString(",\n")}\n]"
+            case _          => value.toString
           }
           s"""|# $anno
               |$root.$configName.$name: $formattedValue
