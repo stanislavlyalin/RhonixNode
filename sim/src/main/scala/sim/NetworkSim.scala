@@ -11,10 +11,11 @@ import diagnostics.KamonContextStore
 import diagnostics.metrics.{Config as InfluxDbConfig, InfluxDbBatchedMetrics}
 import dproc.data.Block
 import fs2.concurrent.SignallingRef
-import fs2.{Pipe, Stream}
+import fs2.Stream
 import node.api.web
 import node.api.web.{PublicApiJson, Validation}
 import node.api.web.https4s.RouterFix
+import node.comm.{CommImpl, PeerTable}
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint
@@ -31,7 +32,6 @@ import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
 import sdk.store.*
 import sdk.syntax.all.*
-import secp256k1.Secp256k1
 import sim.Config as SimConfig
 import sim.NetworkSnapshot.{reportSnapshot, NodeSnapshot}
 import sim.balances.Hashing.*
@@ -130,8 +130,7 @@ object NetworkSim extends IOApp {
 
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
-    val senders           =
-      Iterator.range(0, netCfg.size).map(_ => Array(rnd.nextInt().toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
+    val senders           = (0 until netCfg.size).map(i => Array(i.toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
     // Create lfs message, it has no parents, sees no offences and final fringe is empty set
     val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
@@ -141,11 +140,6 @@ object NetworkSim extends IOApp {
     val txStore: Ref[F, Map[ByteArray, BalancesState]]  = Ref.unsafe(Map.empty[ByteArray, BalancesState])
     def saveTx(tx: BalancesDeploy): F[Unit]             = txStore.update(_.updated(tx.id, tx.body.state))
     def readTx(id: ByteArray): F[Option[BalancesState]] = txStore.get.map(_.get(id))
-
-    def broadcast(
-      peers: List[Node[F, M, S, T]],
-      time: Duration,
-    ): Pipe[F, M, Unit] = _.evalMap(m => Temporal[F].sleep(time) *> peers.traverse(_.dProc.acceptMsg(m)).void)
 
     def random(users: Set[Wallet]): F[BalancesState] = for {
       txVal <- Random[F].nextLongBounded(100)
@@ -294,7 +288,7 @@ object NetworkSim extends IOApp {
 
     Stream
       .resource(slick.PostgresSlickDb[F](dbCfg))
-      .flatMap { db =>
+      .flatMap { implicit db =>
         Stream
           .resource(mkNet(lfs, db))
           .map(_.zipWithIndex)
@@ -315,11 +309,16 @@ object NetworkSim extends IOApp {
                       Console[F].println(s"Bootstrap done for ${self}")
                   })
                 }
-                val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
 
-                val run = dProc.dProcStream concurrently {
-                  dProc.output.through(broadcast(notSelf, netCfg.propDelay))
-                }
+                val peerProc            = net.map { case (node, _) => node.id.toHex -> node.node.dProc }.toMap
+                val commF               = PeerTable.load(peerCfg).map(peerTable => new CommImpl(peerTable, peerProc))
+                val commBroadcastStream = dProc.output
+                  .flatMap { m =>
+                    Stream.eval(Temporal[F].sleep(netCfg.propDelay) *> commF.flatMap(_.broadcast(m)))
+                  }
+                val commReceiveStream   = Stream.eval(commF.map(_.receiver)).flatten
+
+                val run = dProc.dProcStream concurrently commBroadcastStream
 
                 val apiServerStream: Stream[F, ExitCode] = {
                   def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
@@ -430,7 +429,7 @@ object NetworkSim extends IOApp {
                   web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
                 }
 
-                (run concurrently bootstrap concurrently apiServerStream) -> getData
+                (run concurrently bootstrap concurrently apiServerStream concurrently commReceiveStream) -> getData
             }
           }
           .map(_.unzip)
