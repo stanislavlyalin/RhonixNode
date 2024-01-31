@@ -1,9 +1,11 @@
 package sdk.comm
 
-/** Node's P2P communication module
- * Sends given message to all known peers except self via `broadcast` method
- * Receives messages from network with `receiver` stream */
-trait Comm[F[_], M] {
-  def broadcast(msg: M): F[Unit]
-  def receiver: fs2.Stream[F, Unit]
+/**
+ * Interface for communication with peers.
+ * @tparam A inbound message type
+ * @tparam B outbound message type
+ */
+trait Comm[F[_], A, B] {
+  def broadcast(msg: A): F[Unit]
+  def receiver: fs2.Stream[F, B]
 }

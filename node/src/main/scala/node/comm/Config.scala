@@ -3,7 +3,7 @@ package node.comm
 import node.comm.Config.PeerCfg
 import sdk.reflect.Description
 
-@Description("peerCfg")
+@Description("commCfg")
 final case class Config(
   @Description("Initial list of node peers")
   peers: List[PeerCfg] = List.empty[PeerCfg],

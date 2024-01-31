@@ -7,7 +7,7 @@ import sdk.comm.Peer
 import slick.SlickDb
 import slick.syntax.all.DBIOActionRunSyntax
 
-final class PeerTable[F[_]: Sync, PId, P](
+final class PeerTable[F[_]: Sync, PId, P] private (
   private val stRef: Ref[F, ST[PId, P]],
   loadPeersF: () => F[Seq[P]],
   storePeerF: P => F[Unit],
@@ -30,7 +30,7 @@ final class PeerTable[F[_]: Sync, PId, P](
 object PeerTable {
   final case class ST[PId, P](peers: Map[PId, P])
 
-  def load[F[_]: Async](cfg: Config)(implicit db: SlickDb): F[PeerTable[F, String, Peer]] = for {
+  def apply[F[_]: Async](cfg: Config)(implicit db: SlickDb): F[PeerTable[F, String, Peer]] = for {
     api     <- slick.api.SlickApi[F].apply(db)
     dbPeers <- api.actions.peers.run
     state   <- if (dbPeers.isEmpty) {

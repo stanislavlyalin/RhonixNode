@@ -42,7 +42,7 @@ import sim.balances.*
 import slick.SlickDb
 import weaver.WeaverState
 import weaver.data.*
-import node.comm.Config as PeerCfg
+import node.comm.Config as CommCfg
 
 import java.nio.file.Files
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -61,7 +61,7 @@ object NetworkSim extends IOApp {
     node: NodeConfig,
     influxDb: InfluxDbConfig,
     dbCfg: DbConfig,
-    peerCfg: PeerCfg,
+    commCfg: CommCfg,
   )
 
   final case class NetNode[F[_]](
@@ -121,7 +121,7 @@ object NetworkSim extends IOApp {
     nodeCfg: NodeConfig,
     ifxDbCfg: InfluxDbConfig,
     dbCfg: DbConfig,
-    peerCfg: PeerCfg,
+    commCfg: CommCfg,
   ): Stream[F, Unit] = {
     val rnd                = new scala.util.Random()
     /// Users (wallets) making transactions
@@ -311,7 +311,7 @@ object NetworkSim extends IOApp {
                 }
 
                 val peerProc            = net.map { case (node, _) => node.id.toHex -> node.node.dProc }.toMap
-                val commF               = PeerTable.load(peerCfg).map(peerTable => new CommImpl(peerTable, peerProc))
+                val commF               = PeerTable(commCfg).map(peerTable => CommImpl(peerTable, peerProc))
                 val commBroadcastStream = dProc.output
                   .flatMap { m =>
                     Stream.eval(Temporal[F].sleep(netCfg.propDelay) *> commF.flatMap(_.broadcast(m)))
@@ -533,12 +533,12 @@ object NetworkSim extends IOApp {
         val mkPrng         = Random.scalaUtilRandom[IO]
 
         (loadConfig, mkContextStore, mkPrng).flatMapN {
-          case (Config(network, node, influxDb, dbCfg, peerCfg), ioLocalKamonContext, prng) =>
+          case (Config(network, node, influxDb, dbCfg, commCfg), ioLocalKamonContext, prng) =>
             implicit val x: KamonContextStore[IO] = ioLocalKamonContext
             implicit val y: Random[IO]            = prng
 
             if (node.persistOnChainState)
-              NetworkSim.sim[IO](network, node, influxDb, dbCfg, peerCfg).compile.drain.as(ExitCode.Success)
+              NetworkSim.sim[IO](network, node, influxDb, dbCfg, commCfg).compile.drain.as(ExitCode.Success)
             else {
               // in memory cannot run forever so restart each minute
               Stream
@@ -546,7 +546,7 @@ object NetworkSim extends IOApp {
                 .flatMap { sRef =>
                   val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
                   NetworkSim
-                    .sim[IO](network, node, influxDb, dbCfg, peerCfg)
+                    .sim[IO](network, node, influxDb, dbCfg, commCfg)
                     .interruptWhen(sRef) concurrently resetStream
                 }
                 .repeat
