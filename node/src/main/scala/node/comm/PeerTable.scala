@@ -1,6 +1,7 @@
 package node.comm
 
-import cats.effect.{Async, Ref, Sync}
+import cats.effect.std.AtomicCell
+import cats.effect.{Async, Sync}
 import cats.syntax.all.*
 import node.comm.PeerTable.ST
 import sdk.comm.Peer
@@ -8,18 +9,18 @@ import slick.SlickDb
 import slick.syntax.all.DBIOActionRunSyntax
 
 final class PeerTable[F[_]: Sync, PId, P] private (
-  private val stRef: Ref[F, ST[PId, P]],
+  private val stCell: AtomicCell[F, ST[PId, P]],
   loadPeersF: () => F[Seq[P]],
   storePeerF: P => F[Unit],
   removePeerF: P => F[Unit],
 ) {
-  def add(peers: Map[PId, P]): F[Unit] = stRef.update(state => ST(state.peers ++ peers)) *> updatePeers()
-  def remove(keys: Set[PId]): F[Unit]  = stRef.update(state => ST(state.peers -- keys)) *> updatePeers()
-  def all: F[Map[PId, P]]              = stRef.get.map(_.peers)
+  def add(peers: Map[PId, P]): F[Unit] = stCell.evalUpdate(state => updatePeers() *> ST(state.peers ++ peers).pure)
+  def remove(keys: Set[PId]): F[Unit]  = stCell.evalUpdate(state => updatePeers() *> ST(state.peers -- keys).pure)
+  def all: F[Map[PId, P]]              = stCell.get.map(_.peers)
 
   private def updatePeers(): F[Unit] = for {
     dbPeers  <- loadPeersF()
-    refPeers <- stRef.get.map(_.peers.values.toSeq)
+    refPeers <- stCell.get.map(_.peers.values.toSeq)
     toInsert  = refPeers.filter(p => !dbPeers.contains(p))
     toRemove  = dbPeers.filter(p => !refPeers.contains(p))
     _        <- toInsert.traverse(storePeerF)
@@ -46,9 +47,9 @@ object PeerTable {
                  // During the next launches use peers from the DB
                  PeerTable.ST[String, Peer](dbPeers.map(p => p.url -> p).toMap).pure
                }
-    stRef   <- Ref[F].of(state)
+    stCell  <- AtomicCell[F].of(state)
   } yield new PeerTable(
-    stRef,
+    stCell,
     () => api.actions.peers.run,
     (peer: Peer) => api.actions.peerInsertIfNot(peer.url, peer.isSelf, peer.isValidator).run.void,
     (peer: Peer) => api.actions.removePeer(peer.url).run.void,
