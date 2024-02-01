@@ -38,8 +38,8 @@ class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
    *
    * Free variables are sorted by levels and then added with indexes:
    * {i0, i1, ..., iN} = {fl0 + last + 1, fl1 + last + 1, ..., flN + last + 1}.
-   * Here, i0, ..., iN represent the Bruijn indices of the new bound vars,
-   * fl0, ..., flN are the Bruijn levels of the inserted free vars,
+   * Here, i0, ..., iN represent the de Bruijn indices of the new bound vars,
+   * fl0, ..., flN are the de Bruijn levels of the inserted free vars,
    * last is the last index among all bound vars at the moment.
    */
   def withAbsorbedFreeVars[T](

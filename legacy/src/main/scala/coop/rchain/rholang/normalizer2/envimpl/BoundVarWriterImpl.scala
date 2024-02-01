@@ -1,18 +1,22 @@
 package coop.rchain.rholang.normalizer2.envimpl
 
-import coop.rchain.rholang.interpreter.compiler.IdContext
+import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
 import coop.rchain.rholang.normalizer2.env.BoundVarWriter
-import coop.rchain.rholang.syntax.*
-import sdk.syntax.all.*
 
-final case class BoundVarWriterImpl[T](private val boundMapChain: HistoryChain[VarMap[T]]) extends BoundVarWriter[T] {
+final case class BoundVarWriterImpl[T](private val putFn: (String, T, SourcePosition) => Int)
+    extends BoundVarWriter[T] {
+
   override def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int] = {
-    bindings.foreach { case (name, typ, sourcePosition) =>
-      boundMapChain.updateCurrent(_.put(name, typ, sourcePosition)).void()
-    }
-    val nonDuplicatedNames = bindings.map(_._1).distinct
-    // Find the indexes of the recently added elements
-    // NOTE: Using `get` is safe here because we just added these elements.
-    nonDuplicatedNames.map(name => boundMapChain.current().get(name).get.index)
+    // Insert all bindings into the bound map
+    val indices = bindings.map(putFn.tupled(_))
+
+    // Find indices that haven't been shadowed by the new bindings
+    val names                  = bindings.map(_._1)
+    val indexedNames           = names.zip(indices)
+    val unShadowedIndexedNames = indexedNames
+      .foldRight(List.empty[(String, Int)]) { case ((name, index), acc) =>
+        if (acc.exists(_._1 == name)) acc else (name, index) :: acc
+      }
+    unShadowedIndexedNames.map(_._2)
   }
 }
