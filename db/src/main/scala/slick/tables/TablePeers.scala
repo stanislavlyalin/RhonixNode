@@ -10,6 +10,8 @@ class TablePeers(tag: Tag) extends Table[Peer](tag, "peer") {
   def isSelf: Rep[Boolean]      = column[Boolean]("isSelf")
   def isValidator: Rep[Boolean] = column[Boolean]("isValidator")
 
+  def idx = index("idx_peer_url", url, unique = true)
+
   override def * : ProvenShape[Peer] = (id, url, isSelf, isValidator).mapTo[Peer]
 }
 

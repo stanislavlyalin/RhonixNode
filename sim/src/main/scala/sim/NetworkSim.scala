@@ -11,10 +11,11 @@ import diagnostics.KamonContextStore
 import diagnostics.metrics.{Config as InfluxDbConfig, InfluxDbBatchedMetrics}
 import dproc.data.Block
 import fs2.concurrent.SignallingRef
-import fs2.{Pipe, Stream}
+import fs2.Stream
 import node.api.web
 import node.api.web.{PublicApiJson, Validation}
 import node.api.web.https4s.RouterFix
+import node.comm.{CommImpl, PeerTable}
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint
@@ -31,7 +32,6 @@ import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
 import sdk.store.*
 import sdk.syntax.all.*
-import secp256k1.Secp256k1
 import sim.Config as SimConfig
 import sim.NetworkSnapshot.{reportSnapshot, NodeSnapshot}
 import sim.balances.Hashing.*
@@ -42,6 +42,7 @@ import sim.balances.*
 import slick.SlickDb
 import weaver.WeaverState
 import weaver.data.*
+import node.comm.Config as CommCfg
 
 import java.nio.file.Files
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -60,6 +61,7 @@ object NetworkSim extends IOApp {
     node: NodeConfig,
     influxDb: InfluxDbConfig,
     dbCfg: DbConfig,
+    commCfg: CommCfg,
   )
 
   final case class NetNode[F[_]](
@@ -119,6 +121,7 @@ object NetworkSim extends IOApp {
     nodeCfg: NodeConfig,
     ifxDbCfg: InfluxDbConfig,
     dbCfg: DbConfig,
+    commCfg: CommCfg,
   ): Stream[F, Unit] = {
     val rnd                = new scala.util.Random()
     /// Users (wallets) making transactions
@@ -127,8 +130,7 @@ object NetworkSim extends IOApp {
 
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
-    val senders           =
-      Iterator.range(0, netCfg.size).map(_ => Array(rnd.nextInt().toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
+    val senders           = (0 until netCfg.size).map(i => Array(i.toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
     // Create lfs message, it has no parents, sees no offences and final fringe is empty set
     val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
@@ -138,11 +140,6 @@ object NetworkSim extends IOApp {
     val txStore: Ref[F, Map[ByteArray, BalancesState]]  = Ref.unsafe(Map.empty[ByteArray, BalancesState])
     def saveTx(tx: BalancesDeploy): F[Unit]             = txStore.update(_.updated(tx.id, tx.body.state))
     def readTx(id: ByteArray): F[Option[BalancesState]] = txStore.get.map(_.get(id))
-
-    def broadcast(
-      peers: List[Node[F, M, S, T]],
-      time: Duration,
-    ): Pipe[F, M, Unit] = _.evalMap(m => Temporal[F].sleep(time) *> peers.traverse(_.dProc.acceptMsg(m)).void)
 
     def random(users: Set[Wallet]): F[BalancesState] = for {
       txVal <- Random[F].nextLongBounded(100)
@@ -291,7 +288,7 @@ object NetworkSim extends IOApp {
 
     Stream
       .resource(slick.PostgresSlickDb[F](dbCfg))
-      .flatMap { db =>
+      .flatMap { implicit db =>
         Stream
           .resource(mkNet(lfs, db))
           .map(_.zipWithIndex)
@@ -312,11 +309,16 @@ object NetworkSim extends IOApp {
                       Console[F].println(s"Bootstrap done for ${self}")
                   })
                 }
-                val notSelf   = net.collect { case NetNode(id, node, _, _, _) -> _ if id != self => node }
 
-                val run = dProc.dProcStream concurrently {
-                  dProc.output.through(broadcast(notSelf, netCfg.propDelay))
-                }
+                val peerProc            = net.map { case (node, _) => node.id.toHex -> node.node.dProc }.toMap
+                val commF               = PeerTable(commCfg).map(peerTable => CommImpl(peerTable, peerProc))
+                val commBroadcastStream = dProc.output
+                  .flatMap { m =>
+                    Stream.eval(Temporal[F].sleep(netCfg.propDelay) *> commF.flatMap(_.broadcast(m)))
+                  }
+                val commReceiveStream   = Stream.eval(commF.map(_.receiver)).flatten
+
+                val run = dProc.dProcStream concurrently commBroadcastStream
 
                 val apiServerStream: Stream[F, ExitCode] = {
                   def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
@@ -427,7 +429,7 @@ object NetworkSim extends IOApp {
                   web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
                 }
 
-                (run concurrently bootstrap concurrently apiServerStream) -> getData
+                (run concurrently bootstrap concurrently apiServerStream concurrently commReceiveStream) -> getData
             }
           }
           .map(_.unzip)
@@ -531,19 +533,21 @@ object NetworkSim extends IOApp {
         val mkPrng         = Random.scalaUtilRandom[IO]
 
         (loadConfig, mkContextStore, mkPrng).flatMapN {
-          case (Config(network, node, influxDb, dbCfg), ioLocalKamonContext, prng) =>
+          case (Config(network, node, influxDb, dbCfg, commCfg), ioLocalKamonContext, prng) =>
             implicit val x: KamonContextStore[IO] = ioLocalKamonContext
             implicit val y: Random[IO]            = prng
 
             if (node.persistOnChainState)
-              NetworkSim.sim[IO](network, node, influxDb, dbCfg).compile.drain.as(ExitCode.Success)
+              NetworkSim.sim[IO](network, node, influxDb, dbCfg, commCfg).compile.drain.as(ExitCode.Success)
             else {
               // in memory cannot run forever so restart each minute
               Stream
                 .eval(SignallingRef.of[IO, Boolean](false))
                 .flatMap { sRef =>
                   val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
-                  NetworkSim.sim[IO](network, node, influxDb, dbCfg).interruptWhen(sRef) concurrently resetStream
+                  NetworkSim
+                    .sim[IO](network, node, influxDb, dbCfg, commCfg)
+                    .interruptWhen(sRef) concurrently resetStream
                 }
                 .repeat
                 .compile

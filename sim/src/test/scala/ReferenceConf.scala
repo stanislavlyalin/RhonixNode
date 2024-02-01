@@ -9,6 +9,7 @@ class ReferenceConf extends AnyFlatSpec {
       node.Config.Default,
       diagnostics.metrics.Config.Default,
       db.Config.Default,
+      node.comm.Config.Default,
     )
     println(s)
   }

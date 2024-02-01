@@ -18,6 +18,7 @@ object ClassesAsConfig {
         .map { case (name, value, anno) =>
           val formattedValue = value match {
             case s: String => s""""$s""""
+            case l: Seq[_] => s"[\n  ${l.map(_.toString).mkString(",\n  ")}\n]"
             case _         => value.toString
           }
           s"""|# $anno
