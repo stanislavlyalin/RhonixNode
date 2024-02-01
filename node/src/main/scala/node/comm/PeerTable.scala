@@ -14,8 +14,8 @@ final class PeerTable[F[_]: Sync, PId, P] private (
   storePeerF: P => F[Unit],
   removePeerF: P => F[Unit],
 ) {
-  def add(peers: Map[PId, P]): F[Unit] = stCell.evalUpdate(state => updatePeers() *> ST(state.peers ++ peers).pure)
-  def remove(keys: Set[PId]): F[Unit]  = stCell.evalUpdate(state => updatePeers() *> ST(state.peers -- keys).pure)
+  def add(peers: Map[PId, P]): F[Unit] = stCell.evalUpdate(state => updatePeers().as(ST(state.peers ++ peers)))
+  def remove(keys: Set[PId]): F[Unit]  = stCell.evalUpdate(state => updatePeers().as(ST(state.peers -- keys)))
   def all: F[Map[PId, P]]              = stCell.get.map(_.peers)
 
   private def updatePeers(): F[Unit] = for {
