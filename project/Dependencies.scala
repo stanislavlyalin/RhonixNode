@@ -13,8 +13,8 @@ object Dependencies {
   )
 
   // Network communication
-  val grpc      = "io.grpc" % "grpc-core"  % "1.53.0"
-  val grpcNetty = "io.grpc" % "grpc-netty" % "1.53.0"
+  val grpc      = "io.grpc" % "grpc-core"  % "1.61.0"
+  val grpcNetty = "io.grpc" % "grpc-netty" % "1.61.0"
 
   // LEGACY dependencies of imported projects
   val protobuf           = "com.google.protobuf"         % "protobuf-java"    % "3.22.2"
