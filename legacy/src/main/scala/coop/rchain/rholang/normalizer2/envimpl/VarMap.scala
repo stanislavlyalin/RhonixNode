@@ -4,7 +4,7 @@ import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.normalizer2.env.VarContext
 
 /** Map that associates variable names with their context, including de Bruijn index, type, and source position. */
-final class VarMap[T](private val data: Map[String, VarContext[T]], private val nextIndex: Int) {
+final case class VarMap[T](private val data: Map[String, VarContext[T]], private val nextIndex: Int) {
 
   /**
    * Retrieve the variable context by its name.
@@ -33,6 +33,15 @@ final class VarMap[T](private val data: Map[String, VarContext[T]], private val 
 }
 
 object VarMap {
+
+  /**
+   * Create a VarMap with the given data.
+   * @param initData the data to initialize the VarMap with
+   * @return a new VarMap with the given data and a next index of 0
+   */
+  def apply[T](initData: Seq[(String, T, SourcePosition)]): VarMap[T] = initData.foldLeft(empty[T]) {
+    case (varMap, data) => varMap.put(data._1, data._2, data._3)
+  }
 
   /**
    * Create an empty VarMap.

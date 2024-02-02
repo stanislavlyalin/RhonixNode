@@ -13,7 +13,7 @@ import coop.rchain.rholang.syntax.*
  * @tparam F the type of the effect.
  * @tparam T the type of the variable sort.
  */
-final case class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarMap[T]]) {
+final class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarMap[T]]) {
 
   /**
    * Runs a scope function with a new, empty variable map.
@@ -22,7 +22,7 @@ final case class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarM
    * @tparam R the type of the result of the scope function.
    * @return the result of the scope function, wrapped in the effect type F.
    */
-  def withNewScope[R](scopeFn: F[R]): F[R] = chain.runWithNewDataInChain(scopeFn, VarMap.empty)
+  def withNewScope[R](scopeFn: F[R]): F[R] = chain.runWithNewDataInChain(scopeFn, VarMap.empty[T])
 
   /**
    * Runs a scope function with a copy of the current variable map.
@@ -69,4 +69,33 @@ final case class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarM
    */
   def getFirstVarInChain(name: String): Option[(VarContext[T], Int)] =
     chain.iter.zipWithIndex.toSeq.collectFirstSome { case (boundMap, depth) => boundMap.get(name).map((_, depth)) }
+
+  /**
+   * Returns an iterator over the variable maps in the chain.
+   */
+  def iter: Iterator[VarMap[T]] = chain.iter
+}
+
+object VarMapChain {
+
+  /**
+   * Creates a new variable map chain with one initial variable map.
+   *
+   * @param initVarMap the variable map to use.
+   */
+  def apply[F[_]: Sync, T](initVarMap: VarMap[T]): VarMapChain[F, T] = apply(Seq(initVarMap))
+
+  /**
+   * Creates a new variable map chain with the given variable maps.
+   *
+   * @param initVarMaps the variable maps to use.
+   */
+  def apply[F[_]: Sync, T](initVarMaps: Seq[VarMap[T]]): VarMapChain[F, T] =
+    new VarMapChain(HistoryChain(initVarMaps))
+
+  /**
+   * Creates a new variable map chain with an empty variable map.
+   */
+  def empty[F[_]: Sync, T]: VarMapChain[F, T] = apply(VarMap.empty[T])
+
 }
