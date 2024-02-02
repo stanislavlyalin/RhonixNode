@@ -2,13 +2,13 @@ package node
 
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Sync}
-import com.google.protobuf.{CodedInputStream, CodedOutputStream}
+import cats.syntax.all.*
 import io.grpc.*
-import node.comm.{GrpcClient, GrpcServer, Logger}
+import node.comm.{GrpcClient, GrpcServer, Logger, Serialize}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{InputStream, PipedInputStream, PipedOutputStream}
+import java.io.InputStream
 
 class GrpcDslSpec extends AnyFlatSpec with Matchers {
 
@@ -19,28 +19,18 @@ class GrpcDslSpec extends AnyFlatSpec with Matchers {
   // NOTE: here low level validation can happen on the field level or even byte level,
   //       e.g. validating the message header like version or signature
   val myObjMarshal = new MethodDescriptor.Marshaller[MyObj] {
-    override def stream(obj: MyObj): InputStream = {
-      val pipeInput   = new PipedInputStream
-      val pipeOut     = new PipedOutputStream(pipeInput)
-      // Writes serialized fields to output stream (input stream for gRPC)
-      val protoStream = CodedOutputStream.newInstance(pipeOut)
-      protoStream.writeString(1, obj.text)
-      protoStream.writeInt32(2, obj.num)
-      protoStream.flush()
-      pipeOut.flush()
-      pipeOut.close()
-      pipeInput
-    }
+    override def stream(obj: MyObj): InputStream =
+      Serialize.encode[MyObj](obj, (obj, writer) => writer.write(obj.text) *> writer.write(obj.num))
 
-    override def parse(byteStream: InputStream): MyObj = {
-      // Deserialize input byte stream to object fields
-      val protoStream = CodedInputStream.newInstance(byteStream)
-      protoStream.readTag()
-      val text        = protoStream.readString()
-      protoStream.readTag()
-      val num         = protoStream.readInt32()
-      MyObj(text, num)
-    }
+    override def parse(byteStream: InputStream): MyObj =
+      Serialize.decode[MyObj](
+        byteStream,
+        reader =>
+          for {
+            text <- reader.readString
+            num  <- reader.readInt
+          } yield MyObj(text, num),
+      )
   }
 
   /// Represents a method on the API (aka. method on gRPC service)
