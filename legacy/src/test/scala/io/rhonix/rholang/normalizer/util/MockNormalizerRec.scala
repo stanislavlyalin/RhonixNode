@@ -3,11 +3,12 @@ package io.rhonix.rholang.normalizer.util
 import cats.effect.Sync
 import cats.syntax.all.*
 import Mock.*
+import coop.rchain.rholang.normalizer2.util.{MockNestingReader, MockNestingWriter}
 import io.rhonix.rholang.normalizer.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 import io.rhonix.rholang.normalizer.NormalizerRec
 import io.rhonix.rholang.normalizer.util.Mock.{MockNormalizerRecTerm, TermData}
-import io.rhonix.rholang.{GStringN, ParN, VarN}
+import io.rhonix.rholang.types.{GStringN, ParN, VarN}
 
 import scala.collection.mutable.ListBuffer
 

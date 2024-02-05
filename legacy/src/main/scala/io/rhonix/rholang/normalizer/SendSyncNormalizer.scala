@@ -3,10 +3,9 @@ package io.rhonix.rholang.normalizer
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.{NameSort, SourcePosition, VarSort}
-import io.rhonix.rholang.normalizer.env.{BoundVarScope, BoundVarWriter}
-import io.rhonix.rholang.normalizer.NormalizerRec
-import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.normalizer.env.{BoundVarScope, BoundVarWriter}
+import io.rhonix.rholang.types.*
 import sdk.syntax.all.*
 
 import java.util.UUID

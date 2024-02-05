@@ -2,6 +2,7 @@ package io.rhonix.rholang.normalizer.util
 
 import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
+import coop.rchain.rholang.normalizer2.util.{MockNestingReader, MockNestingWriter}
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 
 object Mock {
