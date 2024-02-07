@@ -1,12 +1,12 @@
 package coop.rchain.rholang.normalizer2.envimpl
 
-import coop.rchain.rholang.normalizer2.env.NestingInfoReader
+import coop.rchain.rholang.normalizer2.env.NestingReader
 
-final class NestingInfoReaderImpl(
+final class NestingReaderImpl(
   private val insidePatternStatusFn: () => Boolean,
   private val insideTopLevelReceivePatternStatusFn: () => Boolean,
   private val insideBundleStatusFn: () => Boolean,
-) extends NestingInfoReader {
+) extends NestingReader {
 
   override def insidePattern: Boolean = insidePatternStatusFn()
 
@@ -15,11 +15,11 @@ final class NestingInfoReaderImpl(
   override def insideBundle: Boolean = insideBundleStatusFn()
 }
 
-object NestingInfoReaderImpl {
+object NestingReaderImpl {
   def apply(
     insidePatternFn: () => Boolean,
     insideTopLevelReceivePatternFn: () => Boolean,
     insideBundleFn: () => Boolean,
-  ): NestingInfoReaderImpl =
-    new NestingInfoReaderImpl(insidePatternFn, insideTopLevelReceivePatternFn, insideBundleFn)
+  ): NestingReaderImpl =
+    new NestingReaderImpl(insidePatternFn, insideTopLevelReceivePatternFn, insideBundleFn)
 }

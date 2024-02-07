@@ -1,11 +1,11 @@
 package coop.rchain.rholang.normalizer2.envimpl
 
-import coop.rchain.rholang.normalizer2.env.NestingInfoWriter
+import coop.rchain.rholang.normalizer2.env.NestingWriter
 
-final case class NestingInfoWriterImpl[F[_]](
+final case class NestingWriterImpl[F[_]](
   private val patternInfo: PatternInfoChain[F],
   private val bundleInfo: BundleInfoChain[F],
-) extends NestingInfoWriter[F] {
+) extends NestingWriter[F] {
 
   override def withinPattern[R](inReceive: Boolean)(scopeFn: F[R]): F[R] =
     patternInfo.runWithNewStatus(inReceive)(scopeFn)

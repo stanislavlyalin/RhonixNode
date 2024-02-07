@@ -2,9 +2,9 @@ package coop.rchain.rholang.normalizer2.util
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import coop.rchain.rholang.normalizer2.env.NestingInfoWriter
+import coop.rchain.rholang.normalizer2.env.NestingWriter
 
-case class MockNestingInfoWriter[F[_]: Sync]() extends NestingInfoWriter[F] {
+case class MockNestingWriter[F[_]: Sync]() extends NestingWriter[F] {
   private var insidePatternFlag: Boolean                = false
   private var insideTopLevelReceivePatternFlag: Boolean = false
   private var insideBundleFlag: Boolean                 = false

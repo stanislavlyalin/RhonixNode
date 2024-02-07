@@ -6,10 +6,10 @@ import coop.rchain.rholang.normalizer2.envimpl.HistoryChain
 
 trait HistoryChainSyntax {
   implicit def normalizerSyntaxHistoryChain[T](x: HistoryChain[T]): HistoryChainOps[T] =
-    HistoryChainOps(x)
+    new HistoryChainOps(x)
 }
 
-final case class HistoryChainOps[T](private val x: HistoryChain[T]) extends AnyVal {
+final class HistoryChainOps[T](private val x: HistoryChain[T]) extends AnyVal {
 
   /**
    * Updates the current element in the HistoryChain.

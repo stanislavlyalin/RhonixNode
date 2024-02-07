@@ -3,12 +3,11 @@ package coop.rchain.rholang.normalizer2.envimpl
 import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
 import coop.rchain.rholang.normalizer2.env.BoundVarWriter
 
-final case class BoundVarWriterImpl[T](private val putFn: (String, T, SourcePosition) => Int)
-    extends BoundVarWriter[T] {
+final case class BoundVarWriterImpl[T](private val putFn: IdContext[T] => Int) extends BoundVarWriter[T] {
 
   override def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int] = {
     // Insert all bindings into the bound map
-    val indices = bindings.map(putFn.tupled(_))
+    val indices = bindings.map(putFn)
 
     // Find indices that haven't been shadowed by the new bindings
     val names                  = bindings.map(_._1)

@@ -11,13 +11,13 @@ trait NormalizerSyntax {
   implicit def rholangNormalizerSyntax[F[_], A](f: F[A]): NormalizerOps[F, A] = new NormalizerOps[F, A](f)
 }
 
-class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
+final class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
 
   /** Run a function within a new scope, label it as a pattern
    * @param withinReceive Flag should be true for pattern in receive (input) or contract. */
   def withinPattern(
     withinReceive: Boolean = false,
-  )(implicit bvs: BoundVarScope[F], fvs: FreeVarScope[F], nes: NestingInfoWriter[F]): F[A] =
+  )(implicit bvs: BoundVarScope[F], fvs: FreeVarScope[F], nes: NestingWriter[F]): F[A] =
     bvs.withNewBoundVarScope(fvs.withNewFreeVarScope(nes.withinPattern(withinReceive)(f)))
 
   /** Run a function within a new scope, label it as a pattern,
@@ -27,12 +27,12 @@ class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
     fun: Functor[F],
     bvs: BoundVarScope[F],
     fvs: FreeVarScope[F],
-    nes: NestingInfoWriter[F],
+    nes: NestingWriter[F],
     fvr: FreeVarReader[T],
   ): F[(A, Seq[(String, FreeContext[T])])] = f.withinPattern(withinReceive).map((_, FreeVarReader[T].getFreeVars))
 
   /** Run function with restricted conditions with restrictions as for the bundle */
-  def withinBundle()(implicit nes: NestingInfoWriter[F]): F[A] = NestingInfoWriter[F].withinBundle(f)
+  def withinBundle()(implicit nes: NestingWriter[F]): F[A] = NestingWriter[F].withinBundle(f)
 
   /** Bound free variables in a copy of the current scope.
    *

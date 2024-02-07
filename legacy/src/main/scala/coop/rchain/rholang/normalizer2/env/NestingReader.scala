@@ -1,7 +1,7 @@
 package coop.rchain.rholang.normalizer2.env
 
 /** Retrieve information about nesting structure during normalization. */
-trait NestingInfoReader {
+trait NestingReader {
 
   /** Current processing is being executed within a pattern. */
   def insidePattern: Boolean

@@ -11,7 +11,7 @@ import scala.jdk.CollectionConverters.*
 
 object ContractNormalizer {
   def normalizeContract[
-    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingWriter,
     T: BoundVarWriter: FreeVarReader,
   ](p: PContr): F[ReceiveN] =
     for {

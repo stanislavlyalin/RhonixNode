@@ -2,7 +2,7 @@ package coop.rchain.rholang.normalizer2.env
 
 trait FreeVarScope[F[_]] {
 
-  /** Run function in an empty free variables scope (preserving history) */
+  /** Run function within an empty free variables scope (preserving history). */
   def withNewFreeVarScope[R](scopeFn: F[R]): F[R]
 }
 

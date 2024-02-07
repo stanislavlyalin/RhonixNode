@@ -55,8 +55,8 @@ object Mock {
     MockFreeVarScope[F],
     MockFreeVarWriter[F, T],
     MockFreeVarReader[T],
-    MockNestingInfoWriter[F],
-    MockNestingInfoReader,
+    MockNestingWriter[F],
+    MockNestingReader,
   ) = {
     val mockBVScope: MockBoundVarScope[F] = MockBoundVarScope[F]()
     val mockBVW: MockBoundVarWriter[F, T] = MockBoundVarWriter[F, T](mockBVScope)
@@ -66,9 +66,9 @@ object Mock {
     val mockFVW: MockFreeVarWriter[F, T] = MockFreeVarWriter[F, T](mockFVScope)
     val mockFVR: MockFreeVarReader[T]    = MockFreeVarReader[T](initFreeVars)
 
-    val mockIW: MockNestingInfoWriter[F] = MockNestingInfoWriter[F]()
+    val mockIW: MockNestingWriter[F] = MockNestingWriter[F]()
 
-    val mockIR: MockNestingInfoReader = MockNestingInfoReader(isPattern, isReceivePattern, isBundle)
+    val mockIR: MockNestingReader = MockNestingReader(isPattern, isReceivePattern, isBundle)
 
     val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVScope, mockFVScope, mockIW, mockIR)
     (mockNormalizerRec, mockBVScope, mockBVW, mockBVR, mockFVScope, mockFVW, mockFVR, mockIW, mockIR)

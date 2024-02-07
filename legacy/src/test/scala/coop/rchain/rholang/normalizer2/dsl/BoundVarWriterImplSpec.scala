@@ -1,6 +1,6 @@
 package coop.rchain.rholang.normalizer2.dsl
 
-import coop.rchain.rholang.interpreter.compiler.SourcePosition
+import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
 import coop.rchain.rholang.normalizer2.dsl.BoundVarWriterImplSpec.*
 import coop.rchain.rholang.normalizer2.envimpl.BoundVarWriterImpl
 import org.scalatest.flatspec.AnyFlatSpec
@@ -44,9 +44,9 @@ class BoundVarWriterImplSpec extends AnyFlatSpec with Matchers {
 }
 
 object BoundVarWriterImplSpec {
-  private var idx: Int                                      = 0
-  val resetIdx: () => Unit                                  = () => idx = 0
-  val incrementIdx: (String, String, SourcePosition) => Int = (_, _, _) => { idx += 1; idx }
+  private var idx: Int                       = 0
+  val resetIdx: () => Unit                   = () => idx = 0
+  val incrementIdx: IdContext[String] => Int = _ => { idx += 1; idx }
 
   private val Pos: SourcePosition             = SourcePosition(0, 0)
   val BindA: (String, String, SourcePosition) = ("a", "typeA", Pos)

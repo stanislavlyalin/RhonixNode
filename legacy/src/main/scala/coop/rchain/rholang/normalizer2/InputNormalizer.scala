@@ -16,7 +16,7 @@ import scala.jdk.CollectionConverters.*
 object InputNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def normalizeInput[
-    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingWriter,
     T: BoundVarWriter: FreeVarReader,
   ](p: PInput): F[ParN] = {
     if (p.listreceipt_.size() > 1) {

@@ -4,10 +4,13 @@ import coop.rchain.rholang.interpreter.compiler.FreeContext
 
 trait FreeVarReader[T] {
 
-  /** Gets all free variables */
+  /**
+   * Get all free variables.
+   * @return sequence of free variables with theirs names.
+   */
   def getFreeVars: Seq[(String, FreeContext[T])]
 
-  /** Gets free variable */
+  /** Get free variable by name. */
   def getFreeVar(name: String): Option[FreeContext[T]]
 }
 

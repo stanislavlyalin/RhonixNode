@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.interpreter.errors.{PatternReceiveError, TopLevelLogicalConnectivesNotAllowedError}
-import coop.rchain.rholang.normalizer2.env.NestingInfoReader
+import coop.rchain.rholang.normalizer2.env.NestingReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 import sdk.syntax.all.*
@@ -12,7 +12,7 @@ import sdk.syntax.all.*
 object DisjunctionNormalizer {
   def normalizeDisjunction[F[_]: Sync: NormalizerRec](
     p: PDisjunction,
-  )(implicit nestingInfo: NestingInfoReader): F[ConnOrN] = {
+  )(implicit nestingInfo: NestingReader): F[ConnOrN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
 
     if (nestingInfo.insidePattern)

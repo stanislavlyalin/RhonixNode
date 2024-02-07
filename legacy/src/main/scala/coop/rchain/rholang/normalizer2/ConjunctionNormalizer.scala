@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import coop.rchain.rholang.interpreter.errors.TopLevelLogicalConnectivesNotAllowedError
-import coop.rchain.rholang.normalizer2.env.NestingInfoReader
+import coop.rchain.rholang.normalizer2.env.NestingReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 import sdk.syntax.all.*
@@ -12,7 +12,7 @@ import sdk.syntax.all.*
 object ConjunctionNormalizer {
   def normalizeConjunction[F[_]: Sync: NormalizerRec](
     p: PConjunction,
-  )(implicit nestingInfo: NestingInfoReader): F[ConnAndN] =
+  )(implicit nestingInfo: NestingReader): F[ConnAndN] =
     if (nestingInfo.insidePattern)
       (p.proc_1, p.proc_2)
         .nmap(NormalizerRec[F].normalize)

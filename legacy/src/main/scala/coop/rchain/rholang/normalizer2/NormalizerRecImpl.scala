@@ -10,9 +10,9 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 import sdk.syntax.all.*
 
 final case class NormalizerRecImpl[
-  F[+_]: Sync: BoundVarScope: FreeVarScope: NestingInfoWriter,
+  F[+_]: Sync: BoundVarScope: FreeVarScope: NestingWriter,
   T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader,
-]()(implicit nestingInfo: NestingInfoReader)
+]()(implicit nestingInfo: NestingReader)
     extends NormalizerRec[F] {
 
   implicit val nRec: NormalizerRec[F] = this
@@ -45,9 +45,9 @@ object NormalizerRecImpl {
    * @return core Rholang AST object [[ParN]]
    */
   def normalize[
-    F[+_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    F[+_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingWriter,
     T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader,
-  ](proc: Proc)(implicit nestingInfo: NestingInfoReader): F[ParN] = {
+  ](proc: Proc)(implicit nestingInfo: NestingReader): F[ParN] = {
 
     def unaryExp(subProc: Proc, constructor: ParN => ExprN): F[ParN] =
       NormalizerRec[F].normalize(subProc).map(constructor)

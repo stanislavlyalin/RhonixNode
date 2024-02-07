@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.NormalizerRec
 import coop.rchain.rholang.normalizer2.util.Mock.*
-import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{RemainderADTDefault, mockADT}
+import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 import io.rhonix.rholang.{GStringN, ParN, VarN}
 
@@ -13,8 +13,8 @@ import scala.collection.mutable.ListBuffer
 case class MockNormalizerRec[F[_]: Sync, T](
   bWScope: MockBoundVarScope[F],
   fWScope: MockFreeVarScope[F],
-  infoWriter: MockNestingInfoWriter[F],
-  infoReader: MockNestingInfoReader,
+  infoWriter: MockNestingWriter[F],
+  infoReader: MockNestingReader,
 ) extends NormalizerRec[F] {
   private val buffer: ListBuffer[TermData] = ListBuffer.empty
 

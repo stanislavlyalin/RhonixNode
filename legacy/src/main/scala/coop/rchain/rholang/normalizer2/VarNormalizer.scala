@@ -11,7 +11,7 @@ import io.rhonix.rholang.*
 object VarNormalizer {
   def normalizeVar[F[_]: Sync, T >: VarSort: BoundVarReader: FreeVarReader: FreeVarWriter](
     p: PVar,
-  )(implicit nestingInfo: NestingInfoReader): F[VarN] = {
+  )(implicit nestingInfo: NestingReader): F[VarN] = {
     def pos = SourcePosition(p.line_num, p.col_num)
     p.procvar_ match {
       case pvv: ProcVarVar    => normalizeBoundVar[F, T](pvv.var_, pos, ProcSort)
@@ -21,7 +21,7 @@ object VarNormalizer {
 
   def normalizeRemainder[F[_]: Sync, T >: VarSort: FreeVarReader: FreeVarWriter](
     pv: ProcVar,
-  )(implicit nestingInfo: NestingInfoReader): F[VarN] =
+  )(implicit nestingInfo: NestingReader): F[VarN] =
     pv match {
       case pvv: ProcVarVar      => normalizeFreeVar[F, T](pvv.var_, SourcePosition(pvv.line_num, pvv.col_num), ProcSort)
       case pvw: ProcVarWildcard => normalizeWildcard[F](SourcePosition(pvw.line_num, pvw.col_num))
@@ -31,7 +31,7 @@ object VarNormalizer {
     varName: String,
     pos: SourcePosition,
     expectedSort: T,
-  )(implicit nestingInfo: NestingInfoReader): F[VarN] = Sync[F].defer {
+  )(implicit nestingInfo: NestingReader): F[VarN] = Sync[F].defer {
     BoundVarReader[T].getBoundVar(varName) match {
       case Some(BoundContext(level, `expectedSort`, _)) => Sync[F].pure(BoundVarN(level))
       case Some(BoundContext(_, _, sourcePosition))     =>
@@ -48,7 +48,7 @@ object VarNormalizer {
     varName: String,
     pos: SourcePosition,
     expectedSort: T,
-  )(implicit nestingInfo: NestingInfoReader): F[VarN] =
+  )(implicit nestingInfo: NestingReader): F[VarN] =
     Sync[F].defer {
       if (nestingInfo.insidePattern)
         if (nestingInfo.insideBundle) UnexpectedBundleContent(s"Illegal free variable in bundle at $pos").raiseError
@@ -67,7 +67,7 @@ object VarNormalizer {
       else TopLevelFreeVariablesNotAllowedError(s"$varName at $pos").raiseError
     }
 
-  def normalizeWildcard[F[_]: Sync](pos: SourcePosition)(implicit nestingInfo: NestingInfoReader): F[VarN] =
+  def normalizeWildcard[F[_]: Sync](pos: SourcePosition)(implicit nestingInfo: NestingReader): F[VarN] =
     if (nestingInfo.insidePattern)
       if (!nestingInfo.insideBundle) Sync[F].pure(WildcardN)
       else UnexpectedBundleContent(s"Illegal wildcard in bundle at $pos").raiseError

@@ -4,10 +4,18 @@ import coop.rchain.rholang.interpreter.compiler.BoundContext
 
 trait BoundVarReader[T] {
 
-  /** Gets bound variable by name, current level */
+  /**
+   * Find bound variable across variables of current (topmost) nesting level.
+   * @param name variable name.
+   * @return bound variable or None.
+   */
   def getBoundVar(name: String): Option[BoundContext[T]]
 
-  /** Finds bound variable, searching parent levels */
+  /**
+   * Find bound variable across variables of all nesting levels.
+   * @param name variable name.
+   * @return bound variable with nesting level or None .
+   */
   def findBoundVar(name: String): Option[(BoundContext[T], Int)]
 }
 

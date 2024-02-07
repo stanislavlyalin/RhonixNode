@@ -13,7 +13,7 @@ import scala.jdk.CollectionConverters.*
 
 object LetNormalizer {
   def normalizeLet[
-    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingInfoWriter,
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingWriter,
     T: BoundVarWriter: FreeVarReader,
   ](p: PLet): F[ParN] =
     p.decls_ match {

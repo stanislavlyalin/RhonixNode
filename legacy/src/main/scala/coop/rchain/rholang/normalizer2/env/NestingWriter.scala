@@ -1,7 +1,7 @@
 package coop.rchain.rholang.normalizer2.env
 
 /** Preserve information about nesting structure during normalization. */
-trait NestingInfoWriter[F[_]] {
+trait NestingWriter[F[_]] {
 
   /** Run scopeFn with a note that this is a pattern
    * @param withinReceive Flag is necessary for normalizing the connectives.
@@ -14,6 +14,6 @@ trait NestingInfoWriter[F[_]] {
   def withinBundle[R](scopeFn: F[R]): F[R]
 }
 
-object NestingInfoWriter {
-  def apply[F[_]](implicit instance: NestingInfoWriter[F]): instance.type = instance
+object NestingWriter {
+  def apply[F[_]](implicit instance: NestingWriter[F]): instance.type = instance
 }
