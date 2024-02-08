@@ -50,7 +50,8 @@ object VarNormalizer {
     expectedSort: T,
   )(implicit nestingInfo: NestingReader): F[VarN] =
     Sync[F].defer {
-      if (nestingInfo.insidePattern)
+      if (nestingInfo.insidePattern) {
+        // Inside bundle target is prohibited to have free variables.
         if (nestingInfo.insideBundle) UnexpectedBundleContent(s"Illegal free variable in bundle at $pos").raiseError
         else
           FreeVarReader[T].getFreeVar(varName) match {
@@ -64,12 +65,13 @@ object VarNormalizer {
                 case NameSort => UnexpectedReuseOfNameContextFree(varName, firstSourcePosition, pos).raiseError
               }
           }
-      else TopLevelFreeVariablesNotAllowedError(s"$varName at $pos").raiseError
+      } else TopLevelFreeVariablesNotAllowedError(s"$varName at $pos").raiseError
     }
 
   def normalizeWildcard[F[_]: Sync](pos: SourcePosition)(implicit nestingInfo: NestingReader): F[VarN] =
     if (nestingInfo.insidePattern)
       if (!nestingInfo.insideBundle) Sync[F].pure(WildcardN)
+      // Inside bundle target is prohibited to have wildcards.
       else UnexpectedBundleContent(s"Illegal wildcard in bundle at $pos").raiseError
     else TopLevelWildcardsNotAllowedError(s"_ (wildcard) at $pos").raiseError
 

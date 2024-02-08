@@ -23,7 +23,7 @@ object BundleNormalizer {
     ).raiseError
 
     for {
-      // Inside bundle target it is prohibited to have free variables and wildcards.
+      // Normalize the target while marking that this process is inside a bundle.
       target <- NormalizerRec[F].normalize(p.proc_).withinBundle()
       // Inside bundle target it is prohibited to have connectives on top level.
       _      <- connectivesExistOnTop(target).ifM(raiseError, Sync[F].unit)
@@ -36,7 +36,7 @@ object BundleNormalizer {
                         }
 
     } yield target match {
-      case b: BundleN => outermostBundle.merge(b)
+      case b: BundleN => outermostBundle.merge(b) // When there are nested bundles, these bundles is merged into one.
       case _          => outermostBundle
     }
   }

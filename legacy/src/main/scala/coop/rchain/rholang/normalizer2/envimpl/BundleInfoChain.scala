@@ -8,7 +8,7 @@ import coop.rchain.rholang.syntax.*
  *
  * @param chain a history chain of booleans, where each boolean represents a status of a bundle.
  */
-final class BundleInfoChain[F[_]: Sync](private val chain: HistoryChain[Boolean]) {
+final class BundleInfoChain(private val chain: HistoryChain[Boolean]) {
 
   /**
    * Runs a scope function with a new status.
@@ -16,7 +16,7 @@ final class BundleInfoChain[F[_]: Sync](private val chain: HistoryChain[Boolean]
    * @param scopeFn the scope function to run.
    * @return the result of the scope function, wrapped in the effect type F.
    */
-  def runWithNewStatus[R](scopeFn: F[R]): F[R] = chain.runWithNewDataInChain(scopeFn, true)
+  def runWithNewStatus[F[_]: Sync, R](scopeFn: F[R]): F[R] = chain.runWithNewDataInChain(scopeFn, true)
 
   /**
    * Gets the current status of the bundle information chain.
@@ -27,5 +27,5 @@ final class BundleInfoChain[F[_]: Sync](private val chain: HistoryChain[Boolean]
 }
 
 object BundleInfoChain {
-  def apply[F[_]: Sync](): BundleInfoChain[F] = new BundleInfoChain(HistoryChain(Seq(false)))
+  def apply(): BundleInfoChain = new BundleInfoChain(HistoryChain(Seq(false)))
 }

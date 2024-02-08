@@ -7,7 +7,7 @@ import coop.rchain.rholang.syntax.*
  * Represents a chain of pattern information.
  * @param chain a history chain of tuples, where each tuple represents a status of a pattern.
  */
-final class PatternInfoChain[F[_]: Sync](
+final class PatternInfoChain(
   private val chain: HistoryChain[(Boolean, Boolean)],
 ) {
 
@@ -19,7 +19,7 @@ final class PatternInfoChain[F[_]: Sync](
    * @tparam R the type of the result of the scope function.
    * @return the result of the scope function, wrapped in the effect type F.
    */
-  def runWithNewStatus[R](inReceive: Boolean)(scopeFn: F[R]): F[R] =
+  def runWithNewStatus[F[_]: Sync, R](inReceive: Boolean)(scopeFn: F[R]): F[R] =
     chain.runWithNewDataInChain(scopeFn, (true, inReceive))
 
   /**
@@ -33,5 +33,5 @@ final class PatternInfoChain[F[_]: Sync](
 }
 
 object PatternInfoChain {
-  def apply[F[_]: Sync](): PatternInfoChain[F] = new PatternInfoChain(HistoryChain(Seq((false, false))))
+  def apply(): PatternInfoChain = new PatternInfoChain(HistoryChain(Seq((false, false))))
 }
