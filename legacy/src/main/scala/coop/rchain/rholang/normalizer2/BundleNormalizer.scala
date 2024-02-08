@@ -11,22 +11,22 @@ import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object BundleNormalizer {
   def normalizeBundle[F[_]: Sync: NormalizerRec: NestingWriter](p: PBundle): F[BundleN] = {
-    def connectivesExistOnTop(p: ParN): Boolean =
+    def connectivesExistOnTop(p: ParN): F[Boolean] =
       p match {
-        case _: ConnectiveN  => true
-        case pProc: ParProcN => pProc.ps.exists(connectivesExistOnTop)
-        case _               => false
+        case _: ConnectiveN  => true.pure
+        case _               => false.pure
+        case pProc: ParProcN => pProc.ps.existsM(connectivesExistOnTop)
       }
 
-    def returnError: F[InterpreterError] = UnexpectedBundleContent(
+    def raiseError: F[Unit] = UnexpectedBundleContent(
       s"Illegal top level connective in bundle at: ${SourcePosition(p.line_num, p.col_num)}.",
     ).raiseError
 
     for {
-      // Inside bundle target is prohibited to have free variables and wildcards.
+      // Inside bundle target it is prohibited to have free variables and wildcards.
       target <- NormalizerRec[F].normalize(p.proc_).withinBundle()
-      // Inside bundle target is prohibited to have connectives on top level.
-      _      <- returnError.whenA(connectivesExistOnTop(target))
+      // Inside bundle target it is prohibited to have connectives on top level.
+      _      <- connectivesExistOnTop(target).ifM(raiseError, Sync[F].unit)
 
       outermostBundle = p.bundle_ match {
                           case _: BundleReadWrite => BundleN(target, writeFlag = true, readFlag = true)
