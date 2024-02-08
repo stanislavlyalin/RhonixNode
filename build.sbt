@@ -152,7 +152,7 @@ lazy val legacy = (project in file("legacy"))
     libraryDependencies ++= common ++ tests ++ legacyLibs,
     resolvers += ("jitpack" at "https://jitpack.io"),
   )
-  .dependsOn(sdk, rholang, macros) // depends on new rholang implementation
+  .dependsOn(sdk, rholang, macros, secp256k1) // depends on new rholang implementation
 
 // Macro implementation should be compiled before macro application
 // https://stackoverflow.com/questions/75847326/macro-implementation-not-found-scala-2-13-3
