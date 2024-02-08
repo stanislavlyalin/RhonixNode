@@ -4,40 +4,43 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.normalizer.GroundNormalizeMatcher
 import coop.rchain.rholang.interpreter.compiler.{NameSort, SourcePosition, VarSort}
-import coop.rchain.rholang.normalizer2.env.{BoundVarReader, BoundVarWriter}
+import coop.rchain.rholang.normalizer2.env.{BoundVarScope, BoundVarWriter}
+import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
 import scala.jdk.CollectionConverters.*
 
 object NewNormalizer {
-  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeNew[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarWriter: BoundVarReader](p: PNew): F[NewN] =
+  def normalizeNew[F[_]: Sync: NormalizerRec: BoundVarScope, T >: VarSort: BoundVarWriter](p: PNew): F[NewN] =
     Sync[F].defer {
-      // TODO: bindings within a single new shouldn't have overlapping names.
-      val newTaggedBindings = p.listnamedecl_.asScala.toVector.map {
-        case n: NameDeclSimpl => (None, n.var_, NameSort, n.line_num, n.col_num)
-        case n: NameDeclUrn   =>
-          (
-            Some(GroundNormalizeMatcher.stripUri(n.uriliteral_)),
-            n.var_,
-            NameSort,
-            n.line_num,
-            n.col_num,
-          )
-      }
-      // This sorts the None's first, and the uris by lexicographical order.
-      // We do this here because the sorting affects the numbering of variables inside the body.
-      val sortBindings      = newTaggedBindings.sortBy(row => row._1)
-      val newBindings       = sortBindings.map(row => (row._2, row._3, SourcePosition(row._4, row._5)))
-      val uris              = sortBindings.flatMap(row => row._1)
+      
+      val (simpleBindings, urnData) = p.listnamedecl_.asScala.toSeq
+        .foldRight(
+          (Seq.empty[(String, VarSort, SourcePosition)], Seq.empty[(String, (String, VarSort, SourcePosition))]),
+        ) {
+          case (n: NameDeclSimpl, (simpleAcc, urnAcc)) =>
+            ((n.var_, NameSort, SourcePosition(n.line_num, n.col_num)) +: simpleAcc, urnAcc)
+          case (n: NameDeclUrn, (simpleAcc, urnAcc))   =>
+            val urnData = (
+              GroundNormalizeMatcher.stripUri(n.uriliteral_),
+              (n.var_, NameSort, SourcePosition(n.line_num, n.col_num)),
+            )
+            (simpleAcc, urnData +: urnAcc)
+          case (_, acc)                                => acc
+        }
 
-      val initCount = BoundVarReader[T].boundVarCount
-      BoundVarWriter[T].putBoundVars(newBindings.toList)
-      val bindCount = BoundVarReader[T].boundVarCount - initCount
+      val sortedUrnData = urnData.sortBy(_._1) // Sort by uris in lexicographical order
+
+      val (uris, urnBindings) = sortedUrnData.unzip
+
+      val boundVars = simpleBindings ++ urnBindings
 
       NormalizerRec[F]
         .normalize(p.proc_)
-        .map(par => NewN(bindCount = bindCount, p = par, uri = uris, injections = Map[String, ParN]()))
+        .withAddedBoundVars[T](boundVars)
+        .map { case (normalizedPar, indices) =>
+          NewN(bindCount = indices.size, p = normalizedPar, uri = uris, injections = Map[String, ParN]())
+        }
     }
 }

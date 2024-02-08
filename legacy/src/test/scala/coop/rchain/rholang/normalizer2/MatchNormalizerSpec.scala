@@ -3,71 +3,89 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import coop.rchain.rholang.interpreter.compiler.{ProcSort, VarSort}
-import coop.rchain.rholang.normalizer2.util.Mock.{createMockDSL, BoundVarWriterData, ProcTerm, TermData, VarReaderData}
-import coop.rchain.rholang.normalizer2.util.MockNormalizerRec
+import coop.rchain.rholang.normalizer2.util.Mock.*
+import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.mockADT
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.{MatchCaseN, MatchN}
+import org.scalacheck.Arbitrary
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.Arbitrary.arbString
 
 class MatchNormalizerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers {
 
-  "Match normalizer" should "sequentially normalize  the target, and then the cases in order" in {
-    forAll { (targetStr: String, pattern1Str: String, pattern2Str: String, b: Boolean) =>
-      val targetTerm    = new PVar(new ProcVarVar(targetStr))
-      val pattern1Term  = new PGround(new GroundString(pattern1Str))
-      val caseBody1Term = new PNil()
-      val pattern2Term  = new PVar(new ProcVarVar(pattern2Str))
-      val caseBody2Term = new PGround(new GroundBool(if (b) new BoolTrue else new BoolFalse))
+  behavior of "Match normalizer"
 
-      // match target { case pattern1 => caseBody1; case pattern2 => caseBody2 }
-      val cases     = List(
-        new CaseImpl(pattern1Term, caseBody1Term),
-        new CaseImpl(pattern2Term, caseBody2Term),
-      )
-      val listCases = new ListCase()
-      cases.foreach(listCases.add)
-      val inputTerm = new PMatch(targetTerm, listCases)
+  it should "normalize PMatch term" in {
+    forAll(Arbitrary.arbitrary[String], Arbitrary.arbitrary[Seq[(String, String)]]) {
+      (targetStr: String, casesDataStr: Seq[(String, String)]) =>
+        val targetTerm = new PVar(new ProcVarVar(targetStr))
 
-      implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort]()
+        val casesDataTerm = casesDataStr.map { case (patternStr, caseBodyStr) =>
+          val patternTerm  = new PVar(new ProcVarVar(patternStr))
+          val caseBodyTerm = new PVar(new ProcVarVar(caseBodyStr))
+          (patternTerm, caseBodyTerm)
+        }
+        val cases         = casesDataTerm.map { case (patternTerm, caseBodyTerm) =>
+          new CaseImpl(patternTerm, caseBodyTerm)
+        }
 
-      MatchNormalizer.normalizeMatch[IO, VarSort](inputTerm).unsafeRunSync()
+        val listCases = new ListCase()
+        cases.foreach(listCases.add)
 
-      val terms = mockRec.extractData
+        // match target { case pattern1 => caseBody1; case pattern2 => caseBody2; ... }
+        val inputTerm = new PMatch(targetTerm, listCases)
 
-      val expectedTerms = Seq(
-        TermData(ProcTerm(targetTerm)),
-        TermData(term = ProcTerm(pattern1Term), boundNewScopeLevel = 1, freeScopeLevel = 1),
-        TermData(term = ProcTerm(caseBody1Term), boundCopyScopeLevel = 1),
-        TermData(term = ProcTerm(pattern2Term), boundNewScopeLevel = 1, freeScopeLevel = 1),
-        TermData(term = ProcTerm(caseBody2Term), boundCopyScopeLevel = 1),
-      )
+        implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, infoWriter, _) = createMockDSL[IO, VarSort]()
 
-      terms shouldBe expectedTerms
+        val adt = MatchNormalizer.normalizeMatch[IO, VarSort](inputTerm).unsafeRunSync()
+
+        val expectedAdt = MatchN(
+          target = mockADT(targetTerm: Proc),
+          cases = casesDataTerm.map { case (patternTerm, caseBodyTerm) =>
+            MatchCaseN(
+              pattern = mockADT(patternTerm: Proc),
+              source = mockADT(caseBodyTerm: Proc),
+            )
+          },
+        )
+
+        adt shouldBe expectedAdt
+
+        val terms = nRec.extractData
+
+        // Expect all terms to be normalized in sequence
+        val expectedTerms = TermData(ProcTerm(targetTerm)) +: casesDataTerm.flatMap {
+          case (patternTerm, caseBodyTerm) =>
+            Seq(
+              TermData(term = ProcTerm(patternTerm), boundNewScopeLevel = 1, freeScopeLevel = 1, insidePattern = true),
+              TermData(term = ProcTerm(caseBodyTerm), boundCopyScopeLevel = 1),
+            )
+        }
+        terms shouldBe expectedTerms
     }
   }
 
-  "Match normalizer" should "absorb free variables and bind them in a copy of the scope" in {
-    val cases     = List(new CaseImpl(new PNil, new PNil))
-    val listCases = new ListCase()
-    cases.foreach(listCases.add)
-    // match Nil { case Nil => Nil}
-    val term      = new PMatch(new PNil, listCases)
+  it should "bound free variables in copy scope level" in {
+    forAll { (varsNameStr: Seq[String]) =>
+      val cases     = List(new CaseImpl(new PNil, new PNil))
+      val listCases = new ListCase()
+      cases.foreach(listCases.add)
+      // match Nil { case Nil => Nil}
+      val term      = new PMatch(new PNil, listCases)
 
-    implicit val (mockRec, mockBVW, _, mockFVW, mockFVR) = createMockDSL[IO, VarSort](
-      initFreeVars = Seq(VarReaderData("x", 0, ProcSort), VarReaderData("y", 1, ProcSort)),
-    )
+      val initFreeVars = varsNameStr.distinct.zipWithIndex.map { case (name, index) => (name, (index, ProcSort)) }.toMap
 
-    MatchNormalizer.normalizeMatch[IO, VarSort](term).unsafeRunSync()
+      implicit val (nRec, bVScope, bVW, _, fVScope, _, fVR, infoWriter, _) =
+        createMockDSL[IO, VarSort](initFreeVars = initFreeVars)
 
-    val addedBoundVars = mockBVW.extractData
+      MatchNormalizer.normalizeMatch[IO, VarSort](term).unsafeRunSync()
 
-    val expectedBoundVars = Seq(
-      BoundVarWriterData(name = "x", varType = ProcSort, copyScopeLevel = 1),
-      BoundVarWriterData(name = "y", varType = ProcSort, copyScopeLevel = 1),
-    )
+      val addedBoundVars    = bVW.extractData
+      val expectedBoundVars = initFreeVars.keys.toSeq.map(BoundVarWriterData(_, varType = ProcSort, copyScopeLevel = 1))
 
-    addedBoundVars shouldBe expectedBoundVars
+      addedBoundVars.toSet shouldBe expectedBoundVars.toSet
+    }
   }
-
 }

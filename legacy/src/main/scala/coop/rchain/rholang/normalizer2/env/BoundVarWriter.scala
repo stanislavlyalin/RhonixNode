@@ -1,20 +1,18 @@
 package coop.rchain.rholang.normalizer2.env
 
-import coop.rchain.rholang.interpreter.compiler.{FreeContext, IdContext}
+import coop.rchain.rholang.interpreter.compiler.IdContext
 
 trait BoundVarWriter[T] {
-  // Bound variables operations
 
-  /** Inserts new variables in bound map  */
+  /**
+   * Add bound variables.
+   *
+   * @param bindings sequence of [[IdContext]].
+   * @return indices of bound variables in bounds map that result in application of bindings.
+   *         NOTE: if binding tries to bound a variable that is already present in the bounds map (shadows it),
+   *         it's index is not included in the output.
+   */
   def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int]
-
-  // Scope operations
-
-  /** Runs functions in an empty bound variables scope (preserving history) */
-  def withNewBoundVarScope[R](scopeFn: () => R): R
-
-  /** Runs functions in an copy of this bound variables scope (preserving history) */
-  def withCopyBoundVarScope[R](scopeFn: () => R): R
 }
 
 object BoundVarWriter {

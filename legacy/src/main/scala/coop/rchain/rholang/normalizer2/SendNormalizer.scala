@@ -3,7 +3,7 @@ package coop.rchain.rholang.normalizer2
 import cats.Applicative
 import cats.syntax.all.*
 import io.rhonix.rholang.SendN
-import io.rhonix.rholang.ast.rholang.Absyn.{PSend, SendMultiple, SendSingle}
+import io.rhonix.rholang.ast.rholang.Absyn.*
 
 import scala.jdk.CollectionConverters.*
 

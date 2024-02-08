@@ -3,30 +3,29 @@ package coop.rchain.rholang.normalizer2
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
-import coop.rchain.rholang.interpreter.errors.{PatternReceiveError, TopLevelLogicalConnectivesNotAllowedError}
-import coop.rchain.rholang.normalizer2.env.FreeVarReader
+import coop.rchain.rholang.interpreter.errors.*
+import coop.rchain.rholang.normalizer2.env.NestingReader
 import io.rhonix.rholang.*
 import io.rhonix.rholang.ast.rholang.Absyn.*
 
 object NegationNormalizer {
-  def normalizeNegation[F[_]: Sync: NormalizerRec, T: FreeVarReader](p: PNegation): F[ConnNotN] = {
-    def pos = SourcePosition(p.line_num, p.col_num)
-    if (FreeVarReader[T].topLevel)
-      TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
-    else {
-      if (FreeVarReader[T].topLevelReceivePattern) {
-        // TODO: According to Rholang documentation:
-        //  https://github.com/rchain/rchain/blob/25e523580a339db9ce2e8abdc9dcab44618d4c5c/docs/rholang/rholangtut.md?plain=1#L244-L252
-        //  Since we cannot rely on a specific pattern matching order,
-        //  we cannot use patterns separated by \/ to bind any variables in top level receive.
-        //  But, if part of the connectives does not contain free variables, disjunction and negation can be used.
-        //  For example, this code: for(@{ @"grade"!(10) \/ @"grade"!(11) } <- ... ){ ... } is acceptable.
-        //  Therefore, this condition contradicts the documentation, and it is preserved for compatibility with the legacy normalizer.
-        //  In the future, it will be necessary to analyze whether the left and right parts of the connective contain free variables
-        //  and only in such cases return a PatternReceiveError.
-        PatternReceiveError(s"~ (negation) at $pos").raiseError
-      } else
+  def normalizeNegation[F[_]: Sync: NormalizerRec](
+    p: PNegation,
+  )(implicit nestingInfo: NestingReader): F[ConnNotN] = {
+    val pos = SourcePosition(p.line_num, p.col_num)
+
+    if (nestingInfo.insidePattern)
+      if (!nestingInfo.insideTopLevelReceivePattern)
         NormalizerRec[F].normalize(p.proc_).map(ConnNotN(_))
-    }
+      else
+        // These checks are necessary because top-level disjunctions and negations inside receive patterns should be prohibited.
+        // Examples:
+        // - Allowed code - conjunction inside pattern: `for (@{ x /\ Int } <- @"chan") { Nil }`
+        // - Prohibited code - negation inside top-level receive pattern: `for (@{ ~Int } <- @"chan") { Nil }`
+        // - Allowed code - negation inside pattern but not at the top level (there is another nested pattern in the match):
+        // `for (@{ match "chan1" {~Int => Nil}} <- @"chan2") { Nil }`
+        PatternReceiveError(s"~ (negation) at $pos").raiseError
+    else
+      TopLevelLogicalConnectivesNotAllowedError(s"~ (negation) at $pos").raiseError
   }
 }

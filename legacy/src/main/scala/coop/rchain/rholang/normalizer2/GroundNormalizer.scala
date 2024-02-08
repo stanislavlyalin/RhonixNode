@@ -1,7 +1,6 @@
 package coop.rchain.rholang.normalizer2
 
 import cats.effect.Sync
-import cats.implicits.{catsSyntaxMonadError, toFunctorOps}
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.normalizer.GroundNormalizeMatcher.{stripString, stripUri}
 import coop.rchain.rholang.interpreter.errors.NormalizerError
@@ -13,8 +12,8 @@ object GroundNormalizer {
     p.ground_ match {
       case gb: GroundBool    =>
         gb.boolliteral_ match {
-          case _: BoolFalse => Sync[F].pure(GBoolN(true))
-          case _: BoolTrue  => Sync[F].pure(GBoolN(false))
+          case _: BoolFalse => Sync[F].pure(GBoolN(false))
+          case _: BoolTrue  => Sync[F].pure(GBoolN(true))
         }
       case gi: GroundInt     =>
         Sync[F]
@@ -26,8 +25,8 @@ object GroundNormalizer {
           .delay(BigInt(gbi.longliteral_))
           .adaptError { case e: NumberFormatException => NormalizerError(e.getMessage) }
           .map(GBigIntN.apply)
-      case gs: GroundString  => Sync[F].pure(GStringN(stripString(gs.stringliteral_)))
-      case gu: GroundUri     => Sync[F].pure(GUriN(stripUri(gu.uriliteral_)))
+      case gs: GroundString  => Sync[F].delay(GStringN(stripString(gs.stringliteral_)))
+      case gu: GroundUri     => Sync[F].delay(GUriN(stripUri(gu.uriliteral_)))
     }
   }
 }

@@ -1,6 +1,6 @@
 package coop.rchain.rholang.normalizer2.util
 
-import cats.Applicative
+import cats.effect.Sync
 import coop.rchain.rholang.interpreter.compiler.SourcePosition
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
 
@@ -14,6 +14,9 @@ object Mock {
     boundNewScopeLevel: Int = 0,
     boundCopyScopeLevel: Int = 0,
     freeScopeLevel: Int = 0,
+    insidePattern: Boolean = false,
+    insideTopLevelReceive: Boolean = false,
+    insideBundle: Boolean = false,
   )
 
   sealed trait MockNormalizerRecTerm
@@ -25,26 +28,49 @@ object Mock {
   val DefPosition: SourcePosition = SourcePosition(0, 0)
   val DefFreeVarIndex: Int        = 0
 
-  def createMockDSL[F[_]: Applicative, T](
-    initBoundVars: Seq[VarReaderData[T]] = Seq(),
-    initFreeVars: Seq[VarReaderData[T]] = Seq(),
-    isTopLevel: Boolean = true,
+  // (nRec, bVScope, bVW, bVR, fVScope, fVW, fVR, fVScopeReader)
+
+  /**
+   * Create a mock DSL for testing the normalizer.
+   * @param initBoundVars initial bound variables for the mock bound variable reader.
+   *                      The key is the name of the variable. The value is a tuple of the index and the type.
+   * @param initFreeVars initial free variables for the mock free variable reader.
+   *                      The key is the name of the variable. The value is a tuple of the index and the type.
+   * @param isPattern initial value for the inside pattern flag of the mock restrict reader.
+   * @param isReceivePattern initial value for the isReceivePattern flag of the mock restrict reader.
+   * @param isBundle initial value for the isBundle flag of the mock restrict reader.
+   * @return all the components of the mock DSL.
+   */
+  def createMockDSL[F[_]: Sync, T](
+    initBoundVars: Map[String, (Int, T)] = Map[String, (Int, T)](),
+    initFreeVars: Map[String, (Int, T)] = Map[String, (Int, T)](),
+    isPattern: Boolean = false,
     isReceivePattern: Boolean = false,
+    isBundle: Boolean = false,
   ): (
     MockNormalizerRec[F, T],
-    MockBoundVarWriter[T],
+    MockBoundVarScope[F],
+    MockBoundVarWriter[F, T],
     MockBoundVarReader[T],
-    MockFreeVarWriter[T],
+    MockFreeVarScope[F],
+    MockFreeVarWriter[F, T],
     MockFreeVarReader[T],
+    MockNestingWriter[F],
+    MockNestingReader,
   ) = {
-    val mockBVW: MockBoundVarWriter[T] = MockBoundVarWriter[T]()
-    val mockBVR: MockBoundVarReader[T] = MockBoundVarReader[T](initBoundVars)
+    val mockBVScope: MockBoundVarScope[F] = MockBoundVarScope[F]()
+    val mockBVW: MockBoundVarWriter[F, T] = MockBoundVarWriter[F, T](mockBVScope)
+    val mockBVR: MockBoundVarReader[T]    = MockBoundVarReader[T](initBoundVars)
 
-    val mockFVW: MockFreeVarWriter[T] = MockFreeVarWriter[T]()
-    val mockFVR: MockFreeVarReader[T] = MockFreeVarReader[T](initFreeVars, isTopLevel, isReceivePattern)
+    val mockFVScope: MockFreeVarScope[F] = MockFreeVarScope[F]()
+    val mockFVW: MockFreeVarWriter[F, T] = MockFreeVarWriter[F, T](mockFVScope)
+    val mockFVR: MockFreeVarReader[T]    = MockFreeVarReader[T](initFreeVars)
 
-    val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVW, mockFVW)
+    val mockIW: MockNestingWriter[F] = MockNestingWriter[F]()
 
-    (mockNormalizerRec, mockBVW, mockBVR, mockFVW, mockFVR)
+    val mockIR: MockNestingReader = MockNestingReader(isPattern, isReceivePattern, isBundle)
+
+    val mockNormalizerRec: MockNormalizerRec[F, T] = MockNormalizerRec[F, T](mockBVScope, mockFVScope, mockIW, mockIR)
+    (mockNormalizerRec, mockBVScope, mockBVW, mockBVR, mockFVScope, mockFVW, mockFVR, mockIW, mockIR)
   }
 }

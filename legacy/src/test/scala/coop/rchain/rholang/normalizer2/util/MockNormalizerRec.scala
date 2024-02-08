@@ -1,47 +1,64 @@
 package coop.rchain.rholang.normalizer2.util
 
-import cats.Applicative
-import cats.implicits.{catsSyntaxApplicativeId, none}
+import cats.effect.Sync
+import cats.syntax.all.*
 import coop.rchain.rholang.normalizer2.NormalizerRec
 import coop.rchain.rholang.normalizer2.util.Mock.*
-import io.rhonix.rholang.{NilN, ParN, VarN}
+import coop.rchain.rholang.normalizer2.util.MockNormalizerRec.{mockADT, RemainderADTDefault}
 import io.rhonix.rholang.ast.rholang.Absyn.{Name, NameRemainder, Proc, ProcRemainder}
+import io.rhonix.rholang.{GStringN, ParN, VarN}
 
 import scala.collection.mutable.ListBuffer
 
-case class MockNormalizerRec[F[_]: Applicative, T](mockBVW: MockBoundVarWriter[T], mockFVW: MockFreeVarWriter[T])
-    extends NormalizerRec[F] {
+case class MockNormalizerRec[F[_]: Sync, T](
+  bWScope: MockBoundVarScope[F],
+  fWScope: MockFreeVarScope[F],
+  infoWriter: MockNestingWriter[F],
+  infoReader: MockNestingReader,
+) extends NormalizerRec[F] {
   private val buffer: ListBuffer[TermData] = ListBuffer.empty
 
   private def addInBuf(term: MockNormalizerRecTerm): Unit =
     buffer.append(
       TermData(
         term = term,
-        boundNewScopeLevel = mockBVW.newScopeLevel(),
-        boundCopyScopeLevel = mockBVW.copyScopeLevel(),
-        freeScopeLevel = mockFVW.newScopeLevel(),
+        boundNewScopeLevel = bWScope.getNewScopeLevel,
+        boundCopyScopeLevel = bWScope.getCopyScopeLevel,
+        freeScopeLevel = fWScope.getScopeLevel,
+        insidePattern = infoWriter.getInsidePatternFlag,
+        insideTopLevelReceive = infoWriter.getInsideTopLevelReceivePatternFlag,
+        insideBundle = infoWriter.getInsideBundleFlag,
       ),
     )
 
-  override def normalize(proc: Proc): F[ParN] = {
+  // Because addInBuf is not pure, we need to use Sync[F].delay
+
+  override def normalize(proc: Proc): F[ParN] = Sync[F].delay {
     addInBuf(ProcTerm(proc))
-    (NilN: ParN).pure
+    mockADT(proc)
   }
 
-  override def normalize(name: Name): F[ParN] = {
+  override def normalize(name: Name): F[ParN] = Sync[F].delay {
     addInBuf(NameTerm(name))
-    (NilN: ParN).pure
+    mockADT(name)
   }
 
-  override def normalize(remainder: ProcRemainder): F[Option[VarN]] = {
+  override def normalize(remainder: ProcRemainder): F[Option[VarN]] = Sync[F].delay {
     addInBuf(ProcRemainderTerm(remainder))
-    none[VarN].pure
+    RemainderADTDefault
   }
 
-  override def normalize(remainder: NameRemainder): F[Option[VarN]] = {
+  override def normalize(remainder: NameRemainder): F[Option[VarN]] = Sync[F].delay {
     addInBuf(NameRemainderTerm(remainder))
-    none[VarN].pure
+    RemainderADTDefault
   }
 
   def extractData: Seq[TermData] = buffer.toSeq
+
+}
+
+object MockNormalizerRec {
+  def mockADT(proc: Proc): ParN         = GStringN(proc.toString)
+  def mockADT(name: Name): ParN         = GStringN(name.toString)
+  val RemainderADTDefault: Option[VarN] = none
 }

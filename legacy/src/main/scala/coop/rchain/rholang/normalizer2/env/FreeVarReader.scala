@@ -3,21 +3,15 @@ package coop.rchain.rholang.normalizer2.env
 import coop.rchain.rholang.interpreter.compiler.FreeContext
 
 trait FreeVarReader[T] {
-  // Free variables operations
 
-  /** Gets all free variables */
+  /**
+   * Get all free variables.
+   * @return sequence of free variables with theirs names.
+   */
   def getFreeVars: Seq[(String, FreeContext[T])]
 
-  /** Gets free variable */
+  /** Get free variable by name. */
   def getFreeVar(name: String): Option[FreeContext[T]]
-
-  // Scope operations
-
-  /** Flag if free variable scope is on top level, meaning not within the pattern */
-  def topLevel: Boolean
-
-  /** Flag if free variable scope in the receive pattern and this receive is not inside any other pattern */
-  def topLevelReceivePattern: Boolean
 }
 
 object FreeVarReader {

@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.models.ReceiveBind
 import coop.rchain.rholang.interpreter.errors.ReceiveOnSameChannelsError
-import coop.rchain.rholang.normalizer2.env.{BoundVarWriter, FreeVarReader, FreeVarWriter}
+import coop.rchain.rholang.normalizer2.env.*
 import coop.rchain.rholang.syntax.*
 import io.rhonix.rholang.*
 import io.rhonix.rholang.Bindings.*
@@ -15,9 +15,10 @@ import scala.jdk.CollectionConverters.*
 
 object InputNormalizer {
   @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
-  def normalizeInput[F[_]: Sync: NormalizerRec, T: BoundVarWriter: FreeVarReader: FreeVarWriter](
-    p: PInput,
-  ): F[ParN] = {
+  def normalizeInput[
+    F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingWriter,
+    T: BoundVarWriter: FreeVarReader,
+  ](p: PInput): F[ParN] = {
     if (p.listreceipt_.size() > 1) {
       NormalizerRec[F].normalize(
         p.listreceipt_.asScala.reverse.foldLeft(p.proc_) { (proc, receipt) =>
@@ -193,30 +194,22 @@ object InputNormalizer {
         for {
           processedSources <- names.traverse(NormalizerRec[F].normalize)
 
-          patternTuple <- BoundVarWriter[T].withNewVarScope(insideReceive = true)(() =>
-                            for {
-                              binds <- createBinds(patterns, processedSources)
-                              // After pattern processing getFreeVars() will return free variables for all patterns
-                              vars   = FreeVarReader[T].getFreeVars
-                            } yield (binds, vars),
-                          )
+          patternTuple <- createBinds(patterns, processedSources).withinPatternGetFreeVars(withinReceive = true)
 
-          (unsortBinds, freeVars) = patternTuple
+          (unsortedBinds, freeVars) = patternTuple
 
           // TODO: The sorting will be removed after the old Rholang types are removed.
           //  With the new types, sorting is unnecessary as they are always sorted by hash.
-          binds <- sortBinds(unsortBinds)
+          binds <- sortBinds(unsortedBinds)
 
-          thereAreDuplicatesInSources = processedSources.distinct.sizeIs != processedSources.size
+          thereAreDuplicatesInSources = processedSources.distinct.size != processedSources.size
           _                          <- ReceiveOnSameChannelsError(p.line_num, p.col_num)
                                           .raiseError[F, Unit]
                                           .whenA(thereAreDuplicatesInSources)
 
-          // Normalize body in the current bound and free variables scope
-          continuation               <- BoundVarWriter[T].withCopyBoundVarScope { () =>
-                                          BoundVarWriter[T].absorbFree(freeVars)
-                                          NormalizerRec[F].normalize(p.proc_)
-                                        }
+          // Normalize body in the copy of bound scope with added free variables as bounded
+          continuation               <- NormalizerRec[F].normalize(p.proc_).withAbsorbedFreeVars(freeVars)
+
         } yield ReceiveN(binds, continuation, persistent, peek, freeVars.size)
       }
     }

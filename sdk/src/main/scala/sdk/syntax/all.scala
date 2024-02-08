@@ -21,3 +21,4 @@ trait AllSyntax
     with Fs2StreamSyntax
     with MetricsWriterSdkSyntax
     with DigestSyntax
+    with TupleSyntax
