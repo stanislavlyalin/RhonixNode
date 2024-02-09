@@ -1,14 +1,14 @@
 package node.comm
 
+import cats.Applicative
+import cats.syntax.all.*
 import io.grpc.MethodDescriptor
 import node.comm.CommProtocol.*
+import sdk.comm.Peer
 
 import java.io.InputStream
 
 object CommProtocolEncoders {
-
-  // TODO: Consider to use PrimitiveWriter & PrimitiveReader
-
   implicit val sendPeers: MethodDescriptor[SendPeersRequest, SendPeersResponse] = MethodDescriptor
     .newBuilder()
     .setType(MethodDescriptor.MethodType.UNARY)
@@ -17,9 +17,37 @@ object CommProtocolEncoders {
     .setResponseMarshaller(sendPeersResponseMarshal)
     .build()
 
+  // TODO: Similar to serializeSeq in sim/balances/Serialization.scala
+  private def serializeSeq[F[_]: Applicative, A](l: Seq[A], writeF: A => F[Unit]): F[Unit] =
+    l.map(writeF).fold(().pure[F])(_ *> _)
+
   private lazy val sendPeersRequestMarshal = new MethodDescriptor.Marshaller[SendPeersRequest] {
-    override def stream(obj: SendPeersRequest): InputStream       = ???
-    override def parse(byteStream: InputStream): SendPeersRequest = ???
+    override def stream(obj: SendPeersRequest): InputStream       =
+      Serialize.encode[SendPeersRequest](
+        obj,
+        (obj, writer) =>
+          writer.write(obj.peers.size) *>
+            serializeSeq(
+              obj.peers,
+              (p: Peer) => writer.write(p.url) *> writer.write(p.isSelf) *> writer.write(p.isValidator),
+            ),
+      )
+    override def parse(byteStream: InputStream): SendPeersRequest =
+      Serialize.decode[SendPeersRequest](
+        byteStream,
+        reader =>
+          for {
+            size  <- reader.readInt
+            peers <- (0 until size).toList.traverse(_ =>
+                       for {
+                         url         <- reader.readString
+                         isSelf      <- reader.readBool
+                         isValidator <- reader.readBool
+                       } yield Peer(url, isSelf, isValidator),
+                     )
+
+          } yield SendPeersRequest(peers),
+      )
   }
 
   private lazy val sendPeersResponseMarshal = new MethodDescriptor.Marshaller[SendPeersResponse] {
