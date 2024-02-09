@@ -183,7 +183,7 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
 
   "Loaded peers" should "be the same as generated and stored peers" in {
     forAll(Gen.nonEmptyListOf(nonEmptyAlphaString)) { urls =>
-      val peers = urls.map(Peer(_, isSelf = false, isValidator = true)) match {
+      val peers = urls.distinct.map(Peer(_, isSelf = false, isValidator = true)) match {
         case head :: tail => head.copy(isSelf = true) +: tail
         case list         => list
       }
