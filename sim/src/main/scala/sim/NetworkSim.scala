@@ -6,14 +6,16 @@ import cats.effect.*
 import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.{Console, Random}
 import cats.syntax.all.*
+import db.Config as DbConfig
 import diagnostics.KamonContextStore
 import diagnostics.metrics.{Config as InfluxDbConfig, InfluxDbBatchedMetrics}
 import dproc.data.Block
 import fs2.concurrent.SignallingRef
-import fs2.{Pipe, Stream}
+import fs2.Stream
 import node.api.web
 import node.api.web.{PublicApiJson, Validation}
 import node.api.web.https4s.RouterFix
+import node.comm.{CommImpl, PeerTable}
 import node.lmdb.LmdbStoreManager
 import node.{Config as NodeConfig, Node}
 import pureconfig.generic.ProductHint
@@ -30,16 +32,17 @@ import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
 import sdk.store.*
 import sdk.syntax.all.*
-import secp256k1.Secp256k1
 import sim.Config as SimConfig
 import sim.NetworkSnapshot.{reportSnapshot, NodeSnapshot}
-import sim.balances.*
 import sim.balances.Hashing.*
 import sim.balances.MergeLogicForPayments.mergeRejectNegativeOverflow
 import sim.balances.data.BalancesState.Default
 import sim.balances.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
+import sim.balances.*
+import slick.SlickDb
 import weaver.WeaverState
 import weaver.data.*
+import node.comm.Config as CommCfg
 
 import java.nio.file.Files
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -57,6 +60,8 @@ object NetworkSim extends IOApp {
     sim: SimConfig,
     node: NodeConfig,
     influxDb: InfluxDbConfig,
+    dbCfg: DbConfig,
+    commCfg: CommCfg,
   )
 
   final case class NetNode[F[_]](
@@ -64,6 +69,7 @@ object NetworkSim extends IOApp {
     node: Node[F, M, S, T],
     balanceApi: (ByteArray32, Wallet) => F[Option[Long]],
     getData: F[NodeSnapshot[M, S, T]],
+    dbApi: dbApiImpl[F],
   )
 
   def genesisBlock[F[_]: Async: Parallel: Metrics](
@@ -114,6 +120,8 @@ object NetworkSim extends IOApp {
     netCfg: SimConfig,
     nodeCfg: NodeConfig,
     ifxDbCfg: InfluxDbConfig,
+    dbCfg: DbConfig,
+    commCfg: CommCfg,
   ): Stream[F, Unit] = {
     val rnd                = new scala.util.Random()
     /// Users (wallets) making transactions
@@ -122,31 +130,16 @@ object NetworkSim extends IOApp {
 
     /// Genesis data
     val lazinessTolerance = 1 // c.lazinessTolerance
-    val senders           =
-      Iterator.range(0, netCfg.size).map(_ => Array(rnd.nextInt().toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
+    val senders           = (0 until netCfg.size).map(i => Array(i.toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
     // Create lfs message, it has no parents, sees no offences and final fringe is empty set
     val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
     val genesisExec       = FinalData(genesisBonds, lazinessTolerance, 10000)
     val lfs               = MessageData[M, S](ByteArray("s0".getBytes), Set(), Set(), FringeData(Set()), genesisExec)
 
-    /// Shared block store across simulation
-    // TODO replace with pgSql
-    val blockStore: Ref[F, Map[M, dproc.data.Block[M, S, T]]] =
-      Ref.unsafe(Map.empty[M, dproc.data.Block[M, S, T]])
-
-    def saveBlock(b: Block.WithId[M, S, T]): F[Unit] = blockStore.update(_.updated(b.id, b.m))
-
-    def readBlock(id: M): F[Block[M, S, T]] = blockStore.get.map(_.getUnsafe(id))
-
     // Shared transactions store
     val txStore: Ref[F, Map[ByteArray, BalancesState]]  = Ref.unsafe(Map.empty[ByteArray, BalancesState])
     def saveTx(tx: BalancesDeploy): F[Unit]             = txStore.update(_.updated(tx.id, tx.body.state))
     def readTx(id: ByteArray): F[Option[BalancesState]] = txStore.get.map(_.get(id))
-
-    def broadcast(
-      peers: List[Node[F, M, S, T]],
-      time: Duration,
-    ): Pipe[F, M, Unit] = _.evalMap(m => Temporal[F].sleep(time) *> peers.traverse(_.dProc.acceptMsg(m)).void)
 
     def random(users: Set[Wallet]): F[BalancesState] = for {
       txVal <- Random[F].nextLongBounded(100)
@@ -169,7 +162,7 @@ object NetworkSim extends IOApp {
         }
       }
 
-    def mkNode(vId: S): Resource[F, NetNode[F]] = {
+    def mkNode(vId: S, db: SlickDb): Resource[F, NetNode[F]] = {
       val dataPath     = Files.createTempDirectory(s"gorki-sim-node-$vId")
       val storeManager =
         if (nodeCfg.persistOnChainState) LmdbStoreManager(dataPath)
@@ -178,8 +171,8 @@ object NetworkSim extends IOApp {
         if (nodeCfg.enableInfluxDb) InfluxDbBatchedMetrics[F](ifxDbCfg, vId.toHex)
         else Resource.eval(Metrics.unit.pure[F])
 
-      (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics).flatMapN {
-        case ((history, valueStore), metrics) =>
+      (Resource.eval(storeManager).flatMap(onChainStoreResource), metrics, Resource.eval(dbApiImpl(db)))
+        .flatMapN { case ((history, valueStore), metrics, dbApi) =>
           implicit val x: Metrics[F] = metrics
 
           val blockSeqNumRef = Ref.unsafe(0)
@@ -195,7 +188,7 @@ object NetworkSim extends IOApp {
               random(users).map(st => balances.data.BalancesDeploy(BalancesDeployBody(st, idx.longValue)))
             }
             .replicateA(netCfg.txPerBlock)
-            .flatTap(_.traverse(saveTx))
+            .flatTap(_.traverse(dbApi.saveBalancesDeploy))
             .map(_.toSet)
 
           val balancesEngine   = BalancesStateBuilderWithReader(history, valueStore)
@@ -222,14 +215,16 @@ object NetworkSim extends IOApp {
               _ <- fringeMappingRef.update(_ + (finalFringe -> finalHash))
             } yield ((finalHash.bytes.bytes, finRj), (postHash.bytes.bytes, provRj))
 
+          def unsafeReadBlock(id: ByteArray) = dbApi.readBlock(id).map(_.get)
+
           val netNode = Node[F, M, S, T](
             vId,
             WeaverState.empty[M, S, T](lfs.state),
             assignBlockId,
             nextTxs,
             buildState,
-            saveBlock,
-            readBlock,
+            dbApi.saveBlock,
+            unsafeReadBlock,
           ).map { node =>
             val tpsRef    = Ref.unsafe[F, Double](0f)
             val tpsUpdate = node.dProc.finStream
@@ -280,160 +275,175 @@ object NetworkSim extends IOApp {
               ),
               balancesEngine.readBalance(_: ByteArray32, _: Wallet),
               getData,
+              dbApi,
             )
           }
           Resource.liftK(netNode)
-      }
+        }
     }
 
     /** Make the computer, init all peers with lfs. */
-    def mkNet(lfs: MessageData[M, S]): Resource[F, List[NetNode[F]]] =
-      lfs.state.bonds.activeSet.toList.traverse(mkNode)
+    def mkNet(lfs: MessageData[M, S], db: SlickDb): Resource[F, List[NetNode[F]]] =
+      lfs.state.bonds.activeSet.toList.traverse(mkNode(_, db))
 
     Stream
-      .resource(mkNet(lfs))
-      .map(_.zipWithIndex)
-      .map { net =>
-        net.map {
-          case NetNode(
-                self,
-                Node(weaverStRef, _, _, _, dProc),
-                readBalance,
-                getData,
-              ) -> idx =>
-            val bootstrap = {
-              implicit val m: Metrics[F] = Metrics.unit
-              Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
-                val genesis = genesisM.m.txs.head
-                saveBlock(genesisM) *> saveTx(genesis) *> dProc.acceptMsg(genesisM.id) *>
-                  Console[F].println(s"Bootstrap done for ${self}")
-              })
-            }
-            val notSelf   = net.collect { case NetNode(id, node, _, _) -> _ if id != self => node }
-
-            val run = dProc.dProcStream concurrently {
-              dProc.output.through(broadcast(notSelf, netCfg.propDelay))
-            }
-
-            val apiServerStream: Stream[F, ExitCode] = {
-              def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
-                blockStore.get
-                  .map(_.get(ByteArray(x)))
-                  .map(
-                    _.map { x =>
-                      x.copy(
-                        merge = x.merge.map(_.id),
-                        txs = x.txs.map(_.id),
-                        finalized = x.finalized.map { case ConflictResolution(accepted, rejected) =>
-                          ConflictResolution(accepted.map(_.id), rejected.map(_.id))
-                        },
-                      )
-                    }.map {
-                      case Block(
-                            sender,
-                            minGenJs,
-                            offences,
-                            txs,
-                            finalFringe,
-                            finalized,
-                            merge,
-                            bonds,
-                            lazTol,
-                            expThresh,
-                            finalStateHash,
-                            postStateHash,
-                          ) =>
-                        data.Block(
-                          x,
-                          sender.bytes,
-                          1,
-                          "root",
-                          -1,
-                          -1,
-                          minGenJs.map(_.bytes),
-                          bonds.bonds.map { case (k, v) => Bond(k.bytes, v) }.toSet,
-                          finalStateHash,
-                          preStateHash = postStateHash,
-                          postStateHash = postStateHash,
-                          deploys = txs.map(_.bytes).toSet,
-                          signatureAlg = "-",
-                          signature = Array.empty[Byte],
-                          status = 0,
-                        )
-                    },
-                  )
-
-              def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
-
-              val extApiImpl = new ExternalApi[F] {
-                override def getBlockByHash(hash: Array[Byte]): F[Option[api.data.Block]] = blockByHash(hash)
-
-                override def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]] =
-                  readTx(ByteArray(hash)).map(
-                    _.map(x =>
-                      Deploy(
-                        Array.empty[Byte],
-                        Array.empty[Byte],
-                        "root",
-                        s"${x.diffs.map { case k -> v => k.toHex -> v }}",
-                        0L,
-                        0L,
-                        0L,
-                        0L,
-                        0L,
-                      ),
-                    ),
-                  )
-
-                override def getDeploysByHash(hash: Array[Byte]): F[Option[Seq[Array[Byte]]]]        = ???
-                override def getBalance(state: Array[Byte], wallet: Array[Byte]): F[Option[Balance]] = {
-                  val blakeH = ByteArray32.convert(state)
-                  val longW  = walletCodec.decode(ByteArray(wallet))
-                  (blakeH, longW).traverseN(readBalance).flatMap(_.liftTo[F])
+      .resource(slick.PostgresSlickDb[F](dbCfg))
+      .flatMap { implicit db =>
+        Stream
+          .resource(mkNet(lfs, db))
+          .map(_.zipWithIndex)
+          .map { net =>
+            net.map {
+              case NetNode(
+                    self,
+                    Node(weaverStRef, _, _, _, dProc),
+                    readBalance,
+                    getData,
+                    dbApi,
+                  ) -> idx =>
+                val bootstrap = {
+                  implicit val m: Metrics[F] = Metrics.unit
+                  Stream.eval(genesisBlock[F](senders.head, genesisExec, users).flatMap { genesisM =>
+                    val genesis = genesisM.m.txs.head
+                    dbApi.saveBlock(genesisM) *> dbApi.saveBalancesDeploy(genesis) *> dProc.acceptMsg(genesisM.id) *>
+                      Console[F].println(s"Bootstrap done for ${self}")
+                  })
                 }
 
-                override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
-                override def status: F[Status]                       = Status("0.1.1").pure
+                val peerProc            = net.map { case (node, _) => node.id.toHex -> node.node.dProc }.toMap
+                val commF               = PeerTable(commCfg).map(peerTable => CommImpl(peerTable, peerProc))
+                val commBroadcastStream = dProc.output
+                  .flatMap { m =>
+                    Stream.eval(Temporal[F].sleep(netCfg.propDelay) *> commF.flatMap(_.broadcast(m)))
+                  }
+                val commReceiveStream   = Stream.eval(commF.map(_.receiver)).flatten
 
-                override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
-                  Validation
-                    .validateTokenTransferRequest(tx)(implicitly[Digest[TokenTransferRequest.Body]])
-                    .traverse { _ =>
-                      txStore.update(
-                        _.updated(
-                          ByteArray(tx.digest),
-                          BalancesState(
-                            Map(
-                              ByteArray(tx.body.from) -> -tx.body.value,
-                              ByteArray(tx.body.to)   -> tx.body.value,
+                val run = dProc.dProcStream concurrently commBroadcastStream
+
+                val apiServerStream: Stream[F, ExitCode] = {
+                  def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
+                    dbApi
+                      .readBlock(ByteArray(x))
+                      .map(
+                        _.map { x =>
+                          x.copy(
+                            merge = x.merge.map(_.id),
+                            txs = x.txs.map(_.id),
+                            finalized = x.finalized.map { case ConflictResolution(accepted, rejected) =>
+                              ConflictResolution(accepted.map(_.id), rejected.map(_.id))
+                            },
+                          )
+                        }.map {
+                          case Block(
+                                sender,
+                                minGenJs,
+                                offences,
+                                txs,
+                                finalFringe,
+                                finalized,
+                                merge,
+                                bonds,
+                                lazTol,
+                                expThresh,
+                                finalStateHash,
+                                postStateHash,
+                              ) =>
+                            data.Block(
+                              x,
+                              sender.bytes,
+                              1,
+                              "root",
+                              -1,
+                              -1,
+                              minGenJs.map(_.bytes),
+                              bonds.bonds.map { case (k, v) => Bond(k.bytes, v) }.toSet,
+                              finalStateHash,
+                              preStateHash = postStateHash,
+                              postStateHash = postStateHash,
+                              deploys = txs.map(_.bytes).toSet,
+                              signatureAlg = "-",
+                              signature = Array.empty[Byte],
+                              status = 0,
+                            )
+                        },
+                      )
+
+                  def latestBlocks: F[Set[M]] = weaverStRef.get.map(_.lazo.latestMessages)
+
+                  val extApiImpl = new ExternalApi[F] {
+                    override def getBlockByHash(hash: Array[Byte]): F[Option[api.data.Block]] = blockByHash(hash)
+
+                    override def getDeployByHash(hash: Array[Byte]): F[Option[Deploy]] =
+                      dbApi
+                        .readBalancesDeploy(ByteArray(hash))
+                        .map(
+                          _.map(x =>
+                            Deploy(
+                              Array.empty[Byte],
+                              Array.empty[Byte],
+                              "root",
+                              s"${x.body.state.diffs.map { case k -> v => k.toHex -> v }}",
+                              0L,
+                              0L,
+                              0L,
+                              0L,
+                              0L,
                             ),
                           ),
-                        ),
-                      )
+                        )
+
+                    override def getDeploysByHash(hash: Array[Byte]): F[Option[Seq[Array[Byte]]]] = ???
+
+                    override def getBalance(state: Array[Byte], wallet: Array[Byte]): F[Option[Balance]] = {
+                      val blakeH = ByteArray32.convert(state)
+                      val longW  = walletCodec.decode(ByteArray(wallet))
+                      (blakeH, longW).traverseN(readBalance).flatMap(_.liftTo[F])
                     }
-              }
 
-              val routes = PublicApiJson[F](extApiImpl).routes
+                    override def getLatestMessages: F[List[Array[Byte]]] = latestBlocks.map(_.toList.map(_.bytes))
 
-              val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
+                    override def status: F[Status] = Status("0.1.1").pure
 
-              web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
+                    override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
+                      Validation
+                        .validateTokenTransferRequest(tx)(implicitly[Digest[TokenTransferRequest.Body]])
+                        .traverse { _ =>
+                          txStore.update(
+                            _.updated(
+                              ByteArray(tx.digest),
+                              BalancesState(
+                                Map(
+                                  ByteArray(tx.body.from) -> -tx.body.value,
+                                  ByteArray(tx.body.to)   -> tx.body.value,
+                                ),
+                              ),
+                            ),
+                          )
+                        }
+                  }
+
+                  val routes = PublicApiJson[F](extApiImpl).routes
+
+                  val allRoutes = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
+
+                  web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
+                }
+
+                (run concurrently bootstrap concurrently apiServerStream concurrently commReceiveStream) -> getData
+            }
+          }
+          .map(_.unzip)
+          .flatMap { case (streams, diags) =>
+            val simStream = Stream.emits(streams).parJoin(streams.size)
+
+            val logDiag = {
+              val getNetworkState = diags.sequence
+              import NetworkSnapshot.*
+              getNetworkState.showAnimated(samplingTime = 150.milli)
             }
 
-            (run concurrently bootstrap concurrently apiServerStream) -> getData
-        }
-      }
-      .map(_.unzip)
-      .flatMap { case (streams, diags) =>
-        val simStream = Stream.emits(streams).parJoin(streams.size)
-
-        val logDiag = {
-          val getNetworkState = diags.sequence
-          import NetworkSnapshot.*
-          getNetworkState.showAnimated(samplingTime = 150.milli)
-        }
-
-        simStream concurrently logDiag
+            simStream concurrently logDiag
+          }
       }
   }
 
@@ -523,19 +533,21 @@ object NetworkSim extends IOApp {
         val mkPrng         = Random.scalaUtilRandom[IO]
 
         (loadConfig, mkContextStore, mkPrng).flatMapN {
-          case (Config(network, node, influxDb), ioLocalKamonContext, prng) =>
+          case (Config(network, node, influxDb, dbCfg, commCfg), ioLocalKamonContext, prng) =>
             implicit val x: KamonContextStore[IO] = ioLocalKamonContext
             implicit val y: Random[IO]            = prng
 
             if (node.persistOnChainState)
-              NetworkSim.sim[IO](network, node, influxDb).compile.drain.as(ExitCode.Success)
+              NetworkSim.sim[IO](network, node, influxDb, dbCfg, commCfg).compile.drain.as(ExitCode.Success)
             else {
               // in memory cannot run forever so restart each minute
               Stream
                 .eval(SignallingRef.of[IO, Boolean](false))
                 .flatMap { sRef =>
                   val resetStream = Stream.sleep[IO](1.minutes) ++ Stream.eval(sRef.set(true))
-                  NetworkSim.sim[IO](network, node, influxDb).interruptWhen(sRef) concurrently resetStream
+                  NetworkSim
+                    .sim[IO](network, node, influxDb, dbCfg, commCfg)
+                    .interruptWhen(sRef) concurrently resetStream
                 }
                 .repeat
                 .compile

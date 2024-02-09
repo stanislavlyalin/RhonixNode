@@ -8,6 +8,8 @@ class ReferenceConf extends AnyFlatSpec {
       sim.Config.Default,
       node.Config.Default,
       diagnostics.metrics.Config.Default,
+      db.Config.Default,
+      node.comm.Config.Default,
     )
     println(s)
   }
