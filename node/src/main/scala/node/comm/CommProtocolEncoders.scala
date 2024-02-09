@@ -17,17 +17,13 @@ object CommProtocolEncoders {
     .setResponseMarshaller(sendPeersResponseMarshal)
     .build()
 
-  // TODO: Similar to serializeSeq in sim/balances/Serialization.scala
-  private def serializeSeq[F[_]: Applicative, A](l: Seq[A], writeF: A => F[Unit]): F[Unit] =
-    l.map(writeF).fold(().pure[F])(_ *> _)
-
   private lazy val sendPeersRequestMarshal = new MethodDescriptor.Marshaller[SendPeersRequest] {
     override def stream(obj: SendPeersRequest): InputStream       =
       Serialize.encode[SendPeersRequest](
         obj,
         (obj, writer) =>
           writer.write(obj.peers.size) *>
-            serializeSeq(
+            writer.write(
               obj.peers,
               (p: Peer) => writer.write(p.url) *> writer.write(p.isSelf) *> writer.write(p.isValidator),
             ),
