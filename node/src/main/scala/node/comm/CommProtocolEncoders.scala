@@ -1,5 +1,6 @@
 package node.comm
 
+import cats.Eval
 import cats.syntax.all.*
 import io.grpc.MethodDescriptor
 import node.comm.CommProtocol.*
@@ -46,8 +47,10 @@ object CommProtocolEncoders {
   }
 
   private lazy val sendPeersResponseMarshal = new MethodDescriptor.Marshaller[SendPeersResponse] {
-    override def stream(obj: SendPeersResponse): InputStream       = ???
-    override def parse(byteStream: InputStream): SendPeersResponse = ???
+    override def stream(obj: SendPeersResponse): InputStream       =
+      Serialize.encode[SendPeersResponse](obj, (_, _) => Eval.always(()))
+    override def parse(byteStream: InputStream): SendPeersResponse =
+      Serialize.decode[SendPeersResponse](byteStream, _ => Eval.always(SendPeersResponse()))
   }
 
   implicit val checkPeer: MethodDescriptor[CheckPeerRequest, CheckPeerResponse] = MethodDescriptor
@@ -59,12 +62,16 @@ object CommProtocolEncoders {
     .build()
 
   private lazy val checkPeerRequestMarshal = new MethodDescriptor.Marshaller[CheckPeerRequest] {
-    override def stream(obj: CheckPeerRequest): InputStream       = ???
-    override def parse(byteStream: InputStream): CheckPeerRequest = ???
+    override def stream(obj: CheckPeerRequest): InputStream       =
+      Serialize.encode[CheckPeerRequest](obj, (_, _) => Eval.always(()))
+    override def parse(byteStream: InputStream): CheckPeerRequest =
+      Serialize.decode[CheckPeerRequest](byteStream, _ => Eval.always(CheckPeerRequest()))
   }
 
   private lazy val checkPeerResponseMarshal = new MethodDescriptor.Marshaller[CheckPeerResponse] {
-    override def stream(obj: CheckPeerResponse): InputStream       = ???
-    override def parse(byteStream: InputStream): CheckPeerResponse = ???
+    override def stream(obj: CheckPeerResponse): InputStream       =
+      Serialize.encode[CheckPeerResponse](obj, (obj, writer) => writer.write(obj.code))
+    override def parse(byteStream: InputStream): CheckPeerResponse =
+      Serialize.decode[CheckPeerResponse](byteStream, reader => reader.readInt.map(CheckPeerResponse))
   }
 }
