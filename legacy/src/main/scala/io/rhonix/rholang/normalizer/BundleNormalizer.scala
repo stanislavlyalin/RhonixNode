@@ -14,8 +14,8 @@ object BundleNormalizer {
     def connectivesExistOnTop(p: ParN): F[Boolean] =
       p match {
         case _: ConnectiveN  => true.pure
-        case _               => false.pure
         case pProc: ParProcN => pProc.ps.existsM(connectivesExistOnTop)
+        case _               => false.pure
       }
 
     def raiseError: F[Unit] = UnexpectedBundleContent(
