@@ -13,6 +13,15 @@ final case class VarMap[T](private val data: Map[String, VarContext[T]], private
   def get(name: String): Option[VarContext[T]] = data.get(name)
 
   /**
+   * Retrieve the variable context by its name. The index is inverted.
+   * @return Some(varContext) if the variable is found, None otherwise.
+   */
+  // TODO: Should be removed after reducer rewriting
+  def getInverted(name: String): Option[VarContext[T]] = get(name).map { case VarContext(index, sort, sourcePosition) =>
+    VarContext(nextIndex - index - 1, sort, sourcePosition)
+  }
+
+  /**
    *  Retrieve all variables and their contexts.
    * @return a sequence of tuples, each containing a variable name and its context
    */
