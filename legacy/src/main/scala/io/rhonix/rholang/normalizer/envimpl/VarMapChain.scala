@@ -2,7 +2,7 @@ package io.rhonix.rholang.normalizer.envimpl
 
 import cats.effect.Sync
 import cats.implicits.toFoldableOps
-import coop.rchain.rholang.interpreter.compiler.SourcePosition
+import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
 import io.rhonix.rholang.normalizer.env.VarContext
 import io.rhonix.rholang.normalizer.syntax.all.*
 
@@ -36,12 +36,11 @@ final class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarMap[T]
   /**
    * Adds a new variable to the current variable map and returns its index.
    *
-   * @param name the name of the variable.
-   * @param sort the sort of the variable.
-   * @param sourcePosition the source position of the variable.
+   * @param varData the data of the variable to add.
    * @return the index of the added variable.
    */
-  def putVar(name: String, sort: T, sourcePosition: SourcePosition): Int = {
+  def putVar(varData: IdContext[T]): Int = {
+    val (name, sort, sourcePosition) = varData
     chain.updateCurrent(_.put(name, sort, sourcePosition))
     chain.current().get(name).get.index
   }
@@ -53,6 +52,15 @@ final class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarMap[T]
    * @return an option containing the variable context if the variable exists, None otherwise.
    */
   def getVar(name: String): Option[VarContext[T]] = chain.current().get(name)
+
+  /**
+   * Retrieves a variable from the current variable map. The index is inverted.
+   *
+   * @param name the name of the variable.
+   * @return an option containing the variable context if the variable exists, None otherwise.
+   */
+  // TODO: Should be removed after reducer rewriting
+  def getVarInverted(name: String): Option[VarContext[T]] = chain.current().getInverted(name)
 
   /**
    * Retrieves all variables in the current scope.
@@ -69,6 +77,18 @@ final class VarMapChain[F[_]: Sync, T](private val chain: HistoryChain[VarMap[T]
    */
   def getFirstVarInChain(name: String): Option[(VarContext[T], Int)] =
     chain.iter.zipWithIndex.toSeq.collectFirstSome { case (boundMap, depth) => boundMap.get(name).map((_, depth)) }
+
+  /**
+   * Searches for a variable in the chain of variable maps and returns the first match along with its depth. The index is inverted.
+   *
+   * @param name the name of the variable.
+   * @return an option containing a tuple with the variable context and its depth if the variable exists, None otherwise.
+   */
+  // TODO: Should be removed after reducer rewriting
+  def getFirstVarInChainInverted(name: String): Option[(VarContext[T], Int)] =
+    chain.iter.zipWithIndex.toSeq.collectFirstSome { case (boundMap, depth) =>
+      boundMap.getInverted(name).map((_, depth))
+    }
 
   /**
    * Returns an iterator over the variable maps in the chain.
