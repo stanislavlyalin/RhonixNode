@@ -162,7 +162,7 @@ object NetworkSim extends IOApp {
         }
       }
 
-    def mkNode(vId: S, db: SlickDb): Resource[F, NetNode[F]] = {
+    def mkNode(vId: S)(implicit db: SlickDb): Resource[F, NetNode[F]] = {
       val dataPath     = Files.createTempDirectory(s"gorki-sim-node-$vId")
       val storeManager =
         if (nodeCfg.persistOnChainState) LmdbStoreManager(dataPath)
@@ -225,6 +225,8 @@ object NetworkSim extends IOApp {
             buildState,
             dbApi.saveBlock,
             unsafeReadBlock,
+            nodeCfg.gRpcPort,
+            commCfg,
           ).map { node =>
             val tpsRef    = Ref.unsafe[F, Double](0f)
             val tpsUpdate = node.dProc.finStream
@@ -283,20 +285,20 @@ object NetworkSim extends IOApp {
     }
 
     /** Make the computer, init all peers with lfs. */
-    def mkNet(lfs: MessageData[M, S], db: SlickDb): Resource[F, List[NetNode[F]]] =
-      lfs.state.bonds.activeSet.toList.traverse(mkNode(_, db))
+    def mkNet(lfs: MessageData[M, S])(implicit db: SlickDb): Resource[F, List[NetNode[F]]] =
+      lfs.state.bonds.activeSet.toList.traverse(mkNode(_))
 
     Stream
       .resource(slick.PostgresSlickDb[F](dbCfg))
       .flatMap { implicit db =>
         Stream
-          .resource(mkNet(lfs, db))
+          .resource(mkNet(lfs))
           .map(_.zipWithIndex)
           .map { net =>
             net.map {
               case NetNode(
                     self,
-                    Node(weaverStRef, _, _, _, dProc),
+                    Node(weaverStRef, _, _, _, dProc, _, output),
                     readBalance,
                     getData,
                     dbApi,
@@ -310,15 +312,11 @@ object NetworkSim extends IOApp {
                   })
                 }
 
-                val peerProc            = net.map { case (node, _) => node.id.toHex -> node.node.dProc }.toMap
-                val commF               = PeerTable(commCfg).map(peerTable => CommImpl(peerTable, peerProc))
-                val commBroadcastStream = dProc.output
-                  .flatMap { m =>
-                    Stream.eval(Temporal[F].sleep(netCfg.propDelay) *> commF.flatMap(_.broadcast(m)))
-                  }
-                val commReceiveStream   = Stream.eval(commF.map(_.receiver)).flatten
+                // val peerProc          = net.map { case (node, _) => node.id.toHex -> node.node.dProc }.toMap
+                // val commF             = PeerTable(commCfg).map(peerTable => CommImpl(peerTable, peerProc))
+                // val commReceiveStream = Stream.eval(commF.map(_.receiver)).flatten
 
-                val run = dProc.dProcStream concurrently commBroadcastStream
+                val run = dProc.dProcStream concurrently output
 
                 val apiServerStream: Stream[F, ExitCode] = {
                   def blockByHash(x: Array[Byte]): F[Option[api.data.Block]] =
@@ -429,7 +427,7 @@ object NetworkSim extends IOApp {
                   web.server(allRoutes, 8080 + idx, "localhost", nodeCfg.devMode)
                 }
 
-                (run concurrently bootstrap concurrently apiServerStream concurrently commReceiveStream) -> getData
+                (run concurrently bootstrap concurrently apiServerStream /* concurrently commReceiveStream */ ) -> getData
             }
           }
           .map(_.unzip)

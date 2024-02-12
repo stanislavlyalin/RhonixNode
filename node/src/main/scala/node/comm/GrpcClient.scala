@@ -1,6 +1,7 @@
 package node.comm
 
-import cats.effect.{Async, Resource, Sync}
+import cats.data.OptionT
+import cats.effect.{Async, Ref, Resource}
 import cats.syntax.all.*
 import io.grpc.*
 import io.grpc.netty.NettyChannelBuilder
@@ -8,8 +9,25 @@ import sdk.syntax.all.*
 
 import scala.concurrent.Promise
 
-class GrpcClient[F[_]: Async] private (private val channel: ManagedChannel) {
-  def send[Req, Resp](msg: Req)(implicit method: MethodDescriptor[Req, Resp], logger: Logger): F[Resp] = for {
+class GrpcClient[F[_]: Async] private (private val channelsRef: Ref[F, Map[(String, Int), ManagedChannel]]) {
+  def send[Req, Resp](serverHost: String, serverPort: Int, msg: Req)(implicit
+    method: MethodDescriptor[Req, Resp],
+    logger: Logger,
+  ): F[Resp] = for {
+    channels <- channelsRef.updateAndGet { channels =>
+                  if (channels.contains((serverHost, serverPort))) {
+                    channels
+                  } else {
+                    val newChannel = NettyChannelBuilder
+                      .forAddress(serverHost, serverPort)
+                      .usePlaintext()
+                      .build
+                    channels + ((serverHost, serverPort) -> newChannel)
+                  }
+                }
+    channel  <- OptionT
+                  .fromOption(channels.get((serverHost, serverPort)))
+                  .getOrRaise(new RuntimeException("gRPC channel for specified host has not been created"))
     response <- {
                   val call = channel.newCall[Req, Resp](method, CallOptions.DEFAULT)
 
@@ -43,19 +61,12 @@ class GrpcClient[F[_]: Async] private (private val channel: ManagedChannel) {
                 }.asEffect
   } yield response
 
-  def shutdown: ManagedChannel = channel.shutdown()
+  def shutdown(): F[Unit] = channelsRef.get.map(_.foreachEntry { case (_, channel) => channel.shutdown() })
 }
 
 object GrpcClient {
-  def apply[F[_]: Async](serverHost: String, serverPort: Int): Resource[F, GrpcClient[F]] =
-    Resource.make {
-      Sync[F].delay {
-        val channel = NettyChannelBuilder
-          .forAddress(serverHost, serverPort)
-          .usePlaintext()
-          .build
-
-        new GrpcClient[F](channel)
-      }
-    }(client => Sync[F].delay(client.shutdown).void)
+  def apply[F[_]: Async]: Resource[F, GrpcClient[F]] =
+    Resource.make(
+      Ref.of(Map.empty[(String, Int), ManagedChannel]).map(ref => new GrpcClient[F](ref)),
+    )(client => client.shutdown())
 }

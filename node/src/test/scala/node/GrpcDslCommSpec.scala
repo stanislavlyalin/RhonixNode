@@ -60,12 +60,11 @@ class GrpcDslCommSpec extends AnyFlatSpec with Matchers {
     GrpcServer
       .apply[IO](serverPort, serviceDef)
       .use { _ =>
-        GrpcClient.apply[IO](serverHost, serverPort).use { client =>
+        GrpcClient.apply[IO].use { client =>
           for {
-            resp <- client.send(srcMessage)
+            resp <- client.send(serverHost, serverPort, srcMessage)
             _    <- Sync[IO].delay(Thread.sleep(250))
           } yield resp shouldBe MyObj(s"Server responds to: $srcMessage", 42)
-
         }
       }
       .unsafeRunSync()

@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import io.grpc.MethodDescriptor
 import node.comm.CommProtocol.*
 import sdk.comm.Peer
+import sdk.primitive.ByteArray
 
 import java.io.InputStream
 
@@ -75,5 +76,32 @@ object CommProtocolEncoders {
       Serialize.encode[CheckPeerResponse](obj, (obj, writer) => writer.write(obj.code))
     override def parse(byteStream: InputStream): CheckPeerResponse =
       Serialize.decode[CheckPeerResponse](byteStream, reader => reader.readInt.map(CheckPeerResponse))
+  }
+
+  implicit val sendMessage: MethodDescriptor[SendMessageRequest, SendMessageResponse] = MethodDescriptor
+    .newBuilder()
+    .setType(MethodDescriptor.MethodType.UNARY)
+    .setFullMethodName(s"$serviceName/SendMessage")
+    .setRequestMarshaller(sendMessageRequestMarshal)
+    .setResponseMarshaller(sendMessageResponseMarshal)
+    .build()
+
+  private lazy val sendMessageRequestMarshal = new MethodDescriptor.Marshaller[SendMessageRequest] {
+    override def stream(obj: SendMessageRequest): InputStream =
+      Serialize.encode[SendMessageRequest](obj, (obj, writer) => writer.write(obj.msg.bytes))
+
+    override def parse(byteStream: InputStream): SendMessageRequest =
+      Serialize.decode[SendMessageRequest](
+        byteStream,
+        reader => reader.readBytes.map(bytes => SendMessageRequest(ByteArray(bytes))),
+      )
+  }
+
+  private lazy val sendMessageResponseMarshal = new MethodDescriptor.Marshaller[SendMessageResponse] {
+    override def stream(obj: SendMessageResponse): InputStream =
+      Serialize.encode[SendMessageResponse](obj, (_, _) => Eval.always(()))
+
+    override def parse(byteStream: InputStream): SendMessageResponse =
+      Serialize.decode[SendMessageResponse](byteStream, _ => Eval.always(SendMessageResponse()))
   }
 }
