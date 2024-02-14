@@ -25,7 +25,8 @@ object CommProtocolEncoders {
           writer.write(obj.peers.size) *>
             writer.write(
               obj.peers,
-              (p: Peer) => writer.write(p.url) *> writer.write(p.isSelf) *> writer.write(p.isValidator),
+              (p: Peer) =>
+                writer.write(p.host) *> writer.write(p.port) *> writer.write(p.isSelf) *> writer.write(p.isValidator),
             ),
       )
     override def parse(byteStream: InputStream): SendPeersRequest =
@@ -36,10 +37,11 @@ object CommProtocolEncoders {
             size  <- reader.readInt
             peers <- (0 until size).toList.traverse(_ =>
                        for {
-                         url         <- reader.readString
+                         host        <- reader.readString
+                         port        <- reader.readInt
                          isSelf      <- reader.readBool
                          isValidator <- reader.readBool
-                       } yield Peer(url, isSelf, isValidator),
+                       } yield Peer(host, port, isSelf, isValidator),
                      )
 
           } yield SendPeersRequest(peers),

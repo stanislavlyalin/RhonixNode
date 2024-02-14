@@ -38,20 +38,20 @@ object PeerTable {
                  // At the first start, when there are no peers in the DB,
                  // read them from the configuration file and save in the DB
                  val peerTable = PeerTable.ST[String, Peer](cfg.peers.map { p =>
-                   p.url -> Peer(p.url, p.isSelf, p.isValidator)
+                   p.host -> Peer(p.host, p.port, p.isSelf, p.isValidator)
                  }.toMap)
                  cfg.peers
-                   .traverse(p => api.actions.peerInsertIfNot(p.url, p.isSelf, p.isValidator).run)
+                   .traverse(p => api.actions.peerInsertIfNot(p.host, p.port, p.isSelf, p.isValidator).run)
                    .as(peerTable)
                } else {
                  // During the next launches use peers from the DB
-                 PeerTable.ST[String, Peer](dbPeers.map(p => p.url -> p).toMap).pure
+                 PeerTable.ST[String, Peer](dbPeers.map(p => p.host -> p).toMap).pure
                }
     stCell  <- AtomicCell[F].of(state)
   } yield new PeerTable(
     stCell,
     () => api.actions.peers.run,
-    (peer: Peer) => api.actions.peerInsertIfNot(peer.url, peer.isSelf, peer.isValidator).run.void,
-    (peer: Peer) => api.actions.removePeer(peer.url).run.void,
+    (peer: Peer) => api.actions.peerInsertIfNot(peer.host, peer.port, peer.isSelf, peer.isValidator).run.void,
+    (peer: Peer) => api.actions.removePeer(peer.host).run.void,
   )
 }
