@@ -2,7 +2,9 @@ package slick
 
 import cats.syntax.all.*
 import sdk.comm.Peer
+import sdk.error.FatalError
 import sdk.primitive.ByteArray
+import sdk.syntax.all.*
 import slick.api.data.{Block, BondsMapData, SetData}
 import slick.dbio.Effect.*
 import slick.jdbc.JdbcProfile
@@ -91,14 +93,11 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   /** Insert a new Block in table if there is no such entry. Returned id */
   def blockInsertIfNot(b: api.data.Block): DBIOAction[Long, NoStream, All] = {
 
-    def insertBlockSet(setDataOpt: Option[api.data.SetData]): DBIOAction[Option[Long], NoStream, All] = setDataOpt
-      .map(setData => blockSetInsertIfNot(setData.hash, setData.data).map(_.some))
-      .getOrElse(DBIO.successful(None))
+    def insertBlockSet(setData: api.data.SetData): DBIOAction[Option[Long], NoStream, All] =
+      blockSetInsertIfNot(setData.hash, setData.data).map(_.some)
 
-    def insertDeploySet(setDataOpt: Option[api.data.SetData]): DBIOAction[Option[Long], NoStream, All] =
-      setDataOpt
-        .map(setData => deploySetInsertIfNot(setData.hash, setData.data).map(_.some))
-        .getOrElse(DBIO.successful(None))
+    def insertDeploySet(setData: api.data.SetData): DBIOAction[Option[Long], NoStream, All] =
+      deploySetInsertIfNot(setData.hash, setData.data).map(_.some)
 
     def blockInsert(block: TableBlocks.Block): DBIOAction[Long, NoStream, Write] =
       (queries.blocksCompiled returning qBlocks.map(_.id)) += block
@@ -160,38 +159,53 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
       }
       .transactionally
 
-  private def getBlockData(b: TableBlocks.Block): DBIOAction[Block, NoStream, Read & Transactional] = for {
-    validatorPK          <- queries.validatorPkById(b.validatorId).result.head // TODO: Unsafe
-    shardName            <- queries.shardNameById(b.shardId).result.head       // TODO: Unsafe
-    justificationSetData <- getBlockSetData(b.justificationSetId)
-    offencesSetData      <- getBlockSetData(b.offencesSetId)
-    bondsMapData         <- getBondsMapData(b.bondsMapId)
-    finalFringeData      <- getBlockSetData(b.finalFringeId)
-    deploySetData        <- getDeploySetData(b.execDeploySetId)
-    mergeSetData         <- getDeploySetData(b.mergeDeploySetId)
-    dropSetData          <- getDeploySetData(b.dropDeploySetId)
-    mergeSetFinalData    <- getDeploySetData(b.mergeDeploySetFinalId)
-    dropSetFinalData     <- getDeploySetData(b.dropDeploySetFinalId)
-  } yield api.data.Block(
-    version = b.version,
-    hash = b.hash,
-    sigAlg = b.sigAlg,
-    signature = b.signature,
-    finalStateHash = b.finalStateHash,
-    postStateHash = b.postStateHash,
-    validatorPk = validatorPK,
-    shardName = shardName,
-    justificationSet = justificationSetData,
-    seqNum = b.seqNum,
-    offencesSet = offencesSetData,
-    bondsMap = bondsMapData,
-    finalFringe = finalFringeData,
-    execDeploySet = deploySetData,
-    mergeDeploySet = mergeSetData,
-    dropDeploySet = dropSetData,
-    mergeDeploySetFinal = mergeSetFinalData,
-    dropDeploySetFinal = dropSetFinalData,
-  )
+  private def getBlockData(b: TableBlocks.Block): DBIOAction[Block, NoStream, Read & Transactional] =
+    for {
+      validatorPKOpt          <- queries.validatorPkById(b.validatorId).result.headOption
+      shardNameOpt            <- queries.shardNameById(b.shardId).result.headOption
+      justificationSetDataOpt <- getBlockSetData(b.justificationSetId)
+      offencesSetDataOpt      <- getBlockSetData(b.offencesSetId)
+      bondsMapDataOpt         <- getBondsMapData(b.bondsMapId)
+      finalFringeDataOpt      <- getBlockSetData(b.finalFringeId)
+      deploySetDataOpt        <- getDeploySetData(b.execDeploySetId)
+      mergeSetDataOpt         <- getDeploySetData(b.mergeDeploySetId)
+      dropSetDataOpt          <- getDeploySetData(b.dropDeploySetId)
+      mergeSetFinalDataOpt    <- getDeploySetData(b.mergeDeploySetFinalId)
+      dropSetFinalDataOpt     <- getDeploySetData(b.dropDeploySetFinalId)
+    } yield {
+      for {
+        validatorPK          <- validatorPKOpt
+        shardName            <- shardNameOpt
+        justificationSetData <- justificationSetDataOpt
+        offencesSetData      <- offencesSetDataOpt
+        bondsMapData         <- bondsMapDataOpt
+        finalFringeData      <- finalFringeDataOpt
+        deploySetData        <- deploySetDataOpt
+        mergeSetData         <- mergeSetDataOpt
+        dropSetData          <- dropSetDataOpt
+        mergeSetFinalData    <- mergeSetFinalDataOpt
+        dropSetFinalData     <- dropSetFinalDataOpt
+      } yield api.data.Block(
+        version = b.version,
+        hash = b.hash,
+        sigAlg = b.sigAlg,
+        signature = b.signature,
+        finalStateHash = b.finalStateHash,
+        postStateHash = b.postStateHash,
+        validatorPk = validatorPK,
+        shardName = shardName,
+        justificationSet = justificationSetData,
+        seqNum = b.seqNum,
+        offencesSet = offencesSetData,
+        bondsMap = bondsMapData,
+        finalFringe = finalFringeData,
+        execDeploySet = deploySetData,
+        mergeDeploySet = mergeSetData,
+        dropDeploySet = dropSetData,
+        mergeDeploySetFinal = mergeSetFinalData,
+        dropDeploySetFinal = dropSetFinalData,
+      )
+    }.getOrElse(DBIO.failed(FatalError(s"Block data for hash ${ByteArray(b.hash).toHex} is incomplete")))
 
   private def getBlockSetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read] =
     idOpt
@@ -217,9 +231,11 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
       }
       .getOrElse(DBIO.successful(None))
 
-  private def getBondsMapData(id: Long): DBIOAction[BondsMapData, NoStream, Read] =
-    queries.bondsMapData(id).result.map(_.groupBy { case (bmHash, _) => ByteArray(bmHash) }.head).map {
-      case (bmHash, data) => BondsMapData(bmHash.bytes, data.map { case (_, (pubKey, stake)) => (pubKey, stake) })
+  private def getBondsMapData(id: Long): DBIOAction[Option[BondsMapData], NoStream, Read] =
+    queries.bondsMapData(id).result.map(_.groupBy { case (bmHash, _) => ByteArray(bmHash) }.headOption).map {
+      _.map { case (bmHash, data) =>
+        BondsMapData(bmHash.bytes, data.map { case (_, (pubKey, stake)) => (pubKey, stake) })
+      }
     }
 
   /** DeploySet */
