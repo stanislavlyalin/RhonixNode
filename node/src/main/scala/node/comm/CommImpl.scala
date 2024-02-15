@@ -4,6 +4,7 @@ import cats.Eval
 import cats.effect.std.Queue
 import cats.effect.{Async, Sync}
 import cats.syntax.all.*
+import node.rpc.{GrpcCalls, GrpcChannelsManager}
 import sdk.api.ApiDefinition
 import sdk.comm.{Comm, Peer}
 import sdk.primitive.ByteArray
@@ -36,22 +37,38 @@ object CommImpl {
         Serialize.decode[BlockReceivedResponse](byteStream, _ => Eval.always(BlockReceivedResponse())),
     )
 
-  /** Implementation of Comm using grpc with message buffering. */
-  def grpcBuffered[F[_]: Async](peerTable: PeerTable[F, String, Peer]): F[(Comm[F, Block, Block], Block => F[BlockReceivedResponse])] =
-    (Queue.unbounded[F, Block],Queue.unbounded[F, Block]).mapN { case (iQ, oQ) =>
-      val inbound = iQ.tryOffer(_).map(_ => BlockReceivedResponse())
-      val outbound = oQ.tryOffer(_)
+  /** Comm using grpc transport */
+  def grpcComm[F[_]: Async](
+    peerTable: PeerTable[F, String, Peer], // peers
+    grpcStream: fs2.Stream[F, Block],      // stream of messages from grpc
+  )(implicit channelsManager: GrpcChannelsManager[F]): F[Comm[F, Block, Block]] =
+    Queue.unbounded[F, Block].map { inQ =>
 
-      val comm = new Comm[F, Block, Block] {
-        override def broadcast(msg: Block): F[Unit] = peerTable.all.map(_.values.toSeq).flatMap { peers =>
+      new Comm[F, Block, Block] {
+        override def broadcast(msg: Block): F[Unit] = for {
+          peers <- peerTable.all.map(_.values)
+          _     <- peers.toList.traverse(peer => GrpcCalls.sendBlock[F](msg, peer))
+        } yield ()
 
-          peers
-            .filterNot(_.isSelf)
-            .traverse_(peer => , )
-        }
-        override def receiver: fs2.Stream[F, Block] = fs2.Stream.fromQueueUnterminated(queue)
+        override def receiver: fs2.Stream[F, Block] =
+          // Yes this is effectively just a copy of a stream, but for now I don't have an idea how to make it better.
+          fs2.Stream.fromQueueUnterminated(inQ) concurrently grpcStream.evalTap(inQ.offer)
       }
-      comm -> processInput
     }
 
+  /** Comm using memory. */
+  def inMemComm[F[_]: Async](
+    outbound: List[Block => F[Unit]],
+    inboundStream: fs2.Stream[F, Block],
+  ): F[Comm[F, Block, Block]] =
+    Queue.unbounded[F, Block].map { inQ =>
+
+      new Comm[F, Block, Block] {
+        override def broadcast(msg: Block): F[Unit] = outbound.traverse_(_.apply(msg))
+
+        override def receiver: fs2.Stream[F, Block] =
+          // Yes this is effectively just a copy of a stream, but for now I don't have an idea how to make it better.
+          fs2.Stream.fromQueueUnterminated(inQ) concurrently inboundStream.evalTap(inQ.offer)
+      }
+    }
 }

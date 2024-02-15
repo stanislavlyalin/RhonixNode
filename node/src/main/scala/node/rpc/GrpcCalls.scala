@@ -4,7 +4,7 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 import node.comm.CommImpl.{blockApiDefinition, Block, BlockReceivedResponse}
 import node.rpc.syntax.all.*
-import slick.tables.TablePeers.Peer
+import sdk.comm.Peer
 
 object GrpcCalls {
 
