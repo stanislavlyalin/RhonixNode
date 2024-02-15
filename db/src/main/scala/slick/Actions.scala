@@ -211,24 +211,41 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   private def getBlockSetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read] =
     idOpt
       .map { id =>
-        queries
-          .blockSetData(id)
-          .result
-          .map(_.groupBy { case (bsHash, _) => ByteArray(bsHash) }.headOption.map { case (bsHash, group) =>
-            api.data.SetData(bsHash.bytes, group.map { case (_, bHash) => bHash })
-          })
+        for {
+          blockSetDataOpt <-
+            queries
+              .blockSetData(id)
+              .result
+              .map(
+                _.groupBy { case (bsHash, _) => ByteArray(bsHash) }.headOption
+                  .map { case (bsHash, group) =>
+                    api.data.SetData(bsHash.bytes, group.map { case (_, bHash) => bHash })
+                  },
+              )
+          blockSetHashOpt <- queries.blockSetHashById(id).result.headOption
+        } yield {
+          val emptySetDataOpt = blockSetHashOpt.map(hash => api.data.SetData(hash, Seq.empty[Array[Byte]]))
+          blockSetDataOpt.orElse(emptySetDataOpt)
+        }
       }
       .getOrElse(DBIO.successful(None))
 
   private def getDeploySetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read] =
     idOpt
       .map { id =>
-        queries
-          .deploySetData(id)
-          .result
-          .map(_.groupBy { case (dsHash, _) => ByteArray(dsHash) }.headOption.map { case (dsHash, group) =>
-            api.data.SetData(dsHash.bytes, group.map { case (_, dSig) => dSig })
-          })
+        for {
+          deploySetDataOpt <-
+            queries
+              .deploySetData(id)
+              .result
+              .map(_.groupBy { case (dsHash, _) => ByteArray(dsHash) }.headOption.map { case (dsHash, group) =>
+                api.data.SetData(dsHash.bytes, group.map { case (_, dSig) => dSig })
+              })
+          deploySetHashOpt <- queries.deploySetHashById(id).result.headOption
+        } yield {
+          val emptySetDataOpt = deploySetHashOpt.map(hash => api.data.SetData(hash, Seq.empty[Array[Byte]]))
+          deploySetDataOpt.orElse(emptySetDataOpt)
+        }
       }
       .getOrElse(DBIO.successful(None))
 
