@@ -6,7 +6,8 @@ import dproc.DProc
 import dproc.DProc.ExeEngine
 import dproc.data.Block
 import node.comm.*
-import node.comm.CommProtocol.CommMessage
+import node.comm.CommImpl.CommMessage
+import node.rpc.{GrpcChannelsManager, GrpcServer}
 import sdk.DagCausalQueue
 import sdk.comm.Comm
 import sdk.crypto.ECDSA
@@ -73,25 +74,32 @@ object Node {
                     def consensusData(fringe: Set[M]): F[FinalData[S]] = lfs.lazo.trustAssumption.pure[F] // TODO
                   }
 
-      dproc     <- DProc.apply[F, M, S, T](
-                     weaverStRef,
-                     proposerStRef,
-                     processorStRef,
-                     bufferStRef,
-                     loadTx,
-                     id.some,
-                     exeEngine,
-                     Relation.notRelated[F, T],
-                     hash,
-                     saveBlock,
-                     readBlock,
-                   )
-      peerTable <- PeerTable(commCfg)
-      comm      <- {
-        implicit val logger: Logger = Logger.empty
-        CommImpl[F, M](gRpcPort, peerTable)
+      dproc       <- DProc.apply[F, M, S, T](
+                       weaverStRef,
+                       proposerStRef,
+                       processorStRef,
+                       bufferStRef,
+                       loadTx,
+                       id.some,
+                       exeEngine,
+                       Relation.notRelated[F, T],
+                       hash,
+                       saveBlock,
+                       readBlock,
+                     )
+      peerTable   <- PeerTable(commCfg)
+      grpcChM     <- GrpcChannelsManager[F]
+      x           <- {
+        implicit val x: GrpcChannelsManager[F] = grpcChM
+        CommImpl.grpcBuffered[F](peerTable)
       }
-      output     = dproc.output.evalMap(msg => comm.broadcast(msg).as(msg))
+      // comm object and callback to supply to grpc server (or in simulation)
+      (comm, rcvF) = x
+      grpcSrc     <- {
+        val apis = List(CommImpl.blockApiDefinition[F](rcvF))
+        GrpcServer.apply[F]("", gRpcPort, apis)
+      }
+      output       = dproc.output.evalMap(msg => comm.broadcast(msg).as(msg))
     } yield new Node(
       weaverStRef,
       processorStRef,

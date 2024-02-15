@@ -4,9 +4,11 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Sync}
 import cats.syntax.all.*
 import io.grpc.*
-import node.comm.{GrpcClient, GrpcServer, Logger, Serialize}
+import node.comm.Serialize
+import node.rpc.{GrpcClient, GrpcServer}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sdk.log.Logger
 
 import java.io.InputStream
 
@@ -54,7 +56,7 @@ class GrpcDslCommSpec extends AnyFlatSpec with Matchers {
 
     val serviceDef = ServerServiceDefinition
       .builder("coop.rchain.Service")
-      .addMethod(method, GrpcServer.makeCallHandler { req: MyObj => MyObj(s"Server responds to: $req", 42) })
+      .addMethod(method, GrpcServer.makeCallHandlerWithLogs { req: MyObj => MyObj(s"Server responds to: $req", 42) })
       .build()
 
     GrpcServer
