@@ -159,8 +159,8 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
       }
       .transactionally
 
-  private def getBlockData(b: TableBlocks.Block): DBIOAction[Block, NoStream, Read & Transactional] =
-    for {
+  private def getBlockData(b: TableBlocks.Block): DBIOAction[Block, NoStream, Read] =
+    (for {
       validatorPKOpt          <- queries.validatorPkById(b.validatorId).result.headOption
       shardNameOpt            <- queries.shardNameById(b.shardId).result.headOption
       justificationSetDataOpt <- getBlockSetData(b.justificationSetId)
@@ -172,40 +172,41 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
       dropSetDataOpt          <- getDeploySetData(b.dropDeploySetId)
       mergeSetFinalDataOpt    <- getDeploySetData(b.mergeDeploySetFinalId)
       dropSetFinalDataOpt     <- getDeploySetData(b.dropDeploySetFinalId)
-    } yield {
-      for {
-        validatorPK          <- validatorPKOpt
-        shardName            <- shardNameOpt
-        justificationSetData <- justificationSetDataOpt
-        offencesSetData      <- offencesSetDataOpt
-        bondsMapData         <- bondsMapDataOpt
-        finalFringeData      <- finalFringeDataOpt
-        deploySetData        <- deploySetDataOpt
-        mergeSetData         <- mergeSetDataOpt
-        dropSetData          <- dropSetDataOpt
-        mergeSetFinalData    <- mergeSetFinalDataOpt
-        dropSetFinalData     <- dropSetFinalDataOpt
-      } yield api.data.Block(
-        version = b.version,
-        hash = b.hash,
-        sigAlg = b.sigAlg,
-        signature = b.signature,
-        finalStateHash = b.finalStateHash,
-        postStateHash = b.postStateHash,
-        validatorPk = validatorPK,
-        shardName = shardName,
-        justificationSet = justificationSetData,
-        seqNum = b.seqNum,
-        offencesSet = offencesSetData,
-        bondsMap = bondsMapData,
-        finalFringe = finalFringeData,
-        execDeploySet = deploySetData,
-        mergeDeploySet = mergeSetData,
-        dropDeploySet = dropSetData,
-        mergeDeploySetFinal = mergeSetFinalData,
-        dropDeploySetFinal = dropSetFinalData,
-      )
-    }.getOrElse(DBIO.failed(FatalError(s"Block data for hash ${ByteArray(b.hash).toHex} is incomplete")))
+    } yield for {
+      validatorPK          <- validatorPKOpt
+      shardName            <- shardNameOpt
+      justificationSetData <- justificationSetDataOpt
+      offencesSetData      <- offencesSetDataOpt
+      bondsMapData         <- bondsMapDataOpt
+      finalFringeData      <- finalFringeDataOpt
+      deploySetData        <- deploySetDataOpt
+      mergeSetData         <- mergeSetDataOpt
+      dropSetData          <- dropSetDataOpt
+      mergeSetFinalData    <- mergeSetFinalDataOpt
+      dropSetFinalData     <- dropSetFinalDataOpt
+    } yield api.data.Block(
+      version = b.version,
+      hash = b.hash,
+      sigAlg = b.sigAlg,
+      signature = b.signature,
+      finalStateHash = b.finalStateHash,
+      postStateHash = b.postStateHash,
+      validatorPk = validatorPK,
+      shardName = shardName,
+      justificationSet = justificationSetData,
+      seqNum = b.seqNum,
+      offencesSet = offencesSetData,
+      bondsMap = bondsMapData,
+      finalFringe = finalFringeData,
+      execDeploySet = deploySetData,
+      mergeDeploySet = mergeSetData,
+      dropDeploySet = dropSetData,
+      mergeDeploySetFinal = mergeSetFinalData,
+      dropDeploySetFinal = dropSetFinalData,
+    )).flatMap {
+      case Some(block) => DBIO.successful(block)
+      case None        => DBIO.failed(FatalError(s"Block data for hash ${ByteArray(b.hash).toHex} is incomplete"))
+    }
 
   private def getBlockSetData(idOpt: Option[Long]): DBIOAction[Option[SetData], NoStream, Read] =
     idOpt
