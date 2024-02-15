@@ -45,15 +45,15 @@ class dbApiImpl[F[_]: Sync](sApi: SlickApi[F]) {
               )
 
       _ <- sApi.blockInsert(block)(
-             justificationSetHash = calcSetHash(block.justificationSet).some,
-             offencesSetHash = calcSetHash(block.offencesSet).some,
+             justificationSetHash = calcSetHash(block.justificationSet),
+             offencesSetHash = calcSetHash(block.offencesSet),
              bondsMapHash = bondsMapDigest.digest(b.m.bonds),
-             finalFringeHash = calcSetHash(block.finalFringe).some,
-             execDeploySetHash = calcSetHash(block.execDeploySet).some,
-             mergeDeploySetHash = calcSetHash(block.mergeDeploySet).some,
-             dropDeploySetHash = none,
-             mergeDeploySetFinalHash = calcSetHash(block.mergeDeploySetFinal).some,
-             dropDeploySetFinalHash = calcSetHash(block.dropDeploySetFinal).some,
+             finalFringeHash = calcSetHash(block.finalFringe),
+             execDeploySetHash = calcSetHash(block.execDeploySet),
+             mergeDeploySetHash = calcSetHash(block.mergeDeploySet),
+             dropDeploySetHash = ByteArray.Default,
+             mergeDeploySetFinalHash = calcSetHash(block.mergeDeploySetFinal),
+             dropDeploySetFinalHash = calcSetHash(block.dropDeploySetFinal),
            )
     } yield ()
 

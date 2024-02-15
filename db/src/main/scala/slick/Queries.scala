@@ -59,6 +59,8 @@ final case class Queries(profile: JdbcProfile) {
 
   val deploySetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qDeploySets.filter(_.hash === hash).map(_.id))
 
+  val deploySetHashById = Compiled((id: Rep[Long]) => qDeploySets.filter(_.id === id).map(_.hash))
+
   val deploySetsCompiled = Compiled(qDeploySets.map(_.hash))
 
   val deploySetBindsCompiled = Compiled(qDeploySetBinds.map(identity))
@@ -66,6 +68,8 @@ final case class Queries(profile: JdbcProfile) {
   /** BlockSet */
 
   val blockSetIdByHash = Compiled((hash: Rep[Array[Byte]]) => qBlockSets.filter(_.hash === hash).map(_.id))
+
+  val blockSetHashById = Compiled((id: Rep[Long]) => qBlockSets.filter(_.id === id).map(_.hash))
 
   val blockSetData = Compiled((blockSetId: Rep[Long]) =>
     for {

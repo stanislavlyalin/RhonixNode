@@ -109,15 +109,15 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
                                dropDeploySetFinal = Set(),
                              )
             _             <- api.blockInsert(insertedBlock1)(
-                               None,
-                               None,
+                               ByteArray.Default,
+                               ByteArray.Default,
                                bMapHash,
-                               None,
-                               Some(dSetHash),
-                               Some(dSetHash),
-                               None,
-                               None,
-                               None,
+                               ByteArray.Default,
+                               dSetHash,
+                               dSetHash,
+                               ByteArray.Default,
+                               ByteArray.Default,
+                               ByteArray.Default,
                              )
 
             insertedBlock2 = sdk.data.Block(
@@ -141,15 +141,15 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
                                dropDeploySetFinal = dSetSigs,
                              )
             _             <- api.blockInsert(insertedBlock2)(
-                               Some(bSetHash),
-                               Some(bSetHash),
+                               bSetHash,
+                               bSetHash,
                                bMapHash,
-                               Some(bSetHash),
-                               None,
-                               None,
-                               Some(dSetHash),
-                               Some(dSetHash),
-                               Some(dSetHash),
+                               bSetHash,
+                               ByteArray.Default,
+                               ByteArray.Default,
+                               dSetHash,
+                               dSetHash,
+                               dSetHash,
                              )
 
             readBlock1 <- api.blockGet(b1.hash)
