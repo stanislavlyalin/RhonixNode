@@ -13,4 +13,19 @@ class ReferenceConf extends AnyFlatSpec {
     )
     println(s)
   }
+
+  "this" should "produce configuration parameter names" in {
+    val paramNames = ClassesAsConfig
+      .kvMap(
+        "gorki",
+        sim.Config.Default,
+        node.Config.Default,
+        diagnostics.metrics.Config.Default,
+        db.Config.Default,
+        node.comm.Config.Default,
+      )
+      .keys
+      .mkString("\n")
+    println(paramNames)
+  }
 }

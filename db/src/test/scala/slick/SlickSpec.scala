@@ -1,7 +1,7 @@
 package slick
 
 import cats.effect.unsafe.implicits.global
-import cats.effect.{Async, IO, Resource}
+import cats.effect.{Async, IO, Resource, Sync}
 import cats.syntax.all.*
 import org.scalacheck.ScalacheckShapeless.derivedArbitrary
 import org.scalacheck.{Arbitrary, Gen}
@@ -11,11 +11,22 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sdk.comm.Peer
 import sdk.data.{Block, Deploy}
 import sdk.primitive.ByteArray
+import sdk.reflect.{ClassAsTuple, ClassesAsConfig, Description}
 import slick.SlickSpec.*
 import slick.api.SlickApi
 import slick.jdbc.PostgresProfile
 import slick.migration.api.PostgresDialect
 import slick.syntax.all.*
+
+@Description("customConf")
+final case class CustomConf(
+  @Description("Integer value")
+  int: Int,
+  @Description("String value")
+  string: String,
+  // @Description("List value")
+  // list: List[(String, Float)],
+)
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
@@ -179,6 +190,31 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
             (storeF >> loadF).unsafeRunSync() shouldBe Some(value)
           }
         }
+      }
+      .unsafeRunSync()
+  }
+
+  "Configs saved to DB and loaded from DB" should "be the same" in {
+    embedPgSlick[IO]
+      .use { api =>
+        val savedConf = CustomConf(7, "test" /*, List("a" -> 1.0f, "b" -> 2.0f)*/ )
+        val root      = "root"
+
+        def saveToDb[F[_]: Sync](api: SlickApi[F], kvMap: Map[String, Any]): F[Unit] =
+          kvMap.toList.traverse { case (k, v) => api.putConfig(k, v.toString) }.void
+
+        def loadFromDb[F[_]: Sync](api: SlickApi[F], kvMap: Map[String, Any]): F[CustomConf] = for {
+          keys   <- Sync[F].delay(kvMap.keys.toList)
+          values <- keys.traverse(api.getConfig)
+          map     = keys.zip(values).collect { case (k, Some(v)) => k -> v }.toMap
+          cfg    <- ClassAsTuple.fromMap[F, CustomConf](root, map)
+        } yield cfg
+
+        for {
+          kvMap      <- Sync[IO].delay(ClassesAsConfig.kvMap(root, savedConf))
+          _          <- saveToDb[IO](api, kvMap)
+          loadedConf <- loadFromDb[IO](api, kvMap)
+        } yield savedConf shouldBe loadedConf
       }
       .unsafeRunSync()
   }
