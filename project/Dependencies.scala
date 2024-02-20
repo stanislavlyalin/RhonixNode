@@ -77,7 +77,7 @@ object Dependencies {
   val mockito             = "org.mockito"       %% "mockito-scala-cats" % "1.17.12"  % Test
   val scalacheck_e        = "org.typelevel"     %% "scalacheck-effect"  % "1.0.4"    % Test
   val scalatestScalacheck = "org.scalatestplus" %% "scalacheck-1-17"    % "3.2.16.0" % Test
-  val embedPgsql          = "io.zonky.test"      % "embedded-postgres"  % "2.0.6"    % Test
+  val embedPgsql          = "io.zonky.test"      % "embedded-postgres"  % "2.0.6"
 
   // Diagnostics
   val kamonBundle           = "io.kamon"    %% "kamon-bundle"         % "2.6.1"
