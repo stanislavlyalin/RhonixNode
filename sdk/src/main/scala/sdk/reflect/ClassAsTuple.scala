@@ -31,7 +31,8 @@ object ClassAsTuple {
     }
   }
 
-  def fromMap[F[_]: Sync, T: TypeTag](root: String, map: Map[String, String]): F[T] = {
+  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
+  def fromMap[F[_]: Sync, T: TypeTag](root: String, map: Map[String, Any]): F[T] = {
     val classSymbol       = typeOf[T].typeSymbol.asClass
     val classMirror       = currentMirror.reflectClass(classSymbol)
     val constructorSymbol = typeOf[T].decl(termNames.CONSTRUCTOR).asMethod
@@ -45,18 +46,18 @@ object ClassAsTuple {
           val paramType = param.typeSignature
           val paramName = param.name.toString
           val cfgName   = ClassesAsConfig.configName(classSymbol)
+          val key       = s"$root.$cfgName.$paramName"
+          val value     = map(key)
 
-          val key   = s"$root.$cfgName.$paramName"
-          val value = map(key)
-
-          // TODO: Add support for List
           paramType match {
-            case t if t =:= typeOf[Boolean] => value.toBoolean
-            case t if t =:= typeOf[Double]  => value.toDouble
-            case t if t =:= typeOf[Float]   => value.toFloat
-            case t if t =:= typeOf[Int]     => value.toInt
-            case t if t =:= typeOf[String]  => value
-            case _                          => value // Should produce IllegalArgumentException
+            case t if t =:= typeOf[String]    => value.asInstanceOf[String]
+            case t if t =:= typeOf[Int]       => value.asInstanceOf[Double].toInt
+            case t if t =:= typeOf[Double]    => value.asInstanceOf[Double]
+            case t if t =:= typeOf[Boolean]   => value.asInstanceOf[Boolean]
+            case t if t <:< typeOf[List[?]]   => value.asInstanceOf[List[Any]]
+            case t if t <:< typeOf[Set[?]]    => value.asInstanceOf[Set[Any]]
+            case t if t <:< typeOf[Map[?, ?]] => value.asInstanceOf[Map[Any, Any]]
+            case t                            => t.asInstanceOf[paramType.type]
           }
         }
         constructorMirror(constructorArgs*).asInstanceOf[T]

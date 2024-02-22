@@ -24,8 +24,10 @@ final case class CustomConf(
   int: Int,
   @Description("String value")
   string: String,
-  // @Description("List value")
-  // list: List[(String, Float)],
+  @Description("List value")
+  list: List[String],
+  @Description("Map value")
+  map: Map[String, List[String]],
 )
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -197,11 +199,16 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
   "Configs saved to DB and loaded from DB" should "be the same" in {
     embedPgSlick[IO]
       .use { api =>
-        val savedConf = CustomConf(7, "test" /*, List("a" -> 1.0f, "b" -> 2.0f)*/ )
+        val savedConf = CustomConf(
+          7,
+          "test",
+          List("a", "b", "c"),
+          Map("a" -> List("1"), "b" -> List("2", "3")),
+        )
         val root      = "root"
 
         def saveToDb[F[_]: Sync](api: SlickApi[F], kvMap: Map[String, Any]): F[Unit] =
-          kvMap.toList.traverse { case (k, v) => api.putConfig(k, v.toString) }.void
+          kvMap.toList.traverse { case (k, v) => api.putConfig(k, v) }.void
 
         def loadFromDb[F[_]: Sync](api: SlickApi[F], kvMap: Map[String, Any]): F[CustomConf] = for {
           keys   <- Sync[F].delay(kvMap.keys.toList)

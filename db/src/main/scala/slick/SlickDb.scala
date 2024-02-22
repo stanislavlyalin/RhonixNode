@@ -45,7 +45,7 @@ object SlickDb {
       def run: F[Unit] = (for {
         api          <- SlickApi[F](slickDb)
         dbVersionOpt <- api.actions.getConfig(key).run.recover { case _ => "0".some }
-        version      <- Try(dbVersionOpt.getOrElse("0").toInt)
+        version      <- Try(dbVersionOpt.map(_.asInstanceOf[String]).getOrElse("0").toInt)
                           .adaptErr(FatalError(s"Error reading $key from config table", _))
                           .liftTo[F]
       } yield applyAllNewerThen(version, api)).flatten

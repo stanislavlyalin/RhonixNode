@@ -53,7 +53,7 @@ object Config {
         ClassesAsConfig
           .kvMap(root, nodeCfg, diagCfg, commCfg)
           .toList
-          .traverse { case (k, v) => db.putConfig(k, v.toString) }
+          .traverse { case (k, v) => db.putConfig(k, v) }
           .void
     }
 

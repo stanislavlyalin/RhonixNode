@@ -102,6 +102,7 @@ object Dependencies {
   val circeCodec   = "org.http4s" %% "http4s-circe"        % "0.23.23"
   // for auto-derivation of JSON codecs
   val circeGeneric = "io.circe"   %% "circe-generic"       % "0.14.5"
+  val circeParser  = "io.circe"   %% "circe-parser"        % "0.14.5"
 
   val endpointsAlg       = "org.endpoints4s" %% "algebra"             % "1.9.0"
   val endpointsAlgCirce  = "org.endpoints4s" %% "algebra-circe"       % "2.3.0"
@@ -125,13 +126,13 @@ object Dependencies {
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
-  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector)
+  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector, circeGeneric, circeParser)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter, influxDbClient)
 
   val log = Seq(logbackClassic, slf4j)
 
-  val http4s      = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze, circeGeneric)
+  val http4s      = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
   val endpoints4s =
     Seq(
       endpointsAlg,
