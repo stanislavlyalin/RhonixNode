@@ -1,15 +1,37 @@
 package sim
 
 import cats.effect.*
+import cats.effect.kernel.Ref.Make
+import cats.effect.std.Random
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import node.Setup
-import sdk.data.BalancesState
+import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.hashing.Blake2b
 import sdk.primitive.ByteArray
+import sdk.syntax.all.digestSyntax
 import slick.jdbc.JdbcBackend.Database
 import weaver.data.{Bonds, FinalData}
+import node.Hashing.*
 
 object NetworkSim extends IOApp {
+
+  private def randomDeploy[F[_]: Make: Sync: Random](
+    users: Set[ByteArray],
+    n: Int,
+  ): F[Set[BalancesDeploy]] = {
+    val mkDeploy = for {
+      txVal <- Random[F].nextLongBounded(100)
+      from  <- Random[F].elementOf(users)
+      to    <- Random[F].elementOf(users - from)
+    } yield {
+      val st = new BalancesState(Map(from -> -txVal, to -> txVal))
+      val bd = BalancesDeployBody(st, 0)
+      val id = bd.digest
+      BalancesDeploy(id, bd)
+    }
+    mkDeploy.replicateA(n).map(_.toSet)
+  }
 
   override def run(args: List[String]): IO[ExitCode] = {
     val prompt = """
@@ -70,7 +92,7 @@ object NetworkSim extends IOApp {
     args match {
       case List("--help") => IO.println(prompt).as(ExitCode.Success)
       case List("run")    =>
-        val netCfg: sim.Config    = sim.Config.Default
+        val netCfg: sim.Config    = sim.Config.Default.copy(size = 3, usersNum = 2)
         val rnd                   = new scala.util.Random()
         /// Users (wallets) making transactions
         val users: Set[ByteArray] =
@@ -92,10 +114,12 @@ object NetworkSim extends IOApp {
         }
         val genesisBalances       = new BalancesState(users.map(_ -> Long.MaxValue / 2).toMap)
 
+        implicit val rndIO: Random[IO] = Random.scalaUtilRandom[IO].unsafeRunSync()
+
         genesisPoS.bonds.activeSet.toList.zipWithIndex
           .traverse { case id -> idx =>
             val db: Resource[IO, Database] = SlickEmbeddedPgDatabase[IO]
-            Setup.all[IO](db, id, genesisPoS, idx)
+            Setup.all[IO](db, id, genesisPoS, randomDeploy[IO](users, netCfg.txPerBlock), idx)
           }
           .map(setups => Network.apply[IO](setups, genesisPoS, genesisBalances, netCfg))
           .use(_.compile.drain.as(ExitCode.Success))

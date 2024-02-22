@@ -51,6 +51,7 @@ object Node {
     balancesShard: BalancesStateBuilderWithReader[F],
     lfs: WeaverState[ByteArray, ByteArray, BalancesDeploy],
     database: SlickApi[F],
+    deploysPooled: F[Set[BalancesDeploy]],
   ): F[Node[F]] = {
     val exeEngine = new ExeEngine[F, ByteArray, ByteArray, BalancesDeploy] {
       def execute(
@@ -90,7 +91,7 @@ object Node {
                  state.propStRef,
                  state.procStRef,
                  state.bufferStRef,
-                 Set.empty[BalancesDeploy].pure,
+                 deploysPooled,
                  id.some,
                  exeEngine,
                  Relation.notRelated[F, BalancesDeploy],

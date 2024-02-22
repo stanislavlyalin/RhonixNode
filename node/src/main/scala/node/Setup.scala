@@ -126,6 +126,7 @@ object Setup {
     // TODO for now node always starts from the same genesis state, specified either in simulator or in main function
     //   make it restored from the database
     genesisPoS: FinalData[ByteArray],
+    dummyDeploys: F[Set[BalancesDeploy]],
     idx: Int = 0,
   ): Resource[F, Setup[F]] = for {
     // connect to the database
@@ -166,7 +167,15 @@ object Setup {
     node              <- {
       implicit val m: Metrics[F] = metrics;
       Resource.eval(
-        Node.make[F](fringeMappingRef, nodeState, id, balancesShard, WeaverState.empty(genesisPoS), database),
+        Node.make[F](
+          fringeMappingRef,
+          nodeState,
+          id,
+          balancesShard,
+          WeaverState.empty(genesisPoS),
+          database,
+          (dPool.toMap.map(_.values.toSet), dummyDeploys).mapN(_ ++ _),
+        ),
       )
     }
   } yield {

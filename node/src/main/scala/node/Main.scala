@@ -5,6 +5,7 @@ import cats.effect.std.Env
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all.*
 import sdk.codecs.Base16
+import sdk.data.BalancesDeploy
 import sdk.hashing.Blake2b
 import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
@@ -68,7 +69,7 @@ object Main extends IOApp {
           val db   = SlickPgDatabase[IO](dbCfg)
 
           fs2.Stream
-            .resource(Setup.all[IO](db, idBa, genesisPoS).map(Node.stream))
+            .resource(Setup.all[IO](db, idBa, genesisPoS, Set.empty[BalancesDeploy].pure[IO]).map(Node.stream))
             .flatten
             .compile
             .drain
