@@ -32,7 +32,7 @@ object Serialization {
         x match {
           case BalancesState(diffs) =>
             w.write(diffs.size) *>
-              diffs.toList.sorted.traverse_ { case (k, v) => w.write(k.bytes) *> w.write(v) }
+              serializeSeq[F, (ByteArray, Long)](diffs.toList.sorted, { case (k, v) => w.write(k.bytes) *> w.write(v) })
         }
 
       override def read: PrimitiveReader[F] => F[BalancesState] = (r: PrimitiveReader[F]) =>
@@ -114,24 +114,28 @@ object Serialization {
                   postStateHash,
                 ) =>
               w.write(sender.bytes) *>
-                minGenJs.toList.sorted.traverse_(x => w.write(x.bytes)) *>
-                offences.toList.sorted.traverse_(x => w.write(x.bytes)) *>
-                txs.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
-                finalFringe.toList.sorted.traverse_(x => w.write(x.bytes)) *>
-                finalized.traverse_ { case ConflictResolution(accepted, rejected) =>
-                  accepted.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
-                    rejected.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w))
-                } *>
-                merge.toList.sorted.traverse_(x => balancesDeploySerialize.write(x)(w)) *>
-                bonds.bonds.toList.sorted.traverse_ { case (k, v) => w.write(k.bytes) *> w.write(v) } *>
+                serializeSeq[F, ByteArray](minGenJs.toList, x => w.write(x.bytes)) *>
+                serializeSeq[F, ByteArray](offences.toList, x => w.write(x.bytes)) *>
+                serializeSeq[F, BalancesDeploy](txs, balancesDeploySerialize.write(_)(w)) *>
+                serializeSeq[F, ByteArray](finalFringe.toList.sorted, x => w.write(x.bytes)) *>
+                finalized
+                  .map { case ConflictResolution(accepted, rejected) =>
+                    serializeSeq[F, BalancesDeploy](accepted.toList.sorted, balancesDeploySerialize.write(_)(w)) *>
+                      serializeSeq[F, BalancesDeploy](rejected.toList.sorted, balancesDeploySerialize.write(_)(w))
+                  }
+                  .getOrElse(Monad[F].unit) *>
+                serializeSeq[F, BalancesDeploy](merge.toList.sorted, balancesDeploySerialize.write(_)(w)) *>
+                serializeSeq[F, (ByteArray, Long)](
+                  bonds.bonds.toList.sorted,
+                  { case (k, v) => w.write(k.bytes) *> w.write(v) },
+                ) *>
                 w.write(lazTol) *>
                 w.write(expThresh) *>
                 w.write(finalStateHash) *>
                 w.write(postStateHash)
           }
 
-      override def read: PrimitiveReader[F] => F[Block[ByteArray, ByteArray, BalancesDeploy]] =
-        ??? // not required for now
+      override def read: PrimitiveReader[F] => F[Block[ByteArray, ByteArray, BalancesDeploy]] = ???
     }
 
   implicit def tokenTransferRequestBodySerialize[F[_]: Monad]: Serialize[F, TokenTransferRequest.Body] =
