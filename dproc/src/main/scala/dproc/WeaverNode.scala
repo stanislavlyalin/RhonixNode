@@ -134,8 +134,8 @@ final case class WeaverNode[F[_]: Sync: Metrics, M, S, T](state: WeaverState[M, 
       bonds = lazoE.bonds,
       lazTol = lazoE.lazinessTolerance,
       expThresh = lazoE.expirationThreshold,
-      finalStateHash = finalStateHash.bytes,
-      postStateHash = postStateHash.bytes,
+      finalStateHash = finalStateHash,
+      postStateHash = postStateHash,
     )
   }
 
@@ -161,14 +161,14 @@ final case class WeaverNode[F[_]: Sync: Metrics, M, S, T](state: WeaverState[M, 
 
       _ <- EitherT
              .fromOption(
-               (finalState == ByteArray(m.finalStateHash)).guard[Option],
-               InvalidFinalState(finalState, ByteArray(m.finalStateHash)),
+               (finalState == m.finalStateHash).guard[Option],
+               InvalidFinalState(finalState, m.finalStateHash),
              )
              .leftWiden[Offence]
       _ <- EitherT
              .fromOption(
-               (postState == ByteArray(m.postStateHash)).guard[Option],
-               InvalidPostState(postState, ByteArray(m.postStateHash)),
+               (postState == m.postStateHash).guard[Option],
+               InvalidPostState(postState, m.postStateHash),
              )
              .leftWiden[Offence]
     } yield ()

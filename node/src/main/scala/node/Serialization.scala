@@ -1,18 +1,16 @@
 package node
 
-import cats.{Applicative, Monad}
 import cats.syntax.all.*
+import cats.{Applicative, Monad}
 import dproc.data.Block
 import node.comm.CommImpl.{BlockHash, BlockHashResponse}
 import sdk.api.data.{Balance, TokenTransferRequest}
-import sdk.codecs.protobuf.ProtoCodec
-import sdk.codecs.{Codec, PrimitiveReader, PrimitiveWriter, Serialize}
+import sdk.codecs.{PrimitiveReader, PrimitiveWriter, Serialize}
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.primitive.ByteArray
-import weaver.data.{Bonds, ConflictResolution}
+import weaver.data.ConflictResolution
 
 import scala.math.Numeric.LongIsIntegral
-import scala.util.Try
 
 object Serialization {
 
@@ -131,8 +129,8 @@ object Serialization {
                 ) *>
                 w.write(lazTol) *>
                 w.write(expThresh) *>
-                w.write(finalStateHash) *>
-                w.write(postStateHash)
+                w.write(finalStateHash.bytes) *>
+                w.write(postStateHash.bytes)
           }
 
       override def read: PrimitiveReader[F] => F[Block[ByteArray, ByteArray, BalancesDeploy]] = ???

@@ -35,8 +35,8 @@ object Genesis {
           genesisExec.bonds,
           genesisExec.lazinessTolerance,
           genesisExec.expirationThreshold,
-          finalStateHash = EmptyRootHash.bytes.bytes,
-          postStateHash = postState.bytes.bytes,
+          finalStateHash = EmptyRootHash.bytes,
+          postStateHash = postState.bytes,
         )
 
         Block.WithId(block.digest, block)

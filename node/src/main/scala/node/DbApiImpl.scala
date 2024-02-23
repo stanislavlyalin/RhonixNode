@@ -29,8 +29,8 @@ final case class DbApiImpl[F[_]: Sync](sApi: SlickApi[F]) {
                 hash = b.id,
                 sigAlg = SigAlg,
                 signature = SignatureDefault,
-                finalStateHash = ByteArray(b.m.finalStateHash),
-                postStateHash = ByteArray(b.m.postStateHash),
+                finalStateHash = b.m.finalStateHash,
+                postStateHash = b.m.postStateHash,
                 validatorPk = b.m.sender,
                 shardName = ShardNameDefault,
                 justificationSet = b.m.minGenJs,
@@ -85,8 +85,8 @@ final case class DbApiImpl[F[_]: Sync](sApi: SlickApi[F]) {
         bonds = weaver.data.Bonds(b.bondsMap),
         lazTol = LazTolDefault,
         expThresh = ExpThreshDefault,
-        finalStateHash = b.finalStateHash.bytes,
-        postStateHash = b.postStateHash.bytes,
+        finalStateHash = b.finalStateHash,
+        postStateHash = b.postStateHash,
       )
     OptionT(sApi.blockGet(id)).semiflatMap(decode).value
   }
