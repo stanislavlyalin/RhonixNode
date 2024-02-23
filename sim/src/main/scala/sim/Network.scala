@@ -113,9 +113,7 @@ object Network {
             genesisCreator.balancesShard,
           )
           .flatMap { genesisM =>
-            val genesis = genesisM.m.txs.head
             DbApiImpl(genesisCreator.database).saveBlock(genesisM) *>
-              DbApiImpl(genesisCreator.database).saveBalancesDeploy(genesis) *>
               genesisCreator.ports.sendToInput(CommImpl.BlockHash(genesisM.id)) *>
               Sync[F].delay(println(s"Genesis block created"))
           },
