@@ -12,12 +12,8 @@ import weaver.data.ConflictResolution
 
 import scala.math.Numeric.LongIsIntegral
 
+// TODO move to sdk since this is a specification
 object Serialization {
-
-  implicit val balanceCodec: Codec[Balance, ByteArray] = new Codec[Balance, ByteArray] {
-    override def encode(x: Balance): Try[ByteArray] = Try(ByteArray(BigInt(x.x).toByteArray))
-    override def decode(x: ByteArray): Try[Balance] = Try(new Balance(BigInt(x.bytes).toLong))
-  }
 
   implicit def balanceSerialize[F[_]: Monad]: Serialize[F, Balance] = new Serialize[F, Balance] {
     override def write(x: Balance): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) => w.write(x.x)

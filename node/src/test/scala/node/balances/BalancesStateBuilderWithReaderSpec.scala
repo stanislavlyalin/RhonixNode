@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import node.BalancesStateBuilderWithReader
 import node.Hashing.*
-import node.Serialization.*
+import node.Codecs.*
 import node.balances.BalancesStateBuilderWithReaderSpec.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -9,7 +9,7 @@ import cats.syntax.all.*
 import diagnostics.metrics.InfluxDbBatchedMetrics
 import node.Hashing.*
 import node.Node.BalancesShardName
-import node.Serialization.*
+import node.Codecs.*
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
 import node.api.{web, ExternalApiSlickImpl}
