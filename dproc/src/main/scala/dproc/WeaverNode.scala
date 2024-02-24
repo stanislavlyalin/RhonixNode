@@ -47,7 +47,10 @@ final case class WeaverNode[F[_]: Sync: Metrics, M, S, T](state: WeaverState[M, 
 
   def resolver: Resolve[F, T] = new Resolve[F, T] {
     override def resolve(x: IterableOnce[T]): F[(Set[T], Set[T])] =
-      Resolve.naive[T](x, state.meld.conflictsMap.contains).bimap(_.iterator.to(Set), _.iterator.to(Set)).pure
+      Resolve
+        .naive[T](x, !state.meld.conflictsMap.get(_).exists(_.nonEmpty))
+        .bimap(_.iterator.to(Set), _.iterator.to(Set))
+        .pure
   }
 
   def computeFringe(minGenJs: Set[M]): FringeData[M] =
