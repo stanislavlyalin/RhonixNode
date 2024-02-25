@@ -16,23 +16,6 @@ import node.Hashing.*
 
 object NetworkSim extends IOApp {
 
-  private def randomDeploy[F[_]: Make: Sync: Random](
-    users: Set[ByteArray],
-    n: Int,
-  ): F[Set[BalancesDeploy]] = {
-    val mkDeploy = for {
-      txVal <- Random[F].nextLongBounded(100)
-      from  <- Random[F].elementOf(users)
-      to    <- Random[F].elementOf(users - from)
-    } yield {
-      val st = new BalancesState(Map(from -> -txVal, to -> txVal))
-      val bd = BalancesDeployBody(st, 0)
-      val id = bd.digest
-      BalancesDeploy(id, bd)
-    }
-    mkDeploy.replicateA(n).map(_.toSet)
-  }
-
   override def run(args: List[String]): IO[ExitCode] = {
     val prompt = """
     This application simulates the network of nodes with the following features:
@@ -119,7 +102,7 @@ object NetworkSim extends IOApp {
         genesisPoS.bonds.activeSet.toList.zipWithIndex
           .traverse { case id -> idx =>
             val db: Resource[IO, Database] = SlickEmbeddedPgDatabase[IO]
-            Setup.all[IO](db, id, genesisPoS, randomDeploy[IO](users, netCfg.txPerBlock), idx)
+            Setup.all[IO](db, id, genesisPoS, node.Main.randomDeploys[IO](users, netCfg.txPerBlock), idx)
           }
           .map(setups => Network.apply[IO](setups, genesisPoS, genesisBalances, netCfg))
           .use(_.compile.drain.as(ExitCode.Success))

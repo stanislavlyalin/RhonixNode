@@ -1,15 +1,16 @@
 package node
 
 import cats.Parallel
-import cats.effect.Ref
 import cats.effect.kernel.Ref.Make
-import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Queue
+import cats.effect.{Async, Ref, Resource, Sync}
 import cats.syntax.all.*
 import diagnostics.metrics.InfluxDbBatchedMetrics
+import dproc.DProc
+import dproc.DProc.ExeEngine
+import node.Codecs.*
 import node.Hashing.*
 import node.Node.BalancesShardName
-import node.Codecs.*
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
 import node.api.{web, ExternalApiSlickImpl}
@@ -25,17 +26,20 @@ import sdk.api.data.Balance
 import sdk.comm.Peer
 import sdk.data.BalancesDeploy
 import sdk.diag.Metrics
-import sdk.history.ByteArray32
+import sdk.hashing.Blake2b
+import sdk.history.History
+import sdk.merging.MergeLogicForPayments.mergeRejectNegativeOverflow
+import sdk.merging.Relation
 import sdk.primitive.ByteArray
 import sdk.store.{HistoryWithValues, InMemoryKeyValueStoreManager, KeyValueStoreManager, KeyValueTypedStore}
-import sdk.syntax.all.sdkSyntaxByteArray
+import sdk.syntax.all.*
 import slick.SlickDb
 import slick.api.SlickApi
 import slick.jdbc.JdbcBackend.DatabaseDef
 import slick.jdbc.PostgresProfile
 import slick.migration.api.PostgresDialect
 import weaver.WeaverState
-import weaver.data.{ConflictResolution, FinalData}
+import weaver.data.FinalData
 
 import java.nio.file.Path
 
@@ -61,14 +65,12 @@ final case class Setup[F[_]](
   stateManager: StateManager[F],
   // ports to bypass API servers (e.g. to simulate the network)
   ports: Ports[F],
-  node: Node[F],
+  dProc: DProc[F, ByteArray, BalancesDeploy],
 )
 
 // Not to use in production. Ports that can be used to bypass API servers to call directly in simulation.
 final case class Ports[F[_]](
   inHash: fs2.Stream[F, BlockHash],
-  outHash: fs2.Stream[F, BlockHash],
-  finStream: fs2.Stream[F, ConflictResolution[BalancesDeploy]],
   sendToInput: BlockHash => F[Unit],
 )
 
@@ -100,6 +102,62 @@ object Setup {
     val allRoutes             = RouterFix(s"/${sdk.api.RootPath.mkString("/")}" -> routes)
     web.server(allRoutes, port, host, devMode)
   }
+
+  private def dProc[F[_]: Async: Parallel: Metrics](
+    id: ByteArray,
+    state: StateManager[F],
+    balancesShard: BalancesStateBuilderWithReader[F],
+    genesisPoS: FinalData[ByteArray],
+    database: SlickApi[F],
+    deploysPooled: F[Set[BalancesDeploy]],
+  ): Resource[F, DProc[F, ByteArray, BalancesDeploy]] = Resource.eval(Sync[F].defer {
+    val exeEngine = new ExeEngine[F, ByteArray, ByteArray, BalancesDeploy] {
+      def execute(
+        base: Set[ByteArray],
+        fringe: Set[ByteArray],
+        toFinalize: Set[BalancesDeploy],
+        toMerge: Set[BalancesDeploy],
+        txs: Set[BalancesDeploy],
+      ): F[((ByteArray, Seq[BalancesDeploy]), (ByteArray, Seq[BalancesDeploy]))] =
+        for {
+          baseState <- state.fringeMappingRef.get.map(_.getOrElse(base, History.EmptyRootHash))
+
+          r <- mergeRejectNegativeOverflow(
+                 balancesShard.readBalance,
+                 baseState,
+                 toFinalize,
+                 toMerge ++ txs,
+               )
+
+          ((newFinState, finRj), (newMergeState, provRj)) = r
+
+          r <- balancesShard.buildState(baseState, newFinState, newMergeState)
+
+          (finalHash, postHash) = r
+
+          _ <- state.fringeMappingRef.update(_ + (fringe -> finalHash)).unlessA(fringe.isEmpty)
+        } yield ((finalHash.bytes, finRj), (postHash.bytes, provRj))
+
+      // data read from the final state associated with the final fringe
+      def consensusData(fringe: Set[ByteArray]): F[FinalData[ByteArray]] =
+        genesisPoS.pure[F] // TODO for now PoS is static defined in genesis
+    }
+
+    DProc
+      .apply[F, ByteArray, ByteArray, BalancesDeploy](
+        state.weaverStRef,
+        state.propStRef,
+        state.procStRef,
+        state.bufferStRef,
+        deploysPooled,
+        id.some,
+        exeEngine,
+        Relation.notRelated[F, BalancesDeploy],
+        b => Sync[F].delay(ByteArray(Blake2b.hash256(b.digest.bytes))),
+        DbApiImpl(database).saveBlock,
+        DbApiImpl(database).readBlock(_).flatMap(_.liftTo[F](new Exception("Block not found"))),
+      )
+  })
 
   private def deployPool[F[_]: Sync: Make]: Resource[F, KeyValueTypedStore[F, ByteArray, BalancesDeploy]] =
     Resource.eval(Ref[F].of(Map.empty[ByteArray, BalancesDeploy]).map { st =>
@@ -162,31 +220,18 @@ object Setup {
     }
     // peerTable
     peerTable         <- { implicit val db: SlickApi[F] = database; Resource.eval(PeerTable(cCfg)) }
-    // TODO these fringe mapping should not be here
-    fringeMappingRef  <- Resource.eval(Ref.of(Map.empty[Set[ByteArray], ByteArray32]))
-    node              <- {
+    // core logic
+    dProc             <- {
       implicit val m: Metrics[F] = metrics;
-      Resource.eval(
-        Node.make[F](
-          fringeMappingRef,
-          nodeState,
-          id,
-          balancesShard,
-          WeaverState.empty(genesisPoS),
-          database,
-          (dPool.toMap.map(_.values.toSet), dummyDeploys).mapN(_ ++ _),
-        ),
-      )
+      val deploysWithDummy       = (dPool.toMap.map(_.values.toSet), dummyDeploys).mapN(_ ++ _)
+      dProc(id, nodeState, balancesShard, genesisPoS, database, deploysWithDummy)
     }
   } yield {
     // This `pullIncoming` in real node should contain messages received by API server (grpc)
     val inHashes     = fs2.Stream.fromQueueUnterminated(inBlockQ)
-    val pullIncoming = inHashes.evalTap(x => node.dProc.acceptMsg(x.msg))
+    val pullIncoming = inHashes.evalTap(x => dProc.acceptMsg(x.msg))
 
-    // Streams
-    val sendOutbound = node.dProc.output.map(BlockHash)
-    val finStream    = node.dProc.finStream
-    val ports        = Ports(pullIncoming, sendOutbound, finStream, inBlockQ.offer)
+    val ports = Ports(pullIncoming, inBlockQ.offer)
 
     Setup(
       database,
@@ -200,7 +245,7 @@ object Setup {
       dPool,
       nodeState,
       ports,
-      node,
+      dProc,
     )
   }
 }

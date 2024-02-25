@@ -1,23 +1,18 @@
 package sim
 
 import cats.Parallel
+import cats.effect.Sync
 import cats.effect.kernel.{Async, Temporal}
 import cats.effect.std.Console
-import cats.effect.{Ref, Sync}
 import cats.syntax.all.*
 import dproc.data.Block
 import fs2.{Pipe, Stream}
-import node.Hashing.*
 import node.comm.CommImpl
 import node.comm.CommImpl.BlockHash
-import node.state.State
-import node.{DbApiImpl, Genesis, Setup}
+import node.{DbApiImpl, Genesis, NodeSnapshot, Setup}
 import sdk.data.{BalancesDeploy, BalancesState}
 import sdk.diag.Metrics
 import sdk.primitive.ByteArray
-import sdk.syntax.all.{effectSyntax, fs2StreamSyntax}
-import sim.NetworkSnapshot.NodeSnapshot
-import slick.syntax.all.slickApiSyntax
 import weaver.data.FinalData
 
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -36,38 +31,7 @@ object Network {
 
     val peersWithIdx = peers.zipWithIndex
 
-    val (streams, diags) = peersWithIdx.map { case setup -> idx =>
-      val getSnapshot =
-        (
-          setup.stateManager.weaverStRef.get,
-          setup.stateManager.propStRef.get,
-          setup.stateManager.procStRef.get,
-          setup.stateManager.bufferStRef.get,
-        ).flatMapN { case (w, p, pe, b) =>
-          setup.node.lfsHash.map(State(w, p, pe, b, _))
-        }
-
-      val tpsRef    = Ref.unsafe[F, Double](0f)
-      val tpsUpdate = setup.ports.finStream
-        .map(_.accepted.toList)
-        .flatMap(Stream.emits(_))
-        .throughput(1.second)
-        // finality is computed by each sender eventually so / c.size
-        .map(_.toDouble / peers.size)
-        .evalTap(tpsRef.set)
-      val getData   = (getSnapshot, tpsRef.get).mapN { case State(w, p, pe, b, lfsHash) -> tps =>
-        NodeSnapshot[ByteArray, ByteArray, BalancesDeploy](
-          ByteArray(BigInt(idx).toByteArray),
-          tps.toFloat,
-          tps.toFloat / netCfg.txPerBlock,
-          w,
-          p,
-          pe,
-          b,
-          lfsHash,
-        )
-      }
-
+    val streams = peersWithIdx.map { case setup -> idx =>
       val p2pStream = {
         val notSelf = peersWithIdx.filterNot(_._2 == idx).map(_._1)
 
@@ -79,7 +43,7 @@ object Network {
           _      <- peers.traverse(peerSetup => DbApiImpl(peerSetup.database).saveBlock(bWithId))
         } yield ()
 
-        setup.node.dProc.output
+        setup.dProc.output
           .evalTap(copyBlockToPeers)
           .through(
             broadcast(notSelf, netCfg.propDelay)
@@ -88,18 +52,28 @@ object Network {
           )
       }
 
-      val nodeStream = setup.node.dProc.dProcStream concurrently setup.ports.inHash
+      val nodeStream = setup.dProc.dProcStream concurrently setup.ports.inHash
 
-      val run = nodeStream concurrently p2pStream concurrently tpsUpdate
-      run -> getData
-    }.unzip
-
-    val simStream: Stream[F, Unit] = Stream.emits(streams).parJoin(streams.size)
+      nodeStream concurrently p2pStream
+    }
 
     val logDiag: Stream[F, Unit] = {
-      val getNetworkState = diags.sequence
-      getNetworkState.showAnimated(samplingTime = 150.milli)
+      val streams = peers.map { p =>
+        NodeSnapshot
+          .stream(p.stateManager, p.dProc.finStream)
+          .map(List(_))
+          .metered(100.milli)
+      }
+
+      streams.tail
+        .foldLeft(streams.head) { case (acc, r) => acc.parZipWith(r) { case (acc, x) => x ++ acc } }
+        .map(_.zipWithIndex)
+        .map(NetworkSnapshot(_))
+        .map(_.show)
+        .printlns
     }
+
+    val simStream: Stream[F, Unit] = Stream.emits(streams).parJoin(streams.size)
 
     val mkGenesis: Stream[F, Unit] = {
       val genesisCreator: Setup[F] = peers.head
