@@ -17,11 +17,13 @@ object ContractNormalizer {
     for {
       source <- NormalizerRec[F].normalize(p.name_)
 
-      normalizePattern = for {
-                           patterns <- p.listname_.asScala.toList.traverse(NormalizerRec[F].normalize)
-                           reminder <- NormalizerRec[F].normalize(p.nameremainder_)
-                           freeCount = FreeVarReader[T].getFreeVars.size
-                         } yield ReceiveBindN(patterns, source, reminder, freeCount)
+      normalizePattern =
+        for {
+          freeCountStart <- Sync[F].delay(FreeVarReader[T].getFreeVars.size)
+          patterns       <- p.listname_.asScala.toSeq.traverse(NormalizerRec[F].normalize)
+          reminder       <- NormalizerRec[F].normalize(p.nameremainder_)
+          freeCount       = FreeVarReader[T].getFreeVars.size - freeCountStart
+        } yield ReceiveBindN(patterns, source, reminder, freeCount)
       patternTuple    <- normalizePattern.withinPatternGetFreeVars(withinReceive = true)
 
       (bind, freeVars) = patternTuple

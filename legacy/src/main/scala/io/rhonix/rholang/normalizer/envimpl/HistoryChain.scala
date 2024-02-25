@@ -48,13 +48,15 @@ final class HistoryChain[T](private val chain: collection.mutable.ListBuffer[T])
 object HistoryChain {
 
   /**
-   * Create an empty HistoryChain.
+   * Creates a default instance of HistoryChain.
+   *
    * @return a new HistoryChain with an empty ListBuffer
    */
-  def empty[T]: HistoryChain[T] = new HistoryChain(collection.mutable.ListBuffer[T]())
+  def default[T]: HistoryChain[T] = new HistoryChain(collection.mutable.ListBuffer[T]())
 
   /**
    * Create a HistoryChain with predefined Seq.
+   * 
    * @param seq the Seq of elements to be added to the HistoryChain
    * @return a new HistoryChain with a ListBuffer containing the elements of the Seq
    */

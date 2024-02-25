@@ -1,6 +1,6 @@
 package io.rhonix.rholang.normalizer.env
 
-import coop.rchain.rholang.interpreter.compiler.IdContext
+import coop.rchain.rholang.interpreter.compiler.{IdContext, SourcePosition}
 
 trait BoundVarWriter[T] {
 
@@ -8,11 +8,17 @@ trait BoundVarWriter[T] {
    * Add bound variables.
    *
    * @param bindings sequence of [[IdContext]].
-   * @return indices of bound variables in bounds map that result in application of bindings.
-   *         NOTE: if binding tries to bound a variable that is already present in the bounds map (shadows it),
-   *         it's index is not included in the output.
+   * @return bound variables in bounds map that result in application of bindings.
    */
-  def putBoundVars(bindings: Seq[IdContext[T]]): Seq[Int]
+  def putBoundVars(bindings: Seq[IdContext[T]]): Seq[VarContext[T]]
+
+  /**
+   * Creates a new bound variable without user level (textual) name.
+   *
+   * @param vars data for variables to create.
+   * @return indices of added bound variables.
+   */
+  def createBoundVars(vars: Seq[(T, SourcePosition)]): Seq[VarContext[T]]
 }
 
 object BoundVarWriter {

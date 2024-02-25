@@ -2,15 +2,15 @@ package io.rhonix.rholang.normalizer.envimpl
 
 import cats.effect.Sync
 import io.rhonix.rholang.normalizer.env.NestingWriter
-import io.rhonix.rholang.normalizer.envimpl.*
+import io.rhonix.rholang.normalizer.syntax.all.*
 
 final case class NestingWriterImpl[F[_]: Sync](
-  private val patternInfo: PatternInfoChain,
-  private val bundleInfo: BundleInfoChain,
+  patternInfo: HistoryChain[(Boolean, Boolean)],
+  bundleInfo: HistoryChain[Boolean],
 ) extends NestingWriter[F] {
-
   override def withinPattern[R](inReceive: Boolean)(scopeFn: F[R]): F[R] =
-    patternInfo.runWithNewStatus(inReceive)(scopeFn)
+    patternInfo.runWithNewDataInChain(scopeFn, (true, inReceive))
 
-  override def withinBundle[R](scopeFn: F[R]): F[R] = bundleInfo.runWithNewStatus(scopeFn)
+  override def withinBundle[R](scopeFn: F[R]): F[R] =
+    bundleInfo.runWithNewDataInChain(scopeFn, true)
 }

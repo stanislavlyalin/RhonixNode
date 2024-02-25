@@ -42,7 +42,7 @@ class HistoryChainSpec extends AnyFlatSpec with Matchers {
   }
 
   "An empty HistoryChain" should "be created when calling empty" in {
-    val historyChain = HistoryChain.empty[Int]
+    val historyChain = HistoryChain.default[Int]
     historyChain.depth shouldBe 0
   }
 }
