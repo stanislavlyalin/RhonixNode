@@ -1,18 +1,16 @@
 package sim
 
 import cats.effect.*
-import cats.effect.kernel.Ref.Make
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import node.Setup
-import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
+import sdk.data.BalancesState
 import sdk.hashing.Blake2b
 import sdk.primitive.ByteArray
-import sdk.syntax.all.digestSyntax
+import slick.SlickPgDatabase
 import slick.jdbc.JdbcBackend.Database
 import weaver.data.{Bonds, FinalData}
-import node.Hashing.*
 
 object NetworkSim extends IOApp {
 
@@ -101,7 +99,10 @@ object NetworkSim extends IOApp {
 
         genesisPoS.bonds.activeSet.toList.zipWithIndex
           .traverse { case id -> idx =>
-            val db: Resource[IO, Database] = SlickEmbeddedPgDatabase[IO]
+            val db: Resource[IO, Database] =
+              SlickPgDatabase[IO](
+                _root_.db.Config.Default.copy(dbUrl = s"${_root_.db.Config.Default.dbUrl}_${idx + 1}"),
+              )
             Setup.all[IO](db, id, genesisPoS, node.Main.randomDeploys[IO](users, netCfg.txPerBlock), idx)
           }
           .map(setups => Network.apply[IO](setups, genesisPoS, genesisBalances, netCfg))
