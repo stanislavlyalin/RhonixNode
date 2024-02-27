@@ -1,23 +1,32 @@
-package sim.balances
+package node
 
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import dproc.data.Block
-import sdk.api.data.TokenTransferRequest
+import node.comm.CommImpl.{BlockHash, BlockHashResponse}
+import sdk.api.data.{Balance, TokenTransferRequest}
 import sdk.codecs.{PrimitiveReader, PrimitiveWriter, Serialize}
+import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.primitive.ByteArray
-import sim.balances.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
-import sim.NetworkSim.*
-import weaver.data.{Bonds, ConflictResolution}
+import weaver.data.ConflictResolution
 
+import scala.math.Numeric.LongIsIntegral
+
+// TODO move to sdk since this is a specification
 object Serialization {
+
+  implicit def balanceSerialize[F[_]: Monad]: Serialize[F, Balance] = new Serialize[F, Balance] {
+    override def write(x: Balance): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) => w.write(x.x)
+    override def read: PrimitiveReader[F] => F[Balance]           = (r: PrimitiveReader[F]) => r.readLong.map(new Balance(_))
+  }
+
   implicit def balancesStateSerialize[F[_]: Monad]: Serialize[F, BalancesState] =
     new Serialize[F, BalancesState] {
       override def write(x: BalancesState): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
         x match {
           case BalancesState(diffs) =>
             w.write(diffs.size) *>
-              serializeSeq[F, (Wallet, Balance)](diffs.toSeq, { case (k, v) => w.write(k.bytes) *> w.write(v) })
+              serializeSeq[F, (ByteArray, Long)](diffs.toList.sorted, { case (k, v) => w.write(k.bytes) *> w.write(v) })
         }
 
       override def read: PrimitiveReader[F] => F[BalancesState] = (r: PrimitiveReader[F]) =>
@@ -49,28 +58,25 @@ object Serialization {
 
   implicit def balancesDeploySerialize[F[_]: Monad]: Serialize[F, BalancesDeploy] =
     new Serialize[F, BalancesDeploy] {
-      override def write(x: T): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
+      override def write(x: BalancesDeploy): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
         x match {
           case BalancesDeploy(id, body) => w.write(id.bytes) *> balancesDeployBodySerialize[F].write(body)(w)
         }
 
-      override def read: PrimitiveReader[F] => F[T] = (r: PrimitiveReader[F]) =>
+      override def read: PrimitiveReader[F] => F[BalancesDeploy] = (r: PrimitiveReader[F]) =>
         for {
           id   <- r.readBytes
           body <- balancesDeployBodySerialize[F].read(r)
         } yield BalancesDeploy(ByteArray(id), body)
     }
 
-  implicit def bondsMapSerialize[F[_]: Monad]: Serialize[F, Bonds[S]] =
-    new Serialize[F, Bonds[S]] {
-      override def write(x: Bonds[S]): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
-        x match {
-          case Bonds(bonds) =>
-            w.write(bonds.size) *>
-              serializeSeq[F, (S, Long)](bonds.toSeq, { case (k, v) => w.write(k.bytes) *> w.write(v) })
-        }
+  implicit def bondsMapSerialize[F[_]: Monad]: Serialize[F, Map[ByteArray, Long]] =
+    new Serialize[F, Map[ByteArray, Long]] {
+      override def write(bonds: Map[ByteArray, Long]): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
+        w.write(bonds.size) *>
+          serializeSeq[F, (ByteArray, Long)](bonds.toSeq, { case (k, v) => w.write(k.bytes) *> w.write(v) })
 
-      override def read: PrimitiveReader[F] => F[Bonds[S]] = (r: PrimitiveReader[F]) =>
+      override def read: PrimitiveReader[F] => F[Map[ByteArray, Long]] = (r: PrimitiveReader[F]) =>
         for {
           size  <- r.readInt
           bonds <- (0 until size).toList.traverse { _ =>
@@ -79,46 +85,51 @@ object Serialization {
                        v <- r.readLong
                      } yield k -> v
                    }
-        } yield Bonds(bonds.toMap)
+        } yield bonds.toMap
     }
 
-  implicit def blockSerialize[F[_]: Monad]: Serialize[F, Block[M, S, T]] =
-    new Serialize[F, Block[M, S, T]] {
-      override def write(x: Block[M, S, T]): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
-        x match {
-          case Block(
-                sender,
-                minGenJs,
-                offences,
-                txs,
-                finalFringe,
-                finalized,
-                merge,
-                bonds,
-                lazTol,
-                expThresh,
-                finalStateHash,
-                postStateHash,
-              ) =>
-            w.write(sender.bytes) *>
-              serializeSeq(minGenJs.toSeq, (x: M) => w.write(x.bytes)) *>
-              serializeSeq(offences.toSeq, (x: M) => w.write(x.bytes)) *>
-              serializeSeq(txs, (x: T) => balancesDeploySerialize.write(x)(w)) *>
-              serializeSeq(finalFringe.toSeq, (x: M) => w.write(x.bytes)) *>
-              finalized.traverse_ { case ConflictResolution(accepted, rejected) =>
-                serializeSeq(accepted.toSeq, (x: T) => balancesDeploySerialize.write(x)(w)) *>
-                  serializeSeq(rejected.toSeq, (x: T) => balancesDeploySerialize.write(x)(w))
-              } *>
-              serializeSeq(merge.toSeq, (x: T) => balancesDeploySerialize.write(x)(w)) *>
-              bondsMapSerialize.write(bonds)(w) *>
-              w.write(lazTol) *>
-              w.write(expThresh) *>
-              w.write(finalStateHash) *>
-              w.write(postStateHash)
-        }
+  implicit def blockSerialize[F[_]: Monad]: Serialize[F, Block[ByteArray, ByteArray, BalancesDeploy]] =
+    new Serialize[F, Block[ByteArray, ByteArray, BalancesDeploy]] {
+      override def write(x: Block[ByteArray, ByteArray, BalancesDeploy]): PrimitiveWriter[F] => F[Unit] =
+        (w: PrimitiveWriter[F]) =>
+          x match {
+            case Block(
+                  sender,
+                  minGenJs,
+                  offences,
+                  txs,
+                  finalFringe,
+                  finalized,
+                  merge,
+                  bonds,
+                  lazTol,
+                  expThresh,
+                  finalStateHash,
+                  postStateHash,
+                ) =>
+              w.write(sender.bytes) *>
+                serializeSeq[F, ByteArray](minGenJs.toList, x => w.write(x.bytes)) *>
+                serializeSeq[F, ByteArray](offences.toList, x => w.write(x.bytes)) *>
+                serializeSeq[F, BalancesDeploy](txs, balancesDeploySerialize.write(_)(w)) *>
+                serializeSeq[F, ByteArray](finalFringe.toList.sorted, x => w.write(x.bytes)) *>
+                finalized
+                  .map { case ConflictResolution(accepted, rejected) =>
+                    serializeSeq[F, BalancesDeploy](accepted.toList.sorted, balancesDeploySerialize.write(_)(w)) *>
+                      serializeSeq[F, BalancesDeploy](rejected.toList.sorted, balancesDeploySerialize.write(_)(w))
+                  }
+                  .getOrElse(Monad[F].unit) *>
+                serializeSeq[F, BalancesDeploy](merge.toList.sorted, balancesDeploySerialize.write(_)(w)) *>
+                serializeSeq[F, (ByteArray, Long)](
+                  bonds.bonds.toList.sorted,
+                  { case (k, v) => w.write(k.bytes) *> w.write(v) },
+                ) *>
+                w.write(lazTol) *>
+                w.write(expThresh) *>
+                w.write(finalStateHash.bytes) *>
+                w.write(postStateHash.bytes)
+          }
 
-      override def read: PrimitiveReader[F] => F[Block[M, S, T]] = ??? // not required for now
-
+      override def read: PrimitiveReader[F] => F[Block[ByteArray, ByteArray, BalancesDeploy]] = ???
     }
 
   implicit def tokenTransferRequestBodySerialize[F[_]: Monad]: Serialize[F, TokenTransferRequest.Body] =
@@ -169,4 +180,25 @@ object Serialization {
   // See more examples here: https://gist.github.com/nzpr/38f843139224d1de1f0e9d15c75e925c
   private def serializeSeq[F[_]: Applicative, A: Ordering](l: Seq[A], writeF: A => F[Unit]): F[Unit] =
     l.sorted.map(writeF).fold(().pure[F])(_ *> _)
+
+  implicit def blockHashBroadcastSerialize[F[_]: Monad]: Serialize[F, BlockHash] =
+    new Serialize[F, BlockHash] {
+      override def write(x: BlockHash): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) => w.write(x.msg.bytes)
+
+      override def read: PrimitiveReader[F] => F[BlockHash] = (r: PrimitiveReader[F]) =>
+        for {
+          hash <- r.readBytes
+        } yield BlockHash(ByteArray(hash))
+    }
+
+  implicit def blockHashBroadcastResponseSerialize[F[_]: Monad]: Serialize[F, BlockHashResponse] =
+    new Serialize[F, BlockHashResponse] {
+      override def write(x: BlockHashResponse): PrimitiveWriter[F] => F[Unit] = (w: PrimitiveWriter[F]) =>
+        w.write(x.rcvd)
+
+      override def read: PrimitiveReader[F] => F[BlockHashResponse] = (r: PrimitiveReader[F]) =>
+        for {
+          rcvd <- r.readBool
+        } yield BlockHashResponse(rcvd)
+    }
 }

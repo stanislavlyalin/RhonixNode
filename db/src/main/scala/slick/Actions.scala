@@ -1,6 +1,7 @@
 package slick
 
 import cats.syntax.all.*
+import sdk.codecs.JsonCodec
 import sdk.comm.Peer
 import sdk.error.FatalError
 import sdk.primitive.ByteArray
@@ -20,9 +21,11 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** Config */
 
-  def putConfig(key: String, value: String): DBIOAction[Int, NoStream, Write] = qConfigs.insertOrUpdate((key, value))
+  def putConfig(key: String, value: Any): DBIOAction[Int, NoStream, Write] =
+    qConfigs.insertOrUpdate((key, JsonCodec.toJsonString(value)))
 
-  def getConfig(key: String): DBIOAction[Option[String], NoStream, Read] = queries.configValue(key).result.headOption
+  def getConfig(key: String): DBIOAction[Option[Any], NoStream, Read] =
+    queries.configValue(key).result.headOption.map(_.map(JsonCodec.fromJsonString))
 
   /** Shard */
 
@@ -362,17 +365,18 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
   /** Peer */
 
   def peers: DBIOAction[Seq[Peer], NoStream, Read] =
-    queries.peersCompiled.result.map(_.map(peer => Peer(peer.url, peer.isSelf, peer.isValidator)))
+    queries.peersCompiled.result.map(_.map(peer => Peer(peer.host, peer.port, peer.isSelf, peer.isValidator)))
 
   def peerInsertIfNot(
-    url: String,
+    host: String,
+    port: Int,
     isSelf: Boolean,
     isValidator: Boolean,
   ): DBIOAction[Long, profile.api.NoStream, All] = {
     def peerInsert(peer: TablePeers.Peer): DBIOAction[Long, NoStream, All] =
       (queries.peersCompiled returning qPeers.map(_.id)) += peer
 
-    insertIfNot(url, queries.peerIdByPk, TablePeers.Peer(0L, url, isSelf, isValidator), peerInsert)
+    insertIfNot(host, queries.peerIdByPk, TablePeers.Peer(0L, host, port, isSelf, isValidator), peerInsert)
   }
 
   def removePeer(url: String): DBIOAction[Int, NoStream, Write] = queries.peerIdByPk(url).delete

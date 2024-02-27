@@ -23,3 +23,4 @@ trait AllSyntax
     with MetricsWriterSdkSyntax
     with DigestSyntax
     with TupleSyntax
+    with StringSyntax

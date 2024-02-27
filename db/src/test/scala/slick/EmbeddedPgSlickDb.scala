@@ -4,12 +4,11 @@ import cats.effect.kernel.Resource
 import cats.effect.{Async, Sync}
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import slick.jdbc.JdbcBackend.Database
-import slick.jdbc.PostgresProfile
-import slick.migration.api.PostgresDialect
 import slick.util.AsyncExecutor
 
 object EmbeddedPgSqlSlickDb {
-  def apply[F[_]: Async]: Resource[F, SlickDb] = {
+
+  def apply[F[_]: Async]: Resource[F, Database] = {
     val open           = Sync[F].delay(
       EmbeddedPostgres
         .builder()
@@ -20,17 +19,15 @@ object EmbeddedPgSqlSlickDb {
     val minThreads     = 100
     val maxThreads     = 100
     val queueSize      = 1000
-    val dbResource     =
-      Resource
-        .make(open)(db => Sync[F].delay(db.close()))
-        .map(x =>
-          Database.forDataSource(
-            x.getPostgresDatabase,
-            maxConnections = Some(maxConnections),
-            executor = AsyncExecutor("EmbeddedPgExecutor", minThreads, maxThreads, queueSize, maxConnections),
-          ),
-        )
 
-    dbResource.evalMap(SlickDb(_, PostgresProfile, new PostgresDialect))
+    Resource
+      .make(open)(db => Sync[F].delay(db.close()))
+      .map(x =>
+        Database.forDataSource(
+          x.getPostgresDatabase,
+          maxConnections = Some(maxConnections),
+          executor = AsyncExecutor("EmbeddedPgExecutor", minThreads, maxThreads, queueSize, maxConnections),
+        ),
+      )
   }
 }

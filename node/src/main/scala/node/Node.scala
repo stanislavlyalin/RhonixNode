@@ -1,90 +1,61 @@
 package node
 
-import cats.effect.Ref
-import cats.effect.kernel.Async
+import cats.Parallel
+import cats.effect.std.Console
+import cats.effect.{Async, Sync}
 import cats.syntax.all.*
-import dproc.DProc
-import dproc.DProc.ExeEngine
-import dproc.data.Block
-import sdk.DagCausalQueue
+import fs2.Stream
+import node.comm.CommImpl
 import sdk.crypto.ECDSA
+import sdk.data.{BalancesDeploy, BalancesState}
 import sdk.diag.Metrics
-import sdk.merging.Relation
-import sdk.node.{Processor, Proposer}
+import sdk.primitive.ByteArray
 import secp256k1.Secp256k1
-import weaver.WeaverState
 import weaver.data.FinalData
 
-final case class Node[F[_], M, S, T](
-  // state
-  weaverStRef: Ref[F, WeaverState[M, S, T]],
-  procStRef: Ref[F, Processor.ST[M]],
-  propStRef: Ref[F, Proposer.ST],
-  bufferStRef: Ref[F, DagCausalQueue[M]],
-  // inputs and outputs
-  dProc: DProc[F, M, T],
-)
+import scala.concurrent.duration.DurationInt
 
 object Node {
 
+  def apply[F[_]: Async: Parallel: Console](
+    id: ByteArray,
+    isBootstrap: Boolean,
+    setup: Setup[F],
+    genesisPoS: FinalData[ByteArray],
+    genesisBalances: BalancesState,
+  ): fs2.Stream[F, Unit] = {
+    val printDiag: fs2.Stream[F, List[NodeSnapshot[ByteArray, ByteArray, BalancesDeploy]]] = NodeSnapshot
+      .stream(setup.stateManager, setup.dProc.finStream)
+      .map(List(_))
+      .metered(100.milli)
+      .printlns
+
+    val mkGenesis: Stream[F, Unit] = {
+      implicit val m: Metrics[F] = Metrics.unit
+      Stream.eval(
+        Genesis
+          .mkGenesisBlock[F](id, genesisPoS, genesisBalances, setup.balancesShard)
+          .flatMap { genesisM =>
+            DbApiImpl(setup.database).saveBlock(genesisM) *>
+              setup.ports.sendToInput(CommImpl.BlockHash(genesisM.id)) *>
+              Sync[F].delay(sdk.log.Logger.console.info(s"Genesis block created with hash ${genesisM.id}"))
+          },
+      )
+    }
+
+    val genesisF =
+      if (isBootstrap)
+        Stream.eval(Console[F].println(s"Minting genesis")) ++
+          mkGenesis ++
+          Stream.eval(Console[F].println(s"Genesis complete"))
+      else Stream.eval(Console[F].println(s"Bootstrapping"))
+
+    val run: Stream[F, Unit] = setup.dProc.dProcStream
+
+    (genesisF ++ run) concurrently printDiag
+  }
+
   val SupportedECDSA: Map[String, ECDSA] = Map("secp256k1" -> Secp256k1.apply)
+  val BalancesShardName: String          = "balances"
 
-  /** Make instance of a process - peer or the network.
-   * Init with last finalized state (lfs as the simplest). */
-  def apply[F[_]: Async: Metrics, M, S, T: Ordering](
-    id: S,
-    lfs: WeaverState[M, S, T],
-    hash: Block[M, S, T] => F[M],
-    loadTx: F[Set[T]],
-    computePreStateWithEffects: (
-      Set[M],
-      Set[M],
-      Set[T],
-      Set[T],
-      Set[T],
-    ) => F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))],
-    saveBlock: Block.WithId[M, S, T] => F[Unit],
-    readBlock: M => F[Block[M, S, T]],
-  ): F[Node[F, M, S, T]] =
-    for {
-      weaverStRef    <- Ref.of(lfs)                       // weaver
-      proposerStRef  <- Ref.of(Proposer.default)          // proposer
-      processorStRef <- Ref.of(Processor.default[M]())    // processor
-      bufferStRef    <- Ref.of(DagCausalQueue.default[M]) // buffer
-
-      exeEngine = new ExeEngine[F, M, S, T] {
-                    def execute(
-                      base: Set[M],
-                      fringe: Set[M],
-                      toFinalize: Set[T],
-                      toMerge: Set[T],
-                      txs: Set[T],
-                    ): F[((Array[Byte], Seq[T]), (Array[Byte], Seq[T]))] =
-                      computePreStateWithEffects(base, fringe, toFinalize, toMerge, txs)
-
-                    // data read from the final state associated with the final fringe
-                    def consensusData(fringe: Set[M]): F[FinalData[S]] = lfs.lazo.trustAssumption.pure[F] // TODO
-                  }
-
-      dproc <- DProc.apply[F, M, S, T](
-                 weaverStRef,
-                 proposerStRef,
-                 processorStRef,
-                 bufferStRef,
-                 loadTx,
-                 id.some,
-                 exeEngine,
-                 Relation.notRelated[F, T],
-                 hash,
-                 saveBlock,
-                 readBlock,
-               )
-
-    } yield new Node(
-      weaverStRef,
-      processorStRef,
-      proposerStRef,
-      bufferStRef,
-      dproc,
-    )
 }

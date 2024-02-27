@@ -2,6 +2,7 @@ package slick.api
 
 import cats.effect.Async
 import cats.syntax.all.*
+import sdk.comm.Peer
 import sdk.primitive.ByteArray
 import slick.syntax.all.*
 import slick.{Actions, SlickDb}
@@ -17,6 +18,12 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
   implicit val slickDb: SlickDb = db
 
   val actions: Actions = Actions(db.profile, ec)
+
+  def getConfig(key: String): F[Option[Any]] = actions.getConfig(key).run
+
+  def putConfig(key: String, value: Any): F[Unit] = actions.putConfig(key, value).run.void
+
+  def peers: F[Seq[Peer]] = actions.peers.run
 
   def deployInsert(d: sdk.data.Deploy): F[Unit] =
     actions
