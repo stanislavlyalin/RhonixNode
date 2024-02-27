@@ -24,15 +24,15 @@ final case class Block[M, S, T](
   sender: S,
   minGenJs: Set[M],
   offences: Set[M],
-  txs: List[T],              // TODO: change to Set[T]
+  txs: List[T], // TODO: change to Set[T]
   finalFringe: Set[M],
   finalized: Option[ConflictResolution[T]],
   merge: Set[T],
   bonds: Bonds[S],
   lazTol: Int,
   expThresh: Int,
-  finalStateHash: ByteArray, // TODO: change type to ByteArray
-  postStateHash: ByteArray,  // TODO: change type to ByteArray
+  finalStateHash: ByteArray,
+  postStateHash: ByteArray,
 )
 
 object Block {
