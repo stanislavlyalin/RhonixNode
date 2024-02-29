@@ -6,6 +6,7 @@ trait FreeVarReader[T] {
 
   /**
    * Get all free variables.
+   *
    * @return sequence of free variables with theirs names.
    */
   def getFreeVars: Seq[(String, FreeContext[T])]

@@ -17,8 +17,12 @@ class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
     bvs: BoundVarScope[F],
     fvs: FreeVarScope[F],
     nes: NestingWriter[F],
-  ): F[B] =
-    bvs.withNewBoundVarScope(fvs.withNewFreeVarScope(nes.withinPattern(withinReceive)(scopeFn)))
+  ): F[B] = nes.withinPattern(withinReceive)(scopeFn).withNewVarScope
+
+  def withNewVarScope(implicit
+    bvs: BoundVarScope[F],
+    fvs: FreeVarScope[F],
+  ): F[A] = bvs.withNewBoundVarScope(fvs.withNewFreeVarScope(f))
 
   /** Run a function within a new scope, label it as a pattern
    * @param withinReceive Flag should be true for pattern in receive (input) or contract. */
@@ -72,7 +76,7 @@ class NormalizerOps[F[_], A](val f: F[A]) extends AnyVal {
    */
   def withAddedBoundVars[T](
     boundVars: Seq[IdContext[T]],
-  )(implicit sync: Sync[F], bvs: BoundVarScope[F], bvw: BoundVarWriter[T]): F[(A, Seq[Int])] =
+  )(implicit sync: Sync[F], bvs: BoundVarScope[F], bvw: BoundVarWriter[T]): F[(A, Seq[VarContext[T]])] =
     BoundVarScope[F].withCopyBoundVarScope(for {
       indices <- Sync[F].delay(BoundVarWriter[T].putBoundVars(boundVars))
       fRes    <- f

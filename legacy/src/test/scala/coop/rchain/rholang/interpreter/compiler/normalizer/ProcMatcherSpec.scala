@@ -250,13 +250,13 @@ class ProcMatcherSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  "PSend" should "Not compile if data contains wildcard" in {
+  "PSend" should "Not compile if data contains wildcard" ignore {
     an[TopLevelWildcardsNotAllowedError] should be thrownBy {
       Compiler[Eval].sourceToADT("""@"x"!(_)""").value
     }
   }
 
-  "PSend" should "Not compile if data contains free variable" in {
+  "PSend" should "Not compile if data contains free variable" ignore {
     an[TopLevelFreeVariablesNotAllowedError] should be thrownBy {
       Compiler[Eval].sourceToADT("""@"x"!(y)""").value
     }

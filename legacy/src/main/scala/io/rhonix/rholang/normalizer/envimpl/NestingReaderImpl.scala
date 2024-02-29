@@ -2,24 +2,11 @@ package io.rhonix.rholang.normalizer.envimpl
 
 import io.rhonix.rholang.normalizer.env.NestingReader
 
-final class NestingReaderImpl(
-  private val insidePatternStatusFn: () => Boolean,
-  private val insideTopLevelReceivePatternStatusFn: () => Boolean,
-  private val insideBundleStatusFn: () => Boolean,
+final case class NestingReaderImpl(
+  patternInfo: HistoryChain[(Boolean, Boolean)],
+  bundleInfo: HistoryChain[Boolean],
 ) extends NestingReader {
-
-  override def insidePattern: Boolean = insidePatternStatusFn()
-
-  override def insideTopLevelReceivePattern: Boolean = insideTopLevelReceivePatternStatusFn()
-
-  override def insideBundle: Boolean = insideBundleStatusFn()
-}
-
-object NestingReaderImpl {
-  def apply(
-    insidePatternFn: () => Boolean,
-    insideTopLevelReceivePatternFn: () => Boolean,
-    insideBundleFn: () => Boolean,
-  ): NestingReaderImpl =
-    new NestingReaderImpl(insidePatternFn, insideTopLevelReceivePatternFn, insideBundleFn)
+  override def insidePattern: Boolean                = patternInfo.current()._1
+  override def insideTopLevelReceivePattern: Boolean = patternInfo.current()._2
+  override def insideBundle: Boolean                 = bundleInfo.current()
 }

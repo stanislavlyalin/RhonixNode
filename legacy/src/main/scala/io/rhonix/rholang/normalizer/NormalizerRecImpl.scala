@@ -3,21 +3,50 @@ package io.rhonix.rholang.normalizer
 import cats.effect.Sync
 import cats.syntax.all.*
 import coop.rchain.rholang.interpreter.compiler.*
-import coop.rchain.rholang.interpreter.errors.*
+import coop.rchain.rholang.interpreter.errors.UnrecognizedNormalizerError
 import io.rhonix.rholang.ast.rholang.Absyn.*
+import io.rhonix.rholang.normalizer.NormalizerRecImpl.normalizeRecInternal
 import io.rhonix.rholang.normalizer.env.*
+import io.rhonix.rholang.normalizer.envimpl.*
 import io.rhonix.rholang.types.*
 import sdk.syntax.all.*
 
-final case class NormalizerRecImpl[
-  F[_]: Sync: BoundVarScope: FreeVarScope: NestingWriter,
-  T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader,
-]()(implicit nestingInfo: NestingReader)
-    extends NormalizerRec[F] {
+final case class NormalizerRecImpl[F[_]: Sync, T >: VarSort]() extends NormalizerRec[F] {
+
+  // Normalizer dependencies
 
   implicit val nRec: NormalizerRec[F] = this
 
-  override def normalize(proc: Proc): F[ParN] = Sync[F].defer(NormalizerRecImpl.normalize[F, T](proc))
+  val boundMapChain: HistoryChain[VarMap[T]] = HistoryChain.default[VarMap[T]]
+
+  implicit val boundVarWriter: BoundVarWriter[T] = BoundVarWriterImpl(boundMapChain)
+
+  implicit val boundVarReader: BoundVarReader[T] = BoundVarReaderImpl(boundMapChain)
+
+  implicit val boundVarScope: BoundVarScope[F] = BoundVarScopeImpl(boundMapChain)
+
+  val freeMapChain: HistoryChain[VarMap[T]] = HistoryChain.default[VarMap[T]]
+
+  implicit val freeVarWriter: FreeVarWriter[T] = FreeVarWriterImpl(freeMapChain)
+
+  implicit val freeVarReader: FreeVarReader[T] = FreeVarReaderImpl(freeMapChain)
+
+  implicit val freeVarScope: FreeVarScope[F] = FreeVarScopeImpl(freeMapChain)
+
+  val patternInfoChain: HistoryChain[(Boolean, Boolean)] = HistoryChain.default[(Boolean, Boolean)]
+  // TODO: Move initialization of internal state to functions on the interface.
+  patternInfoChain.push((false, false))
+
+  val bundleInfoChain: HistoryChain[Boolean] = HistoryChain.default[Boolean]
+  // TODO: Move initialization of internal state to functions on the interface.
+  bundleInfoChain.push(false)
+
+  implicit val nestingInfoWriter: NestingWriter[F] = NestingWriterImpl(patternInfoChain, bundleInfoChain)
+  implicit val nestingInfoReader: NestingReader    = NestingReaderImpl(patternInfoChain, bundleInfoChain)
+
+  // Normalizer interface implementation / recursive normalizer functions
+
+  override def normalize(proc: Proc): F[ParN] = Sync[F].defer(normalizeRecInternal[F, T](proc))
 
   override def normalize(name: Name): F[ParN] = Sync[F].defer(name match {
     case nv: NameVar      =>
@@ -35,16 +64,18 @@ final case class NormalizerRecImpl[
     case _: NameRemainderEmpty => Sync[F].pure(None)
     case nr: NameRemainderVar  => VarNormalizer.normalizeRemainder[F, T](nr.procvar_).map(_.some)
   })
+
+  // TODO: Temporary initialization function to use in tests until complete solution is created.
+  def init: this.type = {
+    boundMapChain.push(VarMap.default[T])
+    freeMapChain.push(VarMap.default[T])
+    this
+  }
 }
 
 object NormalizerRecImpl {
 
-  /** Normalizes parser AST types to core Rholang AST types
-   *
-   * @param proc input parser AST object
-   * @return core Rholang AST object [[ParN]]
-   */
-  def normalize[
+  private def normalizeRecInternal[
     F[_]: Sync: NormalizerRec: BoundVarScope: FreeVarScope: NestingWriter,
     T >: VarSort: BoundVarWriter: BoundVarReader: FreeVarWriter: FreeVarReader,
   ](proc: Proc)(implicit nestingInfo: NestingReader): F[ParN] = {
@@ -103,7 +134,7 @@ object NormalizerRecImpl {
       /* ================================================== */
       case p: PCollect   => CollectNormalizer.normalizeCollect[F](p).widen
       case p: PSend      => SendNormalizer.normalizeSend[F](p).widen
-      case p: PSendSynch => SendSyncNormalizer.normalizeSendSync[F](p)
+      case p: PSendSynch => SendSyncNormalizer.normalizeSendSync[F, T](p)
       case p: PContr     => ContractNormalizer.normalizeContract[F, T](p).widen
       case p: PInput     => InputNormalizer.normalizeInput(p)
       case p: PNew       => NewNormalizer.normalizeNew[F, T](p).widen
