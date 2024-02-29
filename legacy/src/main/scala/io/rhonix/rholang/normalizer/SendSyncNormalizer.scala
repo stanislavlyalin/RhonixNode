@@ -12,7 +12,9 @@ import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 object SendSyncNormalizer {
-  def normalizeSendSync[F[_]: Sync: NormalizerRec](p: PSendSynch): F[ParN] = Sync[F].defer {
+
+  // TODO: Old implementation just for the reference. Remove it when we completely replace parser types.
+  def normalizeSendSyncOld[F[_]: Sync: NormalizerRec](p: PSendSynch): F[ParN] = Sync[F].defer {
     val identifier = UUID.randomUUID().toString
     val nameVar    = new NameVar(identifier)
 
@@ -80,7 +82,7 @@ object SendSyncNormalizer {
    * @param p sync send parser AST object.
    * @return transformed and normalized [[ParN]] AST object.
     */
-  def normalizeSendSyncNew[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarWriter](
+  def normalizeSendSync[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarWriter](
     p: PSendSynch,
   ): F[ParN] =
     for {
