@@ -82,29 +82,31 @@ object SendSyncNormalizer {
    * @param p sync send parser AST object.
    * @return transformed and normalized [[ParN]] AST object.
     */
-  def normalizeSendSync[F[_]: Sync: NormalizerRec, T >: VarSort: BoundVarWriter](
+  def normalizeSendSync[F[_]: Sync: NormalizerRec: BoundVarScope, T >: VarSort: BoundVarWriter](
     p: PSendSynch,
   ): F[ParN] =
-    for {
-      // Source position of generated channel is the whole input expression
-      varPos     <- Sync[F].delay(SourcePosition(p.line_num, p.col_num))
-      Seq(varRef) = BoundVarWriter[T].createBoundVars(Seq((NameSort, varPos)))
-      varGen      = BoundVarN(varRef.index)
+    BoundVarScope[F].withCopyBoundVarScope {
+      for {
+        // Source position of generated channel is the whole input expression
+        varPos     <- Sync[F].delay(SourcePosition(p.line_num, p.col_num))
+        Seq(varRef) = BoundVarWriter[T].createBoundVars(Seq((NameSort, varPos)))
+        varGen      = BoundVarN(varRef.index)
 
-      // Normalizes Send on the same channel, but prepends generated name to send data
-      chan <- NormalizerRec[F].normalize(p.name_)
-      data <- p.listproc_.asScala.toVector.traverse(NormalizerRec[F].normalize)
-      send  = SendN(chan, varGen +: data)
+        // Normalizes Send on the same channel, but prepends generated name to send data
+        chan <- NormalizerRec[F].normalize(p.name_)
+        data <- p.listproc_.asScala.toVector.traverse(NormalizerRec[F].normalize)
+        send  = SendN(chan, varGen +: data)
 
-      // Receive body is Nil when sync-send ends with `.` or normalizes proc after `;`.
-      body   <- p.synchsendcont_ match {
-                  case _: EmptyCont               => Sync[F].pure(NilN)
-                  case nonEmptyCont: NonEmptyCont => NormalizerRec[F].normalize(nonEmptyCont.proc_)
-                }
-      bind    = ReceiveBindN(WildcardN, varGen)
-      // Wildcard is a pattern, so bindCount is zero
-      receive = ReceiveN(bind, body, bindCount = 0)
+        // Receive body is Nil when sync-send ends with `.` or normalizes proc after `;`.
+        body   <- p.synchsendcont_ match {
+                    case _: EmptyCont               => Sync[F].pure(NilN)
+                    case nonEmptyCont: NonEmptyCont => NormalizerRec[F].normalize(nonEmptyCont.proc_)
+                  }
+        bind    = ReceiveBindN(WildcardN, varGen)
+        // Wildcard is a pattern, so bindCount is zero
+        receive = ReceiveN(bind, body, bindCount = 0)
 
-      // Return send/receive pair wrapped with a new binding
-    } yield NewN(bindCount = 1, p = ParN.combine(send, receive), uri = Seq(), injections = Map[String, ParN]())
+        // Return send/receive pair wrapped with a new binding
+      } yield NewN(bindCount = 1, p = ParN.combine(send, receive), uri = Seq(), injections = Map[String, ParN]())
+    }
 }
