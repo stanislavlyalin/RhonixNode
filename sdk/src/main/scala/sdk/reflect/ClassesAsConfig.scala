@@ -29,7 +29,7 @@ object ClassesAsConfig {
     }
   }.toMap
 
-  private def configName(clz: Any): String = {
+  def configName(clz: Any): String = {
     val rm             = runtimeMirror(clz.getClass.getClassLoader)
     val instanceMirror = rm.reflect(clz)
     configName(instanceMirror.symbol.asClass)

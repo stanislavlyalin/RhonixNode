@@ -43,14 +43,16 @@ object ConfigBuilder {
      * @tparam A type of the config class
      * @return
      */
-    def writeConfig[A: Encoder.AsObject](x: A): F[Unit] =
-      x.asJsonObject.toList.traverse_ { case (k, v) => db.putConfig(k, v.noSpaces) }
+    def writeConfig[A: Encoder.AsObject](x: A): F[Unit] = {
+      val prefix = ClassesAsConfig.configName(x)
+      x.asJsonObject.toList.traverse_ { case (k, v) => db.putConfig(s"$prefix.$k", v.noSpaces) }
+    }
 
     // Update annotated config of type A with records from from database.
     def loadConfig[A: Decoder](x: A): F[A] = {
       def noKeyErr(key: String) = new Exception(s"No config for $key")
       for {
-        ks     <- Sync[F].delay(ClassesAsConfig.fields(x))
+        ks     <- Sync[F].delay(ClassesAsConfig.fields(x)).map(_.map(s"${ClassesAsConfig.configName(x)}" + _))
         nCfg   <- ks.traverse(k => db.getConfig(k).flatMap(_.liftTo[F](noKeyErr(k)).map(k -> _)))
         parsed <- nCfg.traverse { case (k, v) => parse(v).liftTo[F].map(k -> _) }
         r      <- Json.fromFields(parsed).as[A].liftTo[F]
@@ -70,5 +72,4 @@ object ConfigBuilder {
       r       <- if (isEmpty) (write _).tupled(DefaultConfig).as(DefaultConfig) else load
     } yield r
   })
-
 }
