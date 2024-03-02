@@ -194,7 +194,7 @@ object Setup {
     // connect to the database
     database          <- database[F](dbDef)
     // load node configuration
-    cfg               <- node.ConfigBuilder.buildConfig[F](database)
+    cfg               <- node.ConfigManager.buildConfig[F](database)
     (nCfg, mCfg, cCfg) = cfg
     // metrics
     metrics           <- metrics(nCfg.enableInfluxDb, mCfg, id.toHex)

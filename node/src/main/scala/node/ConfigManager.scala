@@ -12,7 +12,7 @@ import java.nio.file.Path
 import scala.concurrent.duration.Duration
 
 // Logic to store and load config from the database
-object ConfigBuilder {
+object ConfigManager {
   val DefaultConfig = (node.Config.Default, metrics.Config.Default, comm.Config.Default)
 
   // Field to check that database is empty so should be populated with default config
