@@ -86,7 +86,7 @@ lazy val node = (project in file("node"))
       Resolver.sonatypeOssRepos("releases") ++
         Resolver.sonatypeOssRepos("snapshots"),
   )
-  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db, secp256k1)
+  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db % "compile->compile;test->test", secp256k1)
 
 // Diagnostics
 lazy val diag = (project in file("diag"))
