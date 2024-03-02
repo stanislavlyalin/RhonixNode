@@ -11,24 +11,11 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sdk.comm.Peer
 import sdk.data.{Block, Deploy}
 import sdk.primitive.ByteArray
-import sdk.reflect.{ClassAsTuple, ClassesAsConfig, Description}
 import slick.SlickSpec.*
 import slick.api.SlickApi
 import slick.jdbc.PostgresProfile
 import slick.migration.api.PostgresDialect
 import slick.syntax.all.*
-
-@Description("customConf")
-final case class CustomConf(
-  @Description("Integer value")
-  int: Int,
-  @Description("String value")
-  string: String,
-  @Description("List value")
-  list: List[String],
-  @Description("Map value")
-  map: Map[String, List[String]],
-)
 
 class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
