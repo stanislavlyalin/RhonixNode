@@ -194,8 +194,7 @@ object Setup {
     // connect to the database
     database          <- database[F](dbDef)
     // load node configuration
-    // cfg                <- node.Config.load[F](database) TODO load
-    cfg                = (node.Config.Default, diagnostics.metrics.Config.Default, comm.Config.Default)
+    cfg               <- node.ConfigManager.buildConfig[F](database)
     (nCfg, mCfg, cCfg) = cfg
     // metrics
     metrics           <- metrics(nCfg.enableInfluxDb, mCfg, id.toHex)
@@ -213,7 +212,7 @@ object Setup {
     latestM            = nodeState.weaverStRef.get.map(_.lazo.latestMessages.toList)
     extApiImpl         = ExternalApiSlickImpl(database, balancesShard, latestM, dPool)
     // web server
-    webServer         <- webServer[F](nCfg.webApi.host, nCfg.webApi.port + idx, nCfg.devMode, extApiImpl)
+    webServer         <- webServer[F](nCfg.httpHost, nCfg.httpPort + idx, nCfg.devMode, extApiImpl)
     // port for input blocks
     inBlockQ          <- Resource.eval(Queue.unbounded[F, BlockHash])
     // grpc server

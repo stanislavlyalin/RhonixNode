@@ -3,7 +3,7 @@ package diagnostics.metrics
 import sdk.reflect.Description
 import scala.concurrent.duration.{Duration, DurationInt}
 
-@Description("influxDb")
+@Description("influxdb")
 final case class Config(
   @Description("Interval to accumulate measurements before sending in a batch.")
   batchInterval: Duration = 1.second,

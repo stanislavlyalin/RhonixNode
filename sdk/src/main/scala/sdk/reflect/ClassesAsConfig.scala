@@ -21,13 +21,9 @@ object ClassesAsConfig {
     }
     .mkString(s"\n")
 
-  def kvMap(root: String, classes: Any*): Map[String, Any] = classes.flatMap { clz =>
-    ClassAsTuple(clz).map { case (name, value, _) =>
-      s"$root.${configName(clz)}.$name" -> value
-    }
-  }.toMap
+  def fields(x: Any): List[String] = ClassAsTuple(x).map { case (name, _, _) => name }.toList
 
-  private def configName(clz: Any): String = {
+  def configName(clz: Any): String = {
     val rm             = runtimeMirror(clz.getClass.getClassLoader)
     val instanceMirror = rm.reflect(clz)
     configName(instanceMirror.symbol.asClass)
