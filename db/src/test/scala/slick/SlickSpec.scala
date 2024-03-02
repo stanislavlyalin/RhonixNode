@@ -196,36 +196,6 @@ class SlickSpec extends AsyncFlatSpec with Matchers with ScalaCheckPropertyCheck
       .unsafeRunSync()
   }
 
-  "Configs saved to DB and loaded from DB" should "be the same" in {
-    embedPgSlick[IO]
-      .use { api =>
-        val savedConf = CustomConf(
-          7,
-          "test",
-          List("a", "b", "c"),
-          Map("a" -> List("1"), "b" -> List("2", "3")),
-        )
-        val root      = "root"
-
-        def saveToDb[F[_]: Sync](api: SlickApi[F], kvMap: Map[String, Any]): F[Unit] =
-          kvMap.toList.traverse { case (k, v) => api.putConfig(k, v) }.void
-
-        def loadFromDb[F[_]: Sync](api: SlickApi[F], kvMap: Map[String, Any]): F[CustomConf] = for {
-          keys   <- Sync[F].delay(kvMap.keys.toList)
-          values <- keys.traverse(api.getConfig)
-          map     = keys.zip(values).collect { case (k, Some(v)) => k -> v }.toMap
-          cfg    <- ClassAsTuple.fromMap[F, CustomConf](root, map)
-        } yield cfg
-
-        for {
-          kvMap      <- Sync[IO].delay(ClassesAsConfig.kvMap(root, savedConf))
-          _          <- saveToDb[IO](api, kvMap)
-          loadedConf <- loadFromDb[IO](api, kvMap)
-        } yield savedConf shouldBe loadedConf
-      }
-      .unsafeRunSync()
-  }
-
   "Loaded peers" should "be the same as generated and stored peers" in {
     forAll(Gen.nonEmptyListOf(nonEmptyAlphaString)) { urls =>
       val peers = urls.distinct.map(Peer(_, port = 1234, isSelf = false, isValidator = true)) match {

@@ -19,9 +19,9 @@ class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
 
   val actions: Actions = Actions(db.profile, ec)
 
-  def getConfig(key: String): F[Option[Any]] = actions.getConfig(key).run
+  def getConfig(key: String): F[Option[String]] = actions.getConfig(key).run
 
-  def putConfig(key: String, value: Any): F[Unit] = actions.putConfig(key, value).run.void
+  def putConfig(key: String, value: String): F[Unit] = actions.putConfig(key, value).run.void
 
   def peers: F[Seq[Peer]] = actions.peers.run
 

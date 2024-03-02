@@ -213,7 +213,7 @@ object Setup {
     latestM            = nodeState.weaverStRef.get.map(_.lazo.latestMessages.toList)
     extApiImpl         = ExternalApiSlickImpl(database, balancesShard, latestM, dPool)
     // web server
-    webServer         <- webServer[F](nCfg.webApi.host, nCfg.webApi.port + idx, nCfg.devMode, extApiImpl)
+    webServer         <- webServer[F](nCfg.httpHost, nCfg.httpPort + idx, nCfg.devMode, extApiImpl)
     // port for input blocks
     inBlockQ          <- Resource.eval(Queue.unbounded[F, BlockHash])
     // grpc server

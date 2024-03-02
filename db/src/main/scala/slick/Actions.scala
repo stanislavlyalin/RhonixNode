@@ -1,7 +1,6 @@
 package slick
 
 import cats.syntax.all.*
-import sdk.codecs.JsonCodec
 import sdk.comm.Peer
 import sdk.error.FatalError
 import sdk.primitive.ByteArray
@@ -21,11 +20,11 @@ final case class Actions(profile: JdbcProfile, ec: ExecutionContext) {
 
   /** Config */
 
-  def putConfig(key: String, value: Any): DBIOAction[Int, NoStream, Write] =
-    qConfigs.insertOrUpdate((key, JsonCodec.toJsonString(value)))
+  def putConfig(key: String, value: String): DBIOAction[Int, NoStream, Write] =
+    qConfigs.insertOrUpdate((key, value))
 
-  def getConfig(key: String): DBIOAction[Option[Any], NoStream, Read] =
-    queries.configValue(key).result.headOption.map(_.map(JsonCodec.fromJsonString))
+  def getConfig(key: String): DBIOAction[Option[String], NoStream, Read] =
+    queries.configValue(key).result.headOption
 
   /** Shard */
 

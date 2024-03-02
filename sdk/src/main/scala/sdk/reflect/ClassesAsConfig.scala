@@ -21,6 +21,8 @@ object ClassesAsConfig {
     }
     .mkString(s"\n")
 
+  def fields(x: Any): List[String] = ClassAsTuple(x).map { case (name, _, _) => name }.toList
+
   def kvMap(root: String, classes: Any*): Map[String, Any] = classes.flatMap { clz =>
     ClassAsTuple(clz).map { case (name, value, _) =>
       s"$root.${configName(clz)}.$name" -> value
