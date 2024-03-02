@@ -44,19 +44,24 @@ object ConfigManager {
      * @return
      */
     def writeConfig[A: Encoder.AsObject](x: A): F[Unit] = {
-      val prefix = ClassesAsConfig.configName(x)
-      x.asJsonObject.toList.traverse_ { case (k, v) => db.putConfig(s"$prefix.$k", v.noSpaces) }
+      val configName = ClassesAsConfig.configName(x)
+      x.asJsonObject.toList.traverse_ { case (k, v) => db.putConfig(s"$configName.$k", v.noSpaces) }
     }
 
     // Update annotated config of type A with records from from database.
     def loadConfig[A: Decoder](x: A): F[A] = {
       def noKeyErr(key: String) = new Exception(s"No config for $key")
-      for {
-        ks     <- Sync[F].delay(ClassesAsConfig.fields(x)).map(_.map(s"${ClassesAsConfig.configName(x)}" + _))
-        nCfg   <- ks.traverse(k => db.getConfig(k).flatMap(_.liftTo[F](noKeyErr(k)).map(k -> _)))
-        parsed <- nCfg.traverse { case (k, v) => parse(v).liftTo[F].map(k -> _) }
-        r      <- Json.fromFields(parsed).as[A].liftTo[F]
-      } yield r
+      val configName            = ClassesAsConfig.configName(x)
+      val keys                  = ClassesAsConfig.fields(x)
+      keys
+        .traverse { key =>
+          val dbKey = s"$configName.$key" // Key in the database is written with config prefix
+          for {
+            value     <- db.getConfig(dbKey).flatMap(_.liftTo[F](noKeyErr(dbKey)))
+            jsonValue <- parse(value).liftTo[F]
+          } yield key -> jsonValue
+        }
+        .flatMap(Json.fromFields(_).as[A].liftTo[F])
     }
 
     // Write all configs into database and set empty check flag
