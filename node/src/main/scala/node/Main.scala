@@ -14,12 +14,13 @@ import sdk.reflect.ClassesAsConfig
 import sdk.syntax.all.*
 import slick.SlickPgDatabase
 import weaver.data.{Bonds, FinalData}
+import node.BuildInfo
 
 object Main extends IOApp {
-  private val DbUrlKey     = "gorki.db.url"
-  private val DbUser       = "gorki.db.user"
-  private val DbPasswd     = "gorki.db.passwd"
-  private val ValidatorKey = "gorki.validator.sKey"
+  private val DbUrlKey     = "gorki_db_url"
+  private val DbUser       = "gorki_db_user"
+  private val DbPasswd     = "gorki_db_passwd"
+  private val ValidatorKey = "gorki_validator_sKey"
 
   private val DefaultNodeId = "e211d1b7e8018b567af18dd25377cb4eb0cf2688eb49aba505682b1ddb647a4e"
 
@@ -67,6 +68,9 @@ object Main extends IOApp {
         IO.println(referenceConf).as(ExitCode.Success)
       case _                              =>
         configWithEnv[IO].flatMap { case (dbCfg, nodeId) =>
+          val version = s"Node ${BuildInfo.version} (${BuildInfo.gitHeadCommit.getOrElse("commit # unknown")})"
+          println(version)
+
           /// Genesis data
           val genesisPoS = {
             val lazinessTolerance = 1

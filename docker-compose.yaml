@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  db:
+    image: postgres
+    env_file:
+      - node.env
+    ports:
+      - "5433:5432"
+  node:
+    image: node:0.1.0-SNAPSHOT
+    depends_on:
+      - db
+    env_file:
+      - node.env
+    ports:
+      - "8081:8080"

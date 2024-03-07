@@ -2,6 +2,7 @@ package slick
 
 import cats.effect.kernel.Async
 import cats.syntax.all.*
+import io.circe.syntax.*
 import sdk.error.FatalError
 import sdk.syntax.all.sdkSyntaxFuture
 import slick.api.SlickApi
@@ -37,7 +38,7 @@ object SlickDb {
           Async[F].executionContext.flatMap { implicit ec =>
             val actions = DBIO
               .sequence(migrations.migrations.map(m => m()))
-              .flatMap(_ => api.actions.putConfig(key, idx.toString))
+              .flatMap(_ => api.actions.putConfig(key, idx.asJson.noSpaces))
             actions.transactionally.run
           }
         }
@@ -45,7 +46,7 @@ object SlickDb {
       def run: F[Unit] = (for {
         api          <- SlickApi[F](slickDb)
         dbVersionOpt <- api.actions.getConfig(key).run.recover { case _ => "0".some }
-        version      <- Try(dbVersionOpt.map(_.asInstanceOf[String]).getOrElse("0").toInt)
+        version      <- Try(dbVersionOpt.map(_.toInt).getOrElse(0))
                           .adaptErr(FatalError(s"Error reading $key from config table", _))
                           .liftTo[F]
       } yield applyAllNewerThen(version, api)).flatten
