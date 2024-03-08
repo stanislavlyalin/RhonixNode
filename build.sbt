@@ -1,6 +1,7 @@
-import Dependencies.*
 import BNFC.*
+import Dependencies.*
 import Secp256k1.*
+import sbtassembly.MergeStrategy
 
 val scala3Version       = "3.3.0"
 val scala2Version       = "2.13.10"
@@ -19,9 +20,10 @@ lazy val commonSettings = Seq(
     "--add-opens=java.base/java.nio=ALL-UNNAMED",
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
   ),
-  Test / fork               := true,
-  Test / parallelExecution  := false,
-  Test / testForkedParallel := false,
+  Test / fork                            := true,
+  Test / parallelExecution               := false,
+  Test / testForkedParallel              := false,
+  Compile / packageDoc / publishArtifact := false,
 )
 
 lazy val settingsScala3 = commonSettings ++ Seq(
@@ -85,7 +87,20 @@ lazy val node = (project in file("node"))
       // for embedded InfluxDB
       Resolver.sonatypeOssRepos("releases") ++
         Resolver.sonatypeOssRepos("snapshots"),
+    buildInfoKeys    := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, git.gitHeadCommit),
+    buildInfoPackage := "node",
+
+    // Docker
+    Compile / mainClass := Some("node.Main"),
+    dockerBaseImage     := "azul/zulu-openjdk:18-jre",
+    dockerEntrypoint    := Seq(
+      s"bin/${(Docker / executableScriptName).value}",
+      "-J--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "-J--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "-J--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+    ),
   )
+  .enablePlugins(JavaAppPackaging, BuildInfoPlugin)
   .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db % "compile->compile;test->test", secp256k1)
 
 // Diagnostics

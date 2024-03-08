@@ -25,5 +25,6 @@ class GrpcDslCommSpec extends AnyFlatSpec with Matchers {
     val grpcCall      = GrpcClient[IO].call(GrpcMethod(protocol), srcMessage, clientChannel)
 
     grpcServer.use(_ => grpcCall.map(resp => resp shouldBe expectedResponse)).unsafeRunSync()
+    clientChannel.shutdown()
   }
 }
