@@ -92,7 +92,7 @@ lazy val node = (project in file("node"))
 
     // Docker
     Compile / mainClass := Some("node.Main"),
-    dockerBaseImage     := "azul/zulu-openjdk:18-jre",
+    dockerBaseImage     := "azul/zulu-openjdk:18-jre-latest",
     dockerEntrypoint    := Seq(
       s"bin/${(Docker / executableScriptName).value}",
       "-J--add-opens=java.base/java.lang=ALL-UNNAMED",
