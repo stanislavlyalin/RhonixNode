@@ -126,7 +126,9 @@ object Dependencies {
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
-  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector, circeGeneric, circeParser)
+  val apacheCommonsIO = "commons-io" % "commons-io" % "2.15.1"
+
+  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector, circeGeneric, circeParser, apacheCommonsIO)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter, influxDbClient)
 
