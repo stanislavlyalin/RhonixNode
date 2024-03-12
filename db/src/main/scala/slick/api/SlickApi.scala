@@ -12,6 +12,8 @@ import scala.concurrent.ExecutionContext
 object SlickApi {
   def apply[F[_]: Async](db: SlickDb): F[SlickApi[F]] =
     Async[F].executionContext.map(ec => new SlickApi(db, ec))
+
+  def apply[F[_]](implicit s: SlickApi[F]): SlickApi[F] = s
 }
 
 class SlickApi[F[_]: Async](db: SlickDb, ec: ExecutionContext) {
