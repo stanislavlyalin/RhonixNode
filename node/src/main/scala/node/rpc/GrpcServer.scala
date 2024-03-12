@@ -35,36 +35,6 @@ object GrpcServer {
       )(server => Sync[F].delay(server.shutdown()).void)
     }
 
-  private def mkMethodHandler[F[_], Req, Resp](
-    definition: CommProtocol[F, Req, Resp],
-    dispatcher: Dispatcher[F],
-  ): ServerCallHandler[Req, Resp] = new ServerCallHandler[Req, Resp] {
-    override def startCall(
-      call: ServerCall[Req, Resp],
-      headers: Metadata,
-    ): ServerCall.Listener[Req] = {
-      Logger.console.info(s"SERVER_START_CALL: ${call.getMethodDescriptor}")
-      Logger.console.info(s"SERVER_START_CALL: $headers")
-
-      // Number of messages to read next from the response (default is no read at all)
-      call.request(1)
-
-      new ServerCall.Listener[Req] {
-        override def onMessage(message: Req): Unit = {
-          Logger.console.info(s"SERVER_ON_MESSAGE: $message")
-          call.sendHeaders(headers)
-          val result = dispatcher.unsafeRunSync(definition.callback(message))
-          call.sendMessage(result)
-          Logger.console.info(s"SERVER_SENT_RESPOND_MSG")
-          call.close(Status.OK, headers)
-        }
-
-        override def onHalfClose(): Unit = Logger.console.info(s"SERVER_ON_HALF_CLOSE")
-
-        override def onCancel(): Unit = Logger.console.info(s"SERVER_ON_CANCEL")
-
-        override def onComplete(): Unit = Logger.console.info(s"SERVER_ON_COMPLETE")
-      }
     }
   }
 }
