@@ -31,24 +31,10 @@ final class PeerTable[F[_]: Sync, PId, P] private (
 object PeerTable {
   final case class ST[PId, P](peers: Map[PId, P])
 
-  def apply[F[_]: Async](cfg: Config)(implicit api: SlickApi[F]): F[PeerTable[F, String, Peer]] = {
+  def apply[F[_]: Async](cfg: Config)(implicit api: SlickApi[F]): F[PeerTable[F, (String, Int), Peer]] = {
     import api.slickDb
     for {
-      dbPeers <- api.peers
-      state   <- if (dbPeers.isEmpty) {
-                   // At the first start, when there are no peers in the DB,
-                   // read them from the configuration file and save in the DB
-                   val peerTable = PeerTable.ST[String, Peer](cfg.peers.map { p =>
-                     p.host -> Peer(p.host, p.port, p.isSelf, p.isValidator)
-                   }.toMap)
-                   cfg.peers
-                     .traverse(p => api.actions.peerInsertIfNot(p.host, p.port, p.isSelf, p.isValidator).run)
-                     .as(peerTable)
-                 } else {
-                   // During the next launches use peers from the DB
-                   PeerTable.ST[String, Peer](dbPeers.map(p => p.host -> p).toMap).pure
-                 }
-      stCell  <- AtomicCell[F].of(state)
+      stCell <- AtomicCell[F].of(ST(cfg.peers.map(p => (p.host, p.port) -> p).toMap))
     } yield new PeerTable(
       stCell,
       () => api.peers,
