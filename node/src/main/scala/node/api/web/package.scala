@@ -7,6 +7,7 @@ import org.http4s.server.Server
 import org.http4s.server.middleware.CORS
 import org.http4s.{HttpApp, HttpRoutes}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import sdk.log.Logger.*
 
 package object web {
   def server[F[_]: Async](
@@ -24,5 +25,6 @@ package object web {
       .withHttpApp(HttpApp[F](service.orNotFound.run))
       .withIdleTimeout(1.seconds)
       .resource
+      .evalTap(_ => logDebugF(s"HTTP server started on port $httpPort."))
   }
 }

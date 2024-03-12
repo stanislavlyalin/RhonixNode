@@ -2,22 +2,22 @@ package node
 
 import cats.Parallel
 import cats.effect.kernel.Ref.Make
-import cats.effect.std.Queue
 import cats.effect.{Async, Ref, Resource, Sync}
 import cats.syntax.all.*
 import diagnostics.metrics.InfluxDbBatchedMetrics
 import dproc.DProc
 import dproc.DProc.ExeEngine
+import dproc.data.Block
 import node.Codecs.*
 import node.Hashing.*
 import node.Node.BalancesShardName
 import node.api.web.PublicApiJson
 import node.api.web.https4s.RouterFix
 import node.api.{web, ExternalApiSlickImpl}
-import node.comm.CommImpl.{BlockHash, BlockHashResponse}
-import node.comm.{CommImpl, PeerTable}
+import node.comm.PeerTable
 import node.lmdb.LmdbStoreManager
-import node.rpc.GrpcServer
+import node.rpc.syntax.all.grpcClientSyntax
+import node.rpc.{GrpcChannelsManager, GrpcClient, GrpcServer}
 import node.state.StateManager
 import org.http4s.HttpRoutes
 import org.http4s.server.Server
@@ -28,6 +28,7 @@ import sdk.data.BalancesDeploy
 import sdk.diag.Metrics
 import sdk.hashing.Blake2b
 import sdk.history.History
+import sdk.log.Logger.*
 import sdk.merging.MergeLogicForPayments.mergeRejectNegativeOverflow
 import sdk.merging.Relation
 import sdk.primitive.ByteArray
@@ -41,6 +42,7 @@ import slick.migration.api.PostgresDialect
 import weaver.WeaverState
 import weaver.data.FinalData
 
+import java.net.InetSocketAddress
 import java.nio.file.Path
 
 /** Node setup. */
@@ -57,21 +59,16 @@ final case class Setup[F[_]](
   // metrics streamer
   metrics: Metrics[F],
   // peerTable
-  peerManager: PeerTable[F, String, Peer],
+  peerManager: PeerTable[F, (String, Int), Peer],
+  grpcChannelsManager: GrpcChannelsManager[F],
+  blockResolver: BlockResolver[F],
   // shard for balances
   balancesShard: BalancesStateBuilderWithReader[F],
   // deploy pool
   deployPool: KeyValueTypedStore[F, ByteArray, BalancesDeploy],
   stateManager: StateManager[F],
-  // ports to bypass API servers (e.g. to simulate the network)
-  ports: Ports[F],
   dProc: DProc[F, ByteArray, BalancesDeploy],
-)
-
-// Not to use in production. Ports that can be used to bypass API servers to call directly in simulation.
-final case class Ports[F[_]](
-  inHash: fs2.Stream[F, BlockHash],
-  sendToInput: BlockHash => F[Unit],
+  nodeStream: fs2.Stream[F, Unit],
 )
 
 object Setup {
@@ -190,7 +187,9 @@ object Setup {
     genesisPoS: FinalData[ByteArray],
     dummyDeploys: F[Set[BalancesDeploy]],
     idx: Int = 0,
+    selfFQDN: String = "localhost",
   ): Resource[F, Setup[F]] = for {
+    _                 <- Resource.eval(logDebugF(s"Node setup started at address $selfFQDN."))
     // connect to the database
     database          <- database[F](dbDef)
     // load node configuration
@@ -213,28 +212,42 @@ object Setup {
     extApiImpl         = ExternalApiSlickImpl(database, balancesShard, latestM, dPool)
     // web server
     webServer         <- webServer[F](nCfg.httpHost, nCfg.httpPort + idx, nCfg.devMode, extApiImpl)
-    // port for input blocks
-    inBlockQ          <- Resource.eval(Queue.unbounded[F, BlockHash])
     // grpc server
-    grpcSrv           <- {
-      val receive = inBlockQ.tryOffer(_: BlockHash).map(BlockHashResponse)
-      val bep     = CommImpl.blockHashExchangeProtocol[F](receive)
-      GrpcServer.apply[F](nCfg.gRpcPort + idx, bep)
+    grpcChManager     <- GrpcChannelsManager[F]
+    blockResolver     <- {
+      implicit val g: GrpcChannelsManager[F] = grpcChManager
+      Resource.eval(BlockResolver.apply[F])
     }
+    // resolve received hash to block and send to validation
+    hashCallback       = (h: ByteArray, s: InetSocketAddress) =>
+                           DbApiImpl(database)
+                             .isBlockExist(h)
+                             .ifM(false.pure, blockResolver.in(h, s).as(true))
+    blockReqCallback   = (h: ByteArray) => DbApiImpl(database).readBlock(h).map(_.map(b => Block.WithId(h, b)))
+    grpcSrv           <- GrpcServer.apply[F](nCfg.gRpcPort + idx, hashCallback, blockReqCallback, _ => latestM.map(_.toSeq))
     // peerTable
     peerTable         <- { implicit val db: SlickApi[F] = database; Resource.eval(PeerTable(cCfg)) }
     // core logic
     dProc             <- {
-      implicit val m: Metrics[F] = metrics;
+      implicit val m: Metrics[F] = metrics
       val deploysWithDummy       = (dPool.toMap.map(_.values.toSet), dummyDeploys).mapN(_ ++ _)
       dProc(id, nodeState, balancesShard, genesisPoS, database, deploysWithDummy)
     }
+    _                 <- Resource.eval(logDebugF(s"Node setup complete."))
   } yield {
-    // This `pullIncoming` in real node should contain messages received by API server (grpc)
-    val inHashes     = fs2.Stream.fromQueueUnterminated(inBlockQ)
-    val pullIncoming = inHashes.evalTap(x => dProc.acceptMsg(x.msg))
+    val pullBlocksFromNetwork = blockResolver.out
+      .evalTap(DbApiImpl(database).saveBlock)
+      .map(_.id)
+      .evalTap(dProc.acceptMsg)
 
-    val ports = Ports(pullIncoming, inBlockQ.offer)
+    val broadcastOutput = {
+      implicit val chm: GrpcChannelsManager[F]           = grpcChManager
+      implicit val pt: PeerTable[F, (String, Int), Peer] = peerTable
+      dProc.output
+        .evalMap(h => GrpcClient[F].broadcastBlockHash(h, new InetSocketAddress(selfFQDN, nCfg.gRpcPort + idx)))
+    }
+
+    val nodeStream = dProc.dProcStream concurrently pullBlocksFromNetwork concurrently broadcastOutput
 
     Setup(
       database,
@@ -244,11 +257,13 @@ object Setup {
       grpcSrv,
       metrics,
       peerTable,
+      grpcChManager,
+      blockResolver,
       balancesShard,
       dPool,
       nodeState,
-      ports,
       dProc,
+      nodeStream,
     )
   }
 }
