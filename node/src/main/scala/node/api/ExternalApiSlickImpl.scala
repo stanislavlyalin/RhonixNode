@@ -7,7 +7,7 @@ import sdk.api.{ApiErr, ExternalApi}
 import sdk.primitive.ByteArray
 import slick.api.SlickApi
 import cats.syntax.all.*
-import node.BalancesStateBuilderWithReader
+import node.{BalancesStateBuilderWithReader, NodeBuildInfo}
 import node.api.web.Validation
 import sdk.codecs.Digest
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
@@ -39,7 +39,7 @@ object ExternalApiSlickImpl {
 
       override def getLatestMessages: F[List[Array[Byte]]] = latestM.map(_.map(_.bytes))
 
-      override def status: F[Status] = Status("OK").pure[F]
+      override def status: F[Status] = Status(NodeBuildInfo()).pure[F]
 
       override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
         Validation

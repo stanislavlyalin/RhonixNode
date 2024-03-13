@@ -28,8 +28,6 @@ object Main extends IOApp {
   private val WalletsFilePath = "/var/lib/gorki/genesis/wallets.json"
   private val PeersFilePath   = "/var/lib/gorki/comm/peers.json"
 
-  private val versionStr = s"${BuildInfo.version} (${BuildInfo.gitHeadCommit.getOrElse("commit # unknown")})"
-
   def randomDeploys[F[_]: Make: Sync: Random](
     users: Set[ByteArray],
     n: Int,
@@ -77,7 +75,7 @@ object Main extends IOApp {
         IO.println(referenceConf).as(ExitCode.Success)
       case _                              =>
         val mainStreamF = for {
-          _               <- logInfoF[IO](s"Node version $versionStr")
+          _               <- logInfoF[IO](s"Node version: ${NodeBuildInfo()}")
           c               <- configWithEnv[IO]
           bootstrpOpt     <- Env[IO].get(BootstrapAddr)
           (dbCfg, nodeId)  = c
