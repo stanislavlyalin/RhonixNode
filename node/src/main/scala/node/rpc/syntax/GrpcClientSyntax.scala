@@ -39,19 +39,16 @@ final class GrpcClientOps[F[_]](private val client: GrpcClient[F]) extends AnyVa
     sB: Serialize[Eval, Resp],
   ): F[Resp] = callMethod[Req, Resp](GrpcMethod[Req, Resp](endpoint), msg, InetSocketAddress)
 
-  def resolveBlock(InetSocketAddress: InetSocketAddress)(implicit
+  def resolveBlock(hash: ByteArray, InetSocketAddress: InetSocketAddress)(implicit
     F: Async[F],
     c: GrpcChannelsManager[F],
-  ): Kleisli[F, ByteArray, Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]] = {
+  ): F[Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]] = {
     import node.Serialization.*
-    Kleisli {
-      hash: ByteArray =>
-        callEndpoint[ByteArray, Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]](
-          BlockEndpoint,
-          hash,
-          InetSocketAddress,
-        )
-    }
+    callEndpoint[ByteArray, Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]](
+      BlockEndpoint,
+      hash,
+      InetSocketAddress,
+    )
   }
 
   def getLatestBlocks(InetSocketAddress: InetSocketAddress)(implicit

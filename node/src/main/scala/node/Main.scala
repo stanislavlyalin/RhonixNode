@@ -79,8 +79,8 @@ object Main extends IOApp {
           c               <- configWithEnv[IO]
           bootstrpOpt     <- Env[IO].get(BootstrapAddr)
           (dbCfg, nodeId)  = c
-          genesisPoS      <- FileLoaders.loadPoSFile[IO](PosFilePath).map(x => FinalData(Bonds(x), 1, 10000))
-          genesisBalances <- FileLoaders.loadWalletsFile[IO](WalletsFilePath)
+          genesisPoS      <- FileLoaders.loadJsonMap[IO](PosFilePath).map(x => FinalData(Bonds(x), 1, 10000))
+          genesisBalances <- FileLoaders.loadJsonMap[IO](WalletsFilePath)
           peers           <- FileLoaders.loadPeers[IO](PeersFilePath)
           random          <- Random.scalaUtilRandom[IO]
         } yield {

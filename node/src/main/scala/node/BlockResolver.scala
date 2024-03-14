@@ -50,7 +50,7 @@ object BlockResolver {
     val resolveStream = Stream
       .fromQueueUnterminated(inQ)
       .evalFilter { case (hash, _) => st.modify(_.request(hash)) }
-      .parEvalMapUnorderedUnbounded { case (hash, socket) => GrpcClient[F].resolveBlock(socket).run(hash) }
+      .parEvalMapUnorderedUnbounded { case (hash, socket) => GrpcClient[F].resolveBlock(hash, socket) }
       .evalTap(_.traverse(outQ.offer))
 
     val in                 = inQ.offer(_: ByteArray, _: InetSocketAddress).as(true)

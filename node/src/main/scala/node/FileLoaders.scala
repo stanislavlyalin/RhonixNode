@@ -12,12 +12,10 @@ import scala.io.{BufferedSource, Source}
 
 object FileLoaders {
 
-  def getContent[F[_]: Sync](path: String): Resource[F, BufferedSource] =
+  private def getContent[F[_]: Sync](path: String): Resource[F, BufferedSource] =
     Resource.make(Sync[F].delay(Source.fromFile(path)))(s => Sync[F].delay(s.close()))
 
-  def loadPoSFile[F[_]: Sync: Files](path: String): F[Map[ByteArray, Long]] = loadWalletsFile[F](path)
-
-  def loadWalletsFile[F[_]: Sync: Files](path: String): F[Map[ByteArray, Long]] =
+  def loadJsonMap[F[_]: Sync: Files](path: String): F[Map[ByteArray, Long]] =
     getContent(path).use { source =>
       parser
         .decode[Map[String, Long]](source.mkString)
