@@ -23,7 +23,7 @@ final case class Config(
   @Description("Enable dev mode. WARNING: This mode is not secure and should not be used in production.")
   devMode: Boolean = false,
   @Description("HTTP API host")
-  httpHost: String = "localhost",
+  httpHost: String = "0.0.0.0",
   @Description("HTTP API port")
   httpPort: Int = 8080,
   @Description("RPC API port")

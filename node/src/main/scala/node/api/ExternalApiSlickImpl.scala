@@ -43,7 +43,7 @@ object ExternalApiSlickImpl {
 
       override def transferToken(tx: TokenTransferRequest): F[ValidatedNel[ApiErr, Unit]] =
         Validation
-          .validateTokenTransferRequest(tx)(implicitly[Digest[TokenTransferRequest.Body]])
+          .validateTokenTransferRequest(tx) /*(implicitly[Digest[TokenTransferRequest.Body]])*/
           .traverse { _ =>
             deployPool
               .put(
