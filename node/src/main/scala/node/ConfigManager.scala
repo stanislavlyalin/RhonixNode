@@ -20,10 +20,10 @@ object ConfigManager {
   val EmptyCheckKey = "isEmpty"
 
   // Codecs to represent Path and Duration as strings, Circe does not have this out of the box
-  implicit private val ePath: Encoder[Path]             = Encoder.encodeString.contramap(_.toString)
-  implicit private val dPath: io.circe.Decoder[Path]    = io.circe.Decoder.decodeString.map(x => Path.of(x))
-  implicit private val eDur: Encoder[Duration]          = Encoder.encodeLong.contramap(_.toNanos)
-  implicit private val dDur: io.circe.Decoder[Duration] = io.circe.Decoder.decodeLong.map(s => Duration.fromNanos(s))
+  implicit val ePath: Encoder[Path]             = Encoder.encodeString.contramap(_.toString)
+  implicit val dPath: io.circe.Decoder[Path]    = io.circe.Decoder.decodeString.map(x => Path.of(x))
+  implicit val eDur: Encoder[Duration]          = Encoder.encodeLong.contramap(_.toNanos)
+  implicit val dDur: io.circe.Decoder[Duration] = io.circe.Decoder.decodeLong.map(s => Duration.fromNanos(s))
 
   /**
    * Write config into database

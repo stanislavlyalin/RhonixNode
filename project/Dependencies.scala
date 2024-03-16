@@ -30,7 +30,7 @@ object Dependencies {
   val scodecBits         = "org.scodec"                 %% "scodec-bits"      % "1.1.37"
   val shapeless          = "com.chuusai"                %% "shapeless"        % "2.3.10"
   val lz4                = "org.lz4"                     % "lz4-java"         % "1.8.0"
-  val lmdbjava           = "org.lmdbjava"                % "lmdbjava"         % "0.8.3"
+  val lmdbjava           = "org.lmdbjava"                % "lmdbjava"         % "0.9.0"
   val enumeratum         = "com.beachape"               %% "enumeratum"       % "1.7.2"
   val xalan              = "xalan"                       % "xalan"            % "2.7.3"
   val catsMtl            = "org.typelevel"              %% "cats-mtl-core"    % "0.7.1"
@@ -86,8 +86,9 @@ object Dependencies {
   val influxDbClient        = "com.influxdb" % "influxdb-client-java" % "6.10.0"
 
   // Logging
-  val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.4.7"
-  val slf4j          = "org.slf4j"      % "slf4j-api"       % "2.0.5"
+  val logbackClassic   = "ch.qos.logback"              % "logback-classic" % "1.4.7"
+  // val slf4j            = "org.slf4j"                   % "slf4j-api"       % "2.0.5"
+  val typesagfeLogging = "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4"
 
   // Reflection
   def scalaReflect(scalaVersion: String): ModuleID = "org.scala-lang" % "scala-reflect" % scalaVersion
@@ -114,10 +115,9 @@ object Dependencies {
 
   // Database
   val junitJupiter         = "org.junit.jupiter"  % "junit-jupiter-api" % "5.10.0" % Test
-  val postgresql           = "org.postgresql"     % "postgresql"        % "42.6.0"
+  val postgresql           = "org.postgresql"     % "postgresql"        % "42.7.1"
   val slick: Seq[ModuleID] = Seq(
     "com.typesafe.slick"                 %% "slick"               % "3.4.1",
-    "org.slf4j"                           % "slf4j-nop"           % "2.0.5",
     "com.typesafe.slick"                 %% "slick-hikaricp"      % "3.4.1",
     "io.github.nafg.slick-migration-api" %% "slick-migration-api" % "0.9.0",// Migration tool for Slick
   )
@@ -126,11 +126,13 @@ object Dependencies {
   // Cryptography
   val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % "1.68"
 
-  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector, circeGeneric, circeParser)
+  val apacheCommonsIO = "commons-io" % "commons-io" % "2.15.1"
+
+  val common = Seq(catsCore, catsEffect, fs2Core, jaxb, kindProjector, circeGeneric, circeParser, apacheCommonsIO)
 
   val diagnostics = Seq(kamonBundle, kamonInfluxDbReporter, kamonJaegerReporter, influxDbClient)
 
-  val log = Seq(logbackClassic, slf4j)
+  val log = Seq(logbackClassic, typesagfeLogging)
 
   val http4s      = Seq(http4sNetty, http4sDSL, circeCodec, http4sBlaze)
   val endpoints4s =

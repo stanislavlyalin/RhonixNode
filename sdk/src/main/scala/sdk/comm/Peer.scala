@@ -7,8 +7,8 @@ final case class Peer(
   isValidator: Boolean,
 ) {
   override def equals(obj: Any): Boolean = obj match {
-    case Peer(host, _, _, _) => this.host == host
-    case _                   => false
+    case Peer(host, port, _, _) => this.host == host && this.port == port
+    case _                      => false
   }
 
   override def hashCode(): Int = host.hashCode

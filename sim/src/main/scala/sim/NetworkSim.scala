@@ -4,13 +4,19 @@ import cats.effect.*
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import node.Setup
+import node.{ConfigManager, Setup}
+import sdk.comm.Peer
 import sdk.data.BalancesState
 import sdk.hashing.Blake2b
 import sdk.primitive.ByteArray
-import slick.SlickPgDatabase
+import slick.{SlickDb, SlickPgDatabase}
+import slick.api.SlickApi
 import slick.jdbc.JdbcBackend.Database
+import slick.jdbc.PostgresProfile
+import slick.migration.api.PostgresDialect
 import weaver.data.{Bonds, FinalData}
+
+import java.nio.file.Path
 
 object NetworkSim extends IOApp {
 
@@ -73,29 +79,14 @@ object NetworkSim extends IOApp {
     args match {
       case List("--help") => IO.println(prompt).as(ExitCode.Success)
       case List("run")    =>
-        val netCfg: sim.Config    = sim.Config.Default.copy(size = 3, usersNum = 2)
-        val rnd                   = new scala.util.Random()
-        /// Users (wallets) making transactions
-        val users: Set[ByteArray] =
-          (1 to netCfg.usersNum).map(_ => Array(rnd.nextInt().toByte)).map(Blake2b.hash256).map(ByteArray(_)).toSet
-        val genesisPoS            = {
-          val rnd               = new scala.util.Random()
-          /// Genesis data
-          val lazinessTolerance = 1 // c.lazinessTolerance
-          val senders           =
-            Iterator
-              .range(0, netCfg.size)
-              .map(_ => Array(rnd.nextInt().toByte))
-              .map(Blake2b.hash256)
-              .map(ByteArray(_))
-              .toSet
-          // Create lfs message, it has no parents, sees no offences and final fringe is empty set
-          val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
-          FinalData(genesisBonds, lazinessTolerance, 10000)
-        }
-        val genesisBalances       = new BalancesState(users.map(_ -> Long.MaxValue / 2).toMap)
+        val netCfg: sim.Config            = sim.Config.Default.copy(size = 4, usersNum = 2)
+        val (genesisPoS, genesisBalances) = SimGen.generate(netCfg.size, netCfg.usersNum)
 
         implicit val rndIO: Random[IO] = Random.scalaUtilRandom[IO].unsafeRunSync()
+
+        val peers = (0 until netCfg.size)
+          .map(idx => idx -> Peer("localhost", 5555 + idx, isSelf = false, isValidator = true))
+          .toMap
 
         genesisPoS.bonds.activeSet.toList.zipWithIndex
           .traverse { case id -> idx =>
@@ -103,7 +94,32 @@ object NetworkSim extends IOApp {
               SlickPgDatabase[IO](
                 _root_.db.Config.Default.copy(dbUrl = s"${_root_.db.Config.Default.dbUrl}_${idx + 1}"),
               )
-            Setup.all[IO](db, id, genesisPoS, node.Main.randomDeploys[IO](users, netCfg.txPerBlock), idx)
+            // set empty peers so nodes do not broadcast blocks through grpc servers.
+            // Simulation uses shared memory for this.
+            db.evalMap { d =>
+              import io.circe.generic.auto.*
+              import ConfigManager.*
+
+              val peersCfg =
+                node.comm.Config.Default.copy(peers = peers.updated(idx, peers(idx).copy(isSelf = true)).values.toList)
+              val nodeCfg  =
+                node.Config.Default.copy(kvStoresPath = Path.of(s"/tmp/sim_kv_store_${idx + 1}"))
+
+              for {
+                sDb <- SlickDb[IO](d, PostgresProfile, new PostgresDialect)
+                api <- SlickApi[IO](sDb)
+                _   <- writeConfig(peersCfg, api)
+                _   <- writeConfig(nodeCfg, api)
+              } yield ()
+            }.flatMap { _ =>
+              Setup.all[IO](
+                db,
+                id,
+                genesisPoS,
+                node.Main.randomDeploys[IO](genesisBalances.diffs.keySet, netCfg.txPerBlock),
+                idx,
+              )
+            }
           }
           .map(setups => Network.apply[IO](setups, genesisPoS, genesisBalances, netCfg))
           .use(_.compile.drain.as(ExitCode.Success))

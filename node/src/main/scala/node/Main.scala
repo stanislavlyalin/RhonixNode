@@ -1,28 +1,32 @@
 package node
 
-import cats.Monad
+import cats.effect.*
 import cats.effect.kernel.Ref.Make
 import cats.effect.std.{Env, Random}
-import cats.effect.{ExitCode, IO, IOApp, Resource, Sync}
 import cats.syntax.all.*
 import node.Hashing.*
 import sdk.codecs.Base16
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
-import sdk.hashing.Blake2b
+import sdk.error.FatalError
+import sdk.log.Logger.*
 import sdk.primitive.ByteArray
 import sdk.reflect.ClassesAsConfig
 import sdk.syntax.all.*
 import slick.SlickPgDatabase
 import weaver.data.{Bonds, FinalData}
-import node.BuildInfo
+
+import java.net.InetAddress
 
 object Main extends IOApp {
-  private val DbUrlKey     = "gorki_db_url"
-  private val DbUser       = "gorki_db_user"
-  private val DbPasswd     = "gorki_db_passwd"
-  private val ValidatorKey = "gorki_validator_sKey"
+  private val DbUrlKey      = "gorki_db_url"
+  private val DbUser        = "gorki_db_user"
+  private val DbPasswd      = "gorki_db_passwd"
+  private val ValidatorId   = "gorki_validator_id"
+  private val BootstrapAddr = "bootstrap"
 
-  private val DefaultNodeId = "e211d1b7e8018b567af18dd25377cb4eb0cf2688eb49aba505682b1ddb647a4e"
+  private val PosFilePath     = "/var/lib/gorki/genesis/pos.json"
+  private val WalletsFilePath = "/var/lib/gorki/genesis/wallets.json"
+  private val PeersFilePath   = "/var/lib/gorki/comm/peers.json"
 
   def randomDeploys[F[_]: Make: Sync: Random](
     users: Set[ByteArray],
@@ -41,20 +45,23 @@ object Main extends IOApp {
     mkDeploy.replicateA(n).map(_.toSet)
   }
 
-  private def configWithEnv[F[_]: Env: Monad]: F[(db.Config, String)] = for {
-    dbUrlOpt      <- Env[F].get(DbUrlKey)
-    dbUserOpt     <- Env[F].get(DbUser)
-    dbPasswordOpt <- Env[F].get(DbPasswd)
-    nodeIdOpt     <- Env[F].get(ValidatorKey)
-  } yield {
-    val newCfg = for {
+  private def configWithEnv[F[_]: Env: Sync]: F[(db.Config, String)] = {
+    val dbConfF = for {
+      dbUrlOpt      <- Env[F].get(DbUrlKey)
+      dbUserOpt     <- Env[F].get(DbUser)
+      dbPasswordOpt <- Env[F].get(DbPasswd)
+    } yield for {
       dbUrl      <- dbUrlOpt
       dbUser     <- dbUserOpt
       dbPassword <- dbPasswordOpt
-      nodeId     <- nodeIdOpt
-    } yield db.Config.Default.copy(dbUrl = dbUrl, dbUser = dbUser, dbPassword = dbPassword) -> nodeId
+    } yield db.Config.Default.copy(dbUrl = dbUrl, dbUser = dbUser, dbPassword = dbPassword)
 
-    newCfg.getOrElse(db.Config.Default -> DefaultNodeId)
+    (
+      dbConfF.map(_.getOrElse(db.Config.Default)),
+      Env[F]
+        .get(ValidatorId)
+        .flatMap(_.liftTo[F](new FatalError(s"Environment variable $ValidatorId is not set"))),
+    ).bisequence
   }
 
   override def run(args: List[String]): IO[ExitCode] =
@@ -67,42 +74,53 @@ object Main extends IOApp {
         )
         IO.println(referenceConf).as(ExitCode.Success)
       case _                              =>
-        configWithEnv[IO].flatMap { case (dbCfg, nodeId) =>
-          val version = s"Node ${BuildInfo.version} (${BuildInfo.gitHeadCommit.getOrElse("commit # unknown")})"
-          println(version)
+        val mainStreamF = for {
+          _               <- logInfoF[IO](s"Node version: ${NodeBuildInfo()}")
+          c               <- configWithEnv[IO]
+          bootstrpOpt     <- Env[IO].get(BootstrapAddr)
+          (dbCfg, nodeId)  = c
+          genesisPoS      <- FileLoaders.loadJsonMap[IO](PosFilePath).map(x => FinalData(Bonds(x), 1, 10000))
+          genesisBalances <- FileLoaders.loadJsonMap[IO](WalletsFilePath)
+          peers           <- FileLoaders.loadPeers[IO](PeersFilePath)
+          random          <- Random.scalaUtilRandom[IO]
+        } yield {
+          val nodePK                   = Base16.decode(nodeId).map(ByteArray(_)).getUnsafe
+          implicit val rnd: Random[IO] = random
+          val dummyTxs                 = randomDeploys[IO](genesisBalances.keySet, 1)
 
-          /// Genesis data
-          val genesisPoS = {
-            val lazinessTolerance = 1
-            // Todo load bonds file
-            val rnd               = new scala.util.Random()
-            val senders           =
-              Iterator
-                .range(0, 100)
-                .map(_ => Array(rnd.nextInt().toByte))
-                .map(Blake2b.hash256)
-                .map(ByteArray(_))
-                .toSet
-            val genesisBonds      = Bonds(senders.map(_ -> 100L).toMap)
-            FinalData(genesisBonds, lazinessTolerance, 10000)
-          }
+          val localHostname = InetAddress.getLocalHost.getCanonicalHostName
 
-          // TODO load wallets file
-          val users           = (1 to 100).map(x => ByteArray(x.toByte)).toSet
-          val genesisBalances =
-            new BalancesState(users.map(_ -> Long.MaxValue / 2).toMap)
+          // read peer list
+          val peerList = peers.filterNot(_.host == localHostname)
 
-          // TODO load PK/SK
-          val nodePK = Base16.decode(nodeId).map(ByteArray(_)).getUnsafe
+          Setup
+            .all[IO](SlickPgDatabase[IO](dbCfg), nodePK, genesisPoS, dummyTxs, 0, localHostname)
+            .use { s =>
+              val updatePeersFromFile =
+                s.peerManager.all.flatMap { peersMap =>
+                  val toRemove = peersMap.values.map(p => p.host -> p.port).toSet
+                  s.peerManager.remove(toRemove)
+                } *> s.peerManager.add(peerList.map(p => (p.host, p.port) -> p).toMap)
 
-          fs2.Stream
-            .resource(Resource.eval(Random.scalaUtilRandom[IO]).flatMap { implicit rnd =>
-              Setup.all[IO](SlickPgDatabase[IO](dbCfg), nodePK, genesisPoS, randomDeploys[IO](users, 1))
-            })
-            .flatMap(Node.apply(nodePK, true, _, genesisPoS, genesisBalances))
-            .compile
-            .drain
-            .map(_ => ExitCode.Success)
+              val logLoadedPeers = s.peerManager.all.flatMap { ps =>
+                logInfoF[IO](s"Loaded peers: ${ps.keys.map { case (host, port) => s"$host:$port" }.mkString(", ")}")
+              }
+
+              @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+              val bootOpt = bootstrpOpt.map(_.split(":")).map {
+                case Array(host, port) => new java.net.InetSocketAddress(host, port.toInt)
+                case _                 => throw new FatalError("Invalid bootstrap address")
+              }
+
+              updatePeersFromFile *> logLoadedPeers *>
+                Node
+                  .apply[IO](nodePK, bootstrpOpt.isEmpty, s, genesisPoS, BalancesState(genesisBalances), bootOpt)
+                  .compile
+                  .drain
+                  .as(ExitCode.Success)
+            }
         }
+
+        mainStreamF.flatten
     }
 }
