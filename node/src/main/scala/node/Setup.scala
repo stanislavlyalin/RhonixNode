@@ -18,13 +18,14 @@ import node.comm.PeerTable
 import node.lmdb.LmdbStoreManager
 import node.rpc.syntax.all.grpcClientSyntax
 import node.rpc.{GrpcChannelsManager, GrpcClient, GrpcServer}
+import node.serlalize.StackSafeSerializeInstances.*
 import node.state.StateManager
 import org.http4s.HttpRoutes
 import org.http4s.server.Server
 import sdk.api.ExternalApi
 import sdk.api.data.Balance
 import sdk.comm.Peer
-import sdk.data.BalancesDeploy
+import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.diag.Metrics
 import sdk.hashing.Blake2b
 import sdk.history.History
@@ -42,7 +43,6 @@ import slick.migration.api.PostgresDialect
 import weaver.WeaverState
 import weaver.data.FinalData
 
-import java.net.InetSocketAddress
 import java.nio.file.Path
 
 /** Node setup. */
@@ -219,7 +219,7 @@ object Setup {
       Resource.eval(BlockResolver.apply[F])
     }
     // resolve received hash to block and send to validation
-    hashCallback       = (h: ByteArray, s: InetSocketAddress) =>
+    hashCallback       = (h: ByteArray, s: HostWithPort) =>
                            DbApiImpl(database)
                              .isBlockExist(h)
                              .ifM(false.pure, blockResolver.in(h, s).as(true))
@@ -244,7 +244,7 @@ object Setup {
       implicit val chm: GrpcChannelsManager[F]           = grpcChManager
       implicit val pt: PeerTable[F, (String, Int), Peer] = peerTable
       dProc.output
-        .evalMap(h => GrpcClient[F].broadcastBlockHash(h, new InetSocketAddress(selfFQDN, nCfg.gRpcPort + idx)))
+        .evalMap(h => GrpcClient[F].broadcastBlockHash(h, HostWithPort(selfFQDN, nCfg.gRpcPort + idx)))
     }
 
     val nodeStream = dProc.dProcStream concurrently pullBlocksFromNetwork concurrently broadcastOutput

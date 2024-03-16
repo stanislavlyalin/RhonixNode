@@ -7,18 +7,17 @@ import cats.syntax.all.*
 import dproc.data.Block
 import io.grpc.*
 import io.grpc.netty.NettyServerBuilder
-import node.Serialization.*
+import node.serlalize.StackSafeSerializeInstances.*
 import sdk.api.{BlockEndpoint, BlockHashEndpoint, LatestBlocksEndpoint}
-import sdk.data.BalancesDeploy
+import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.log.Logger.*
 import sdk.primitive.ByteArray
 
-import java.net.InetSocketAddress
-
 object GrpcServer {
+
   def apply[F[_]: Async](
     port: Int,
-    hashRcvF: (ByteArray, InetSocketAddress) => F[Boolean],
+    hashRcvF: (ByteArray, HostWithPort) => F[Boolean],
     blockResolve: ByteArray => F[Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]],
     latestBlocks: Unit => F[Seq[ByteArray]],
   ): Resource[F, Server] =
@@ -26,7 +25,7 @@ object GrpcServer {
       val serviceDefinition: ServerServiceDefinition = ServerServiceDefinition
         .builder(sdk.api.RootPathString)
         .addMethod(
-          GrpcMethod[(ByteArray, InetSocketAddress), Boolean](BlockHashEndpoint),
+          GrpcMethod[(ByteArray, HostWithPort), Boolean](BlockHashEndpoint),
           GrpcMethodHandler(hashRcvF.tupled, dispatcher),
         )
         .addMethod(
