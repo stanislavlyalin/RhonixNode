@@ -13,6 +13,7 @@ import sdk.codecs.Digest
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.history.ByteArray32
 import sdk.store.KeyValueTypedStore
+import sdk.codec.SerializeInstances.*
 import node.Hashing.*
 import sdk.syntax.all.*
 

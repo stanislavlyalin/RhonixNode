@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.syntax.all.*
 import dproc.data.Block
 import node.Hashing.*
+import sdk.codec.SerializeInstances.*
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.diag.Metrics
 import sdk.history.History

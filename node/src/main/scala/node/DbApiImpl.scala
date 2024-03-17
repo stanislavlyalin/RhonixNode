@@ -1,10 +1,13 @@
 package node
 
+import cats.Eval
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.syntax.all.*
 import node.DbApiImpl.*
 import node.Hashing.*
+import sdk.codec.SerializeInstances.*
+import sdk.codecs.Serialize
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.primitive.ByteArray
 import sdk.syntax.all.digestSyntax
@@ -48,7 +51,7 @@ final case class DbApiImpl[F[_]: Sync](sApi: SlickApi[F]) {
       _ <- sApi.blockInsert(block)(
              justificationSetHash = block.justificationSet.digest,
              offencesSetHash = calcSetHash(block.offencesSet),
-             bondsMapHash = bondsMapDigest.digest(b.m.bonds.bonds),
+             bondsMapHash = b.m.bonds.bonds.digest,
              finalFringeHash = calcSetHash(block.finalFringe),
              execDeploySetHash = calcSetHash(block.execDeploySet),
              mergeDeploySetHash = calcSetHash(block.mergeDeploySet),

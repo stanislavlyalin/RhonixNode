@@ -25,7 +25,7 @@ class GrpcDslCommSpec extends AnyFlatSpec with Matchers {
       serverPort,
       (_, _) => expectedResponse.pure[IO],
       _ => none[Block.WithId[ByteArray, ByteArray, BalancesDeploy]].pure[IO],
-      _ => Seq.empty[ByteArray].pure[IO],
+      _ => List.empty[ByteArray].pure[IO],
     )
 
     val grpcCall = GrpcChannelsManager[IO].use { implicit ch =>

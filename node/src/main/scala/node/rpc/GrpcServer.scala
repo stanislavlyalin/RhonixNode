@@ -7,7 +7,7 @@ import cats.syntax.all.*
 import dproc.data.Block
 import io.grpc.*
 import io.grpc.netty.NettyServerBuilder
-import node.serlalize.StackSafeSerializeInstances.*
+import sdk.codec.SerializeInstances.*
 import sdk.api.{BlockEndpoint, BlockHashEndpoint, LatestBlocksEndpoint}
 import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.log.Logger.*
@@ -19,7 +19,7 @@ object GrpcServer {
     port: Int,
     hashRcvF: (ByteArray, HostWithPort) => F[Boolean],
     blockResolve: ByteArray => F[Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]],
-    latestBlocks: Unit => F[Seq[ByteArray]],
+    latestBlocks: Unit => F[List[ByteArray]],
   ): Resource[F, Server] =
     Dispatcher.sequential[F].flatMap { dispatcher =>
       val serviceDefinition: ServerServiceDefinition = ServerServiceDefinition
@@ -33,7 +33,7 @@ object GrpcServer {
           GrpcMethodHandler(blockResolve, dispatcher),
         )
         .addMethod(
-          GrpcMethod[Unit, Seq[ByteArray]](LatestBlocksEndpoint),
+          GrpcMethod[Unit, List[ByteArray]](LatestBlocksEndpoint),
           GrpcMethodHandler(latestBlocks, dispatcher),
         )
         .build()

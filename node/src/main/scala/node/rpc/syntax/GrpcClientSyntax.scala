@@ -12,7 +12,7 @@ import sdk.codecs.Serialize
 import sdk.comm.Peer
 import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.primitive.ByteArray
-import node.serlalize.StackSafeSerializeInstances.*
+import sdk.codec.SerializeInstances.*
 
 trait GrpcClientSyntax {
   implicit def grpcClientSyntax[F[_]](client: GrpcClient[F]): GrpcClientOps[F] = new GrpcClientOps[F](client)
@@ -50,8 +50,8 @@ final class GrpcClientOps[F[_]](private val client: GrpcClient[F]) extends AnyVa
   def getLatestBlocks(peerAddress: HostWithPort)(implicit
     F: Async[F],
     c: GrpcChannelsManager[F],
-  ): F[Seq[ByteArray]] =
-    callEndpoint[Unit, Seq[ByteArray]](LatestBlocksEndpoint, (), peerAddress)
+  ): F[List[ByteArray]] =
+    callEndpoint[Unit, List[ByteArray]](LatestBlocksEndpoint, (), peerAddress)
 
   def reportBlockHash(hash: ByteArray, suggestedResolver: HostWithPort, reportTo: HostWithPort)(implicit
     F: Async[F],

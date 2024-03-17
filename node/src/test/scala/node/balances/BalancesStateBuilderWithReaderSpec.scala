@@ -4,21 +4,19 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import node.BalancesStateBuilderWithReader
-import node.Hashing.*
 import node.Codecs.*
+import node.Hashing.*
+import sdk.codec.SerializeInstances.*
 import node.balances.BalancesStateBuilderWithReaderSpec.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.api.data.Balance
 import sdk.data.BalancesState
 import sdk.diag.Metrics
-import sdk.hashing.Blake2b
 import sdk.history.ByteArray32
 import sdk.history.History.EmptyRootHash
 import sdk.primitive.ByteArray
 import sdk.store.{ByteArrayKeyValueTypedStore, HistoryWithValues, InMemoryKeyValueStore}
-import sdk.syntax.all.sdkSyntaxTry
-import BalancesStateBuilderWithReaderSpec.blake2b256Hash
 
 class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
 
@@ -56,8 +54,6 @@ class BalancesStateBuilderWithReaderSpec extends AnyFlatSpec with Matchers {
 }
 
 object BalancesStateBuilderWithReaderSpec {
-
-  implicit def blake2b256Hash(x: Array[Byte]): ByteArray32 = ByteArray32.convert(Blake2b.hash256(x)).getUnsafe
 
   def witSut[A](f: BalancesStateBuilderWithReader[IO] => IO[A]): A = {
     val mkHistory     = sdk.history.History.create(EmptyRootHash, new InMemoryKeyValueStore[IO])

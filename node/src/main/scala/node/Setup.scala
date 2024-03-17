@@ -18,7 +18,8 @@ import node.comm.PeerTable
 import node.lmdb.LmdbStoreManager
 import node.rpc.syntax.all.grpcClientSyntax
 import node.rpc.{GrpcChannelsManager, GrpcClient, GrpcServer}
-import node.serlalize.StackSafeSerializeInstances.*
+import sdk.codec.SerializeInstances.*
+import node.Hashing.*
 import node.state.StateManager
 import org.http4s.HttpRoutes
 import org.http4s.server.Server
