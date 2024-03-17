@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import node.BalancesStateBuilderWithReader
 import node.Codecs.*
 import node.Hashing.*
-import sdk.codec.SerializeInstances.*
+import sdk.codec.SerializeEvalInstances.*
 import node.balances.BalancesStateBuilderWithReaderSpec.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

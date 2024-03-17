@@ -12,7 +12,7 @@ import sdk.codecs.Serialize
 import sdk.comm.Peer
 import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.primitive.ByteArray
-import sdk.codec.SerializeInstances.*
+import sdk.codec.SerializeEvalInstances.*
 
 trait GrpcClientSyntax {
   implicit def grpcClientSyntax[F[_]](client: GrpcClient[F]): GrpcClientOps[F] = new GrpcClientOps[F](client)
