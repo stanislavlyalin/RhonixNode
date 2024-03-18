@@ -1,4 +1,4 @@
-package sdk.codec
+package sdk.serialize
 
 import cats.Applicative
 import cats.syntax.all.*

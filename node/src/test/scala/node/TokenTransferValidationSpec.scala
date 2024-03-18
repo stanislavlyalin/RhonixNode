@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.api.*
 import sdk.api.data.TokenTransferRequest
-import sdk.codec.SerializeEvalInstances.*
+import sdk.serialize.auto.*
 import Hashing.*
 
 class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {

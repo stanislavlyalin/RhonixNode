@@ -7,7 +7,7 @@ import cats.syntax.all.*
 import dproc.data.Block
 import io.grpc.*
 import io.grpc.netty.NettyServerBuilder
-import sdk.codec.SerializeEvalInstances.*
+import sdk.serialize.auto.*
 import sdk.api.{BlockEndpoint, BlockHashEndpoint, LatestBlocksEndpoint}
 import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.log.Logger.*

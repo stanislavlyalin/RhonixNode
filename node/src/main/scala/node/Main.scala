@@ -5,7 +5,7 @@ import cats.effect.kernel.Ref.Make
 import cats.effect.std.{Env, Random}
 import cats.syntax.all.*
 import node.Hashing.*
-import sdk.codec.SerializeEvalInstances.*
+import sdk.serialize.auto.*
 import sdk.codecs.Base16
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState, HostWithPort}
 import sdk.error.FatalError

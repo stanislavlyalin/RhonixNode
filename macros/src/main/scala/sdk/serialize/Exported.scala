@@ -1,4 +1,4 @@
-package sdk.codec
+package sdk.serialize
 
 // Workaround for issues with magnolia trying to derive instances having custom instances in scope.
 // Read more about that workaround here: https://github.com/propensive/magnolia/issues/107#issuecomment-589289260

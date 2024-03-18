@@ -5,7 +5,7 @@ import sdk.api.data.Balance
 import sdk.codecs.*
 import sdk.codecs.protobuf.*
 import sdk.primitive.ByteArray
-import sdk.codec.SerializeEvalInstances.*
+import sdk.serialize.auto.*
 
 import scala.util.Try
 

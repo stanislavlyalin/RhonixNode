@@ -6,7 +6,7 @@ import cats.effect.Sync
 import cats.syntax.all.*
 import node.DbApiImpl.*
 import node.Hashing.*
-import sdk.codec.SerializeEvalInstances.*
+import sdk.serialize.auto.*
 import sdk.codecs.Serialize
 import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
 import sdk.primitive.ByteArray

@@ -1,4 +1,4 @@
-package sdk.codec
+package sdk.serialize
 
 import cats.Eval
 import sdk.codecs.SerializePrimitiveTypes
@@ -13,7 +13,7 @@ import sdk.codecs.SerializePrimitiveTypes
  * final case class MyObject(a: Int, b: String)
  *
  * // Import derivation macro
- * import sdk.codec.SerializeInstances.*
+ * import sdk.serialize.auto.*
  *
  * // Instance is derived automatically.
  * val x = implicitly[Serialize[Eval, MyObject]]
@@ -24,4 +24,4 @@ import sdk.codecs.SerializePrimitiveTypes
  * or sum types (Option, List, etc) have instances of Serialize in the specification
  * defined in [[sdk.codecs.SerializePrimitiveTypes]] and [[sdk.codecs.SerializeSumTypes]], respectively.
  */
-object SerializeEvalInstances extends SerializeDerivation[Eval] with SerializePrimitiveTypes[Eval]
+object auto extends SerializeDerivation[Eval] with SerializePrimitiveTypes[Eval]
