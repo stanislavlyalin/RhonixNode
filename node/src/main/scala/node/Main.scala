@@ -54,7 +54,7 @@ object Main extends IOApp {
       dbUrl      <- dbUrlOpt
       dbUser     <- dbUserOpt
       dbPassword <- dbPasswordOpt
-    } yield db.Config.Default.copy(dbUrl = dbUrl, dbUser = dbUser, dbPassword = dbPassword)
+    } yield db.Config.Default.copy(url = dbUrl, user = dbUser, password = dbPassword)
 
     (
       dbConfF.map(_.getOrElse(db.Config.Default)),
@@ -103,7 +103,7 @@ object Main extends IOApp {
                 } *> s.peerManager.add(peerList.map(p => (p.host, p.port) -> p).toMap)
 
               val logLoadedPeers = s.peerManager.all.flatMap { ps =>
-                logInfoF[IO](s"Loaded peers: ${ps.keys.map { case (host, port) => s"$host:$port" }.mkString(", ")}")
+                logInfoF[IO](s"Loaded peers: [${ps.keys.map { case (host, port) => s"$host:$port" }.mkString(", ")}]")
               }
 
               @SuppressWarnings(Array("org.wartremover.warts.Throw"))

@@ -2,14 +2,14 @@ package db
 
 import sdk.reflect.Description
 
-@Description("dbCfg")
+@Description("db")
 final case class Config(
   @Description("Database URL")
-  dbUrl: String = "jdbc:postgresql://localhost:5432/gorki_node_db",
+  url: String = "jdbc:postgresql://localhost:5432/gorki_node_db",
   @Description("Database user")
-  dbUser: String = "postgres",
+  user: String = "postgres",
   @Description("Database password")
-  dbPassword: String = "postgres",
+  password: String = "postgres",
   @Description("Initial size of the DB connection pool")
   initialConnections: Int = 10,
   @Description("Maximum number of DB connections that can remain idle in the pool")
