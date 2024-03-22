@@ -3,11 +3,14 @@ package node
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import fs2.io.file.Files
-import io.circe.{parser, Decoder, Encoder}
+import io.circe.{parser, Decoder}
 import sdk.codecs.Base16
 import sdk.comm.Peer
+import sdk.error.FatalError
+import sdk.log.Logger.*
 import sdk.primitive.ByteArray
 
+import java.io.FileNotFoundException
 import scala.io.{BufferedSource, Source}
 
 object FileLoaders {
@@ -28,8 +31,15 @@ object FileLoaders {
     }
 
   def loadPeers[F[_]: Sync: Files](path: String): F[List[Peer]] =
-    getContent(path).use { source =>
-      implicit val peerCodec: Decoder[Peer] = Decoder.forProduct4("host", "port", "isSelf", "isValidator")(Peer.apply)
-      parser.decode[List[Peer]](source.mkString).liftTo[F]
-    }
+    getContent(path)
+      .use { source =>
+        implicit val peerCodec: Decoder[Peer] = Decoder.forProduct4("host", "port", "isSelf", "isValidator")(Peer.apply)
+        parser.decode[List[Peer]](source.mkString).liftTo[F]
+      }
+      .handleErrorWith {
+        case _: FileNotFoundException =>
+          logInfoF(s"Peers file $path not found, proceeding with default peers.").as(comm.Config.Default.peers)
+        case e                        =>
+          Sync[F].raiseError(new FatalError(s"Error loading peers", e))
+      }
 }
