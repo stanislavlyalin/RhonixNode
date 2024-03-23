@@ -37,7 +37,7 @@ lazy val settingsScala2 = commonSettings ++ Seq(
   // Enables Scala2 project to depend on Scala3 projects
   scalacOptions += "-Ytasty-reader",
   scalacOptions ++= CompilerOptions.DEFAULTS_SCALA_2,
-  Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2,
+  Compile / compile / wartremoverErrors ++= WartsSettings.DEFAULTS_SCALA_2.filterNot(Seq(Wart.SeqApply).contains),
 )
 
 lazy val gorkiNode = (project in file("."))
@@ -47,7 +47,7 @@ lazy val gorkiNode = (project in file("."))
 lazy val sdk = (project in file("sdk"))
 //  .settings(settingsScala3*) // Not supported in IntelliJ Scala plugin
   .settings(settingsScala2*)
-  .settings(libraryDependencies ++= common ++ dbLibs ++ tests ++ log :+ protobuf :+ bouncyProvCastle)
+  .settings(libraryDependencies ++= common ++ dbLibs ++ tests ++ log :+ protobuf :+ bouncyProvCastle :+ magnolia1)
 
 // Database interfaces implementation
 lazy val db = (project in file("db"))
@@ -101,7 +101,15 @@ lazy val node = (project in file("node"))
     ),
   )
   .enablePlugins(JavaAppPackaging, BuildInfoPlugin)
-  .dependsOn(sdk % "compile->compile;test->test", weaver, dproc, diag, db % "compile->compile;test->test", secp256k1)
+  .dependsOn(
+    sdk % "compile->compile;test->test",
+    weaver,
+    dproc,
+    diag,
+    db  % "compile->compile;test->test",
+    secp256k1,
+    macros,
+  )
 
 // Diagnostics
 lazy val diag = (project in file("diag"))
@@ -169,7 +177,7 @@ lazy val legacy = (project in file("legacy"))
 // https://stackoverflow.com/questions/75847326/macro-implementation-not-found-scala-2-13-3
 lazy val macros = (project in file("macros"))
   .settings(settingsScala2*)
-  .settings(libraryDependencies += scalaReflect(scala2Version))
+  .settings(libraryDependencies ++= Seq(scalaReflect(scala2Version), kindProjector))
   .dependsOn(sdk)
 
 lazy val secp256k1 = (project in file("secp256k1"))

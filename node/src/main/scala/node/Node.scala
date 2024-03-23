@@ -7,7 +7,7 @@ import fs2.Stream
 import node.rpc.syntax.all.grpcClientSyntax
 import node.rpc.{GrpcChannelsManager, GrpcClient}
 import sdk.crypto.ECDSA
-import sdk.data.BalancesState
+import sdk.data.{BalancesState, HostWithPort}
 import sdk.diag.Metrics
 import sdk.log.Logger.*
 import sdk.primitive.ByteArray
@@ -51,7 +51,7 @@ object Node {
     }
 
   private def waitTillLatestMessageIsAvailableAndGet[F[_]: Async: GrpcChannelsManager](
-    bootstrap: InetSocketAddress,
+    bootstrap: HostWithPort,
     time: FiniteDuration = 2.second,
   ): F[Seq[ByteArray]] =
     ().tailRecM { _ =>
@@ -73,13 +73,13 @@ object Node {
     }
 
   private def bootstrap[F[_]: Async: GrpcChannelsManager](
-    bootstrap: InetSocketAddress,
+    bootstrap: HostWithPort,
     blockResolver: BlockResolver[F],
   ): Stream[F, Unit] = Stream.eval {
     for {
-      resolved <- waitTillResolved(bootstrap)
-      tips     <- waitTillLatestMessageIsAvailableAndGet(resolved)
-      _        <- tips.traverse(blockResolver.in(_, resolved))
+      resolved <- waitTillResolved(InetSocketAddress.createUnresolved(bootstrap.host, bootstrap.port))
+      tips     <- waitTillLatestMessageIsAvailableAndGet(bootstrap)
+      _        <- tips.traverse(blockResolver.in(_, bootstrap))
     } yield ()
   }
 
@@ -89,7 +89,7 @@ object Node {
     setup: Setup[F],
     genesisPoS: FinalData[ByteArray],
     genesisBalances: BalancesState,
-    bootstrapOpt: Option[InetSocketAddress] = None,
+    bootstrapOpt: Option[HostWithPort] = None,
   ): fs2.Stream[F, Unit] = {
     val printDiag: Stream[F, Unit] = NodeSnapshot
       .stream(setup.stateManager, setup.dProc.finStream)

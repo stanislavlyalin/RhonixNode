@@ -7,7 +7,7 @@ import dproc.data.Block
 import fs2.Stream
 import node.rpc.syntax.all.grpcClientSyntax
 import node.rpc.{GrpcChannelsManager, GrpcClient}
-import sdk.data.BalancesDeploy
+import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.log.Logger.*
 import sdk.primitive.ByteArray
 
@@ -15,7 +15,7 @@ import java.net.{InetSocketAddress, SocketAddress}
 
 final case class BlockResolver[F[_]](
   // request to resolve a block
-  in: (ByteArray, InetSocketAddress) => F[Boolean],
+  in: (ByteArray, HostWithPort) => F[Boolean],
   // stream of resolved blocks
   out: Stream[F, Block.WithId[ByteArray, ByteArray, BalancesDeploy]],
   // block is consumed by upstream and can be removed from resolver state
@@ -44,16 +44,16 @@ object BlockResolver {
 
   def apply[F[_]: Async: GrpcChannelsManager]: F[BlockResolver[F]] = for {
     st   <- Ref.of[F, ST](ST(Map.empty))
-    inQ  <- Queue.unbounded[F, (ByteArray, InetSocketAddress)]
+    inQ  <- Queue.unbounded[F, (ByteArray, HostWithPort)]
     outQ <- Queue.unbounded[F, Block.WithId[ByteArray, ByteArray, BalancesDeploy]]
   } yield {
     val resolveStream = Stream
       .fromQueueUnterminated(inQ)
       .evalFilter { case (hash, _) => st.modify(_.request(hash)) }
-      .parEvalMapUnorderedUnbounded { case (hash, socket) => GrpcClient[F].resolveBlock(hash, socket) }
+      .parEvalMapUnorderedUnbounded { case (hash, peer) => GrpcClient[F].resolveBlock(hash, peer) }
       .evalTap(_.traverse(outQ.offer))
 
-    val in                 = inQ.offer(_: ByteArray, _: InetSocketAddress).as(true)
+    val in                 = inQ.offer(_: ByteArray, _: HostWithPort).as(true)
     val out                = Stream.eval(logDebugF("BlockResolver started.")) *>
       Stream.fromQueueUnterminated(outQ) concurrently resolveStream
     def done(x: ByteArray) = st.modify(_.done(x)).flatMap { ok =>

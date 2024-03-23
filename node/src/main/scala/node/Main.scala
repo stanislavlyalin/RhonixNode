@@ -5,8 +5,9 @@ import cats.effect.kernel.Ref.Make
 import cats.effect.std.{Env, Random}
 import cats.syntax.all.*
 import node.Hashing.*
+import sdk.serialize.auto.*
 import sdk.codecs.Base16
-import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState}
+import sdk.data.{BalancesDeploy, BalancesDeployBody, BalancesState, HostWithPort}
 import sdk.error.FatalError
 import sdk.log.Logger.*
 import sdk.primitive.ByteArray
@@ -108,7 +109,7 @@ object Main extends IOApp {
 
               @SuppressWarnings(Array("org.wartremover.warts.Throw"))
               val bootOpt = bootstrpOpt.map(_.split(":")).map {
-                case Array(host, port) => new java.net.InetSocketAddress(host, port.toInt)
+                case Array(host, port) => HostWithPort(host, port.toInt)
                 case _                 => throw new FatalError("Invalid bootstrap address")
               }
 

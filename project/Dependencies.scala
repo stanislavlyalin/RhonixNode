@@ -93,6 +93,9 @@ object Dependencies {
   // Reflection
   def scalaReflect(scalaVersion: String): ModuleID = "org.scala-lang" % "scala-reflect" % scalaVersion
 
+  // Typeclass derivation
+  val magnolia1 = "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.8"
+
   // Config
   val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.4"
 

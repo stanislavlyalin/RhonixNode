@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sdk.api.*
 import sdk.api.data.TokenTransferRequest
-import sdk.codecs.Digest
+import sdk.serialize.auto.*
 import Hashing.*
 
 class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {
@@ -54,7 +54,7 @@ class TokenTransferValidationSpec extends AnyFlatSpec with Matchers {
 
   private def makeRequestData: TokenTransferRequest = {
     val body       = TokenTransferRequest.Body(Array.empty[Byte], Array.empty[Byte], 0L, 1L, 0L)
-    val digest     = implicitly[Digest[TokenTransferRequest.Body]].digest(body).bytes
+    val digest     = Hashing.digest[TokenTransferRequest.Body].digest(body).bytes
     val sigAlgName = Node.SupportedECDSA.head._1
     val sigAlg     = Node.SupportedECDSA.head._2
     val (sec, pub) = sigAlg.newKeyPair

@@ -8,17 +8,15 @@ import node.rpc.syntax.all.grpcClientSyntax
 import node.rpc.{GrpcChannelsManager, GrpcClient, GrpcServer}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sdk.data.BalancesDeploy
+import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.primitive.ByteArray
-
-import java.net.InetSocketAddress
 
 class GrpcDslCommSpec extends AnyFlatSpec with Matchers {
 
   "Grpc server" should "correctly handle all comm protocol defined." in {
     val serverPort   = 4321
     val serverHost   = "localhost"
-    val serverSocket = new InetSocketAddress(serverHost, serverPort)
+    val serverSocket = HostWithPort(serverHost, serverPort)
 
     val srcMessage       = ByteArray(Array[Byte](1))
     val expectedResponse = false // false since true is default
@@ -27,11 +25,11 @@ class GrpcDslCommSpec extends AnyFlatSpec with Matchers {
       serverPort,
       (_, _) => expectedResponse.pure[IO],
       _ => none[Block.WithId[ByteArray, ByteArray, BalancesDeploy]].pure[IO],
-      _ => Seq.empty[ByteArray].pure[IO],
+      _ => List.empty[ByteArray].pure[IO],
     )
 
     val grpcCall = GrpcChannelsManager[IO].use { implicit ch =>
-      GrpcClient[IO].reportBlockHash(srcMessage, new InetSocketAddress("", 123), serverSocket)
+      GrpcClient[IO].reportBlockHash(srcMessage, HostWithPort("", 123), serverSocket)
     }
 
     grpcServer.use(_ => grpcCall.map(resp => resp shouldBe expectedResponse)).unsafeRunSync()

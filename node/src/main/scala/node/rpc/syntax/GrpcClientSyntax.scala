@@ -1,6 +1,5 @@
 package node.rpc.syntax
 
-import cats.data.Kleisli
 import cats.effect.Async
 import cats.syntax.all.*
 import cats.{Eval, Monad}
@@ -11,10 +10,9 @@ import node.rpc.{GrpcChannelsManager, GrpcClient, GrpcMethod}
 import sdk.api.{BlockEndpoint, BlockHashEndpoint, LatestBlocksEndpoint}
 import sdk.codecs.Serialize
 import sdk.comm.Peer
-import sdk.data.BalancesDeploy
+import sdk.data.{BalancesDeploy, HostWithPort}
 import sdk.primitive.ByteArray
-
-import java.net.InetSocketAddress
+import sdk.serialize.auto.*
 
 trait GrpcClientSyntax {
   implicit def grpcClientSyntax[F[_]](client: GrpcClient[F]): GrpcClientOps[F] = new GrpcClientOps[F](client)
@@ -26,53 +24,46 @@ final class GrpcClientOps[F[_]](private val client: GrpcClient[F]) extends AnyVa
   private def callMethod[Req, Resp](
     method: MethodDescriptor[Req, Resp],
     msg: Req,
-    InetSocketAddress: InetSocketAddress,
+    hostWithPort: HostWithPort,
   )(implicit
     channelsManager: GrpcChannelsManager[F],
     monadF: Monad[F],
-  ): F[Resp] = channelsManager.get(InetSocketAddress).flatMap(client.call(method, msg, _))
+  ): F[Resp] = channelsManager.get(hostWithPort).flatMap(client.call(method, msg, _))
 
-  private def callEndpoint[Req, Resp](endpoint: String, msg: Req, InetSocketAddress: InetSocketAddress)(implicit
+  private def callEndpoint[Req, Resp](endpoint: String, msg: Req, peerAddress: HostWithPort)(implicit
     F: Monad[F],
     gcm: GrpcChannelsManager[F],
     sA: Serialize[Eval, Req],
     sB: Serialize[Eval, Resp],
-  ): F[Resp] = callMethod[Req, Resp](GrpcMethod[Req, Resp](endpoint), msg, InetSocketAddress)
+  ): F[Resp] = callMethod[Req, Resp](GrpcMethod[Req, Resp](endpoint), msg, peerAddress)
 
-  def resolveBlock(hash: ByteArray, InetSocketAddress: InetSocketAddress)(implicit
+  def resolveBlock(hash: ByteArray, peerAddress: HostWithPort)(implicit
     F: Async[F],
     c: GrpcChannelsManager[F],
-  ): F[Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]] = {
-    import node.Serialization.*
+  ): F[Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]] =
     callEndpoint[ByteArray, Option[Block.WithId[ByteArray, ByteArray, BalancesDeploy]]](
       BlockEndpoint,
       hash,
-      InetSocketAddress,
+      peerAddress,
     )
-  }
 
-  def getLatestBlocks(InetSocketAddress: InetSocketAddress)(implicit
+  def getLatestBlocks(peerAddress: HostWithPort)(implicit
     F: Async[F],
     c: GrpcChannelsManager[F],
-  ): F[Seq[ByteArray]] = {
-    import node.Serialization.*
-    callEndpoint[Unit, Seq[ByteArray]](LatestBlocksEndpoint, (), InetSocketAddress)
-  }
+  ): F[List[ByteArray]] =
+    callEndpoint[Unit, List[ByteArray]](LatestBlocksEndpoint, (), peerAddress)
 
-  def reportBlockHash(hash: ByteArray, suggestedResolver: InetSocketAddress, InetSocketAddress: InetSocketAddress)(
-    implicit
+  def reportBlockHash(hash: ByteArray, suggestedResolver: HostWithPort, reportTo: HostWithPort)(implicit
     F: Async[F],
     c: GrpcChannelsManager[F],
-  ): F[Boolean] = {
-    import node.Serialization.*
-    callEndpoint[(ByteArray, InetSocketAddress), Boolean](
+  ): F[Boolean] =
+    callEndpoint[(ByteArray, HostWithPort), Boolean](
       BlockHashEndpoint,
       (hash, suggestedResolver),
-      InetSocketAddress,
+      reportTo,
     )
-  }
 
-  def broadcastBlockHash(hash: ByteArray, resolver: InetSocketAddress)(implicit
+  def broadcastBlockHash(hash: ByteArray, resolver: HostWithPort)(implicit
     F: Async[F],
     c: GrpcChannelsManager[F],
     peerManager: PeerTable[F, (String, Int), Peer],
@@ -80,7 +71,7 @@ final class GrpcClientOps[F[_]](private val client: GrpcClient[F]) extends AnyVa
     for {
       peers <- peerManager.all.map(_.values.filterNot(_.isSelf).toList)
       _     <- peers.traverse { peer =>
-                 val socket = new InetSocketAddress(peer.host, peer.port)
+                 val socket = HostWithPort(peer.host, peer.port)
                  reportBlockHash(hash, resolver, socket)
                }
     } yield ()
