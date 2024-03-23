@@ -25,6 +25,6 @@ package object web {
       .withHttpApp(HttpApp[F](service.orNotFound.run))
       .withIdleTimeout(1.seconds)
       .resource
-      .evalTap(_ => logDebugF(s"HTTP server started on port $httpPort."))
+      .evalTap(_ => logDebugF(s"HTTP server started on $host:$httpPort."))
   }
 }

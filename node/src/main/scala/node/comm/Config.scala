@@ -12,5 +12,5 @@ final case class Config(
 object Config {
 
   // Default config has an example value as a basis when filling config manually
-  val Default: Config = Config(List(Peer("host", port = 5555, isSelf = false, isValidator = true)))
+  val Default: Config = Config(List.empty[Peer])
 }

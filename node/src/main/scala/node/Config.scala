@@ -1,14 +1,8 @@
 package node
 
-import cats.effect.{Async, Resource, Sync}
-import cats.syntax.all.*
-import io.circe.parser.parse
-import io.circe.{Decoder, Encoder, Json}
-import sdk.reflect.{ClassesAsConfig, Description}
-import slick.api.SlickApi
+import sdk.reflect.Description
 
 import java.nio.file.Path
-import scala.concurrent.duration.Duration
 
 @Description("node")
 final case class Config(
