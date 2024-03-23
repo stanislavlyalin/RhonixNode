@@ -10,7 +10,7 @@ final case class Config(
   @Description("Throttle measurements of the value to specified rate.")
   meter: Duration = 1.second,
   @Description("InfluxDb credential: connection string.")
-  url: String = "localhost",
+  url: String = "https://us-east-1-1.aws.cloud2.influxdata.com",
   @Description("InfluxDb credential: organization.")
   org: String = "defaultOrg",
   @Description("InfluxDb credential: access token.")

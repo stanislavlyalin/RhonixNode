@@ -92,7 +92,7 @@ object NetworkSim extends IOApp {
           .traverse { case id -> idx =>
             val db: Resource[IO, Database] =
               SlickPgDatabase[IO](
-                _root_.db.Config.Default.copy(dbUrl = s"${_root_.db.Config.Default.dbUrl}_${idx + 1}"),
+                _root_.db.Config.Default.copy(url = s"${_root_.db.Config.Default.url}_${idx + 1}"),
               )
             // set empty peers so nodes do not broadcast blocks through grpc servers.
             // Simulation uses shared memory for this.
