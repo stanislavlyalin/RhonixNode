@@ -115,7 +115,7 @@ final case class DbApiImpl[F[_]: Sync: Span](sApi: SlickApi[F]) {
 
   def isBlockExist(id: ByteArray): F[Boolean] = sApi.isBlockExist(id)
 
-  def saveBalancesDeploy(d: BalancesDeploy): F[Unit] = sApi.deployInsert(
+  def saveBalancesDeploy(d: BalancesDeploy, ctx: TraceContext): F[Unit] = sApi.deployInsert(
     sdk.data.Deploy(
       sig = d.id,
       deployerPk = DeployerPkDefault,
@@ -125,6 +125,7 @@ final case class DbApiImpl[F[_]: Sync: Span](sApi: SlickApi[F]) {
       phloLimit = PhloLimitDefault,
       nonce = d.body.vabn,
     ),
+    ctx,
   )
 
   def readBalancesDeploy(id: ByteArray): F[Option[BalancesDeploy]] =

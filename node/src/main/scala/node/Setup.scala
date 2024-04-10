@@ -72,7 +72,7 @@ final case class Setup[F[_]](
 )
 
 object Setup {
-  private def database[F[_]: Async](dbDef: Resource[F, DatabaseDef]): Resource[F, SlickApi[F]] =
+  private def database[F[_]: Async: Parallel](dbDef: Resource[F, DatabaseDef]): Resource[F, SlickApi[F]] =
     dbDef.evalMap(x => SlickDb(x, PostgresProfile, new PostgresDialect).flatMap(SlickApi[F]))
 
   private def kvDiskStoreManager[F[_]: Async](dataDir: Path): Resource[F, KeyValueStoreManager[F]] =
